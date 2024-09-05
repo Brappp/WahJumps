@@ -45,6 +45,11 @@ namespace WahJumps.Windows
             RefreshData();
         }
 
+        public void ToggleVisibility()
+        {
+            IsOpen = !IsOpen;
+        }
+
         private void OnStatusUpdated(string message)
         {
             statusMessage = message;
@@ -81,9 +86,8 @@ namespace WahJumps.Windows
 
             if (ImGui.BeginTabBar("MainTabBar"))
             {
-                strangeHousingTab.Draw();
-
-                informationTab.Draw();
+                strangeHousingTab.Draw(); // Render StrangeHousingTab
+                informationTab.Draw();    // Render InformationTab
 
                 if (ImGui.BeginTabItem("Favorites"))
                 {
@@ -110,7 +114,7 @@ namespace WahJumps.Windows
             {
                 ImGui.BeginChild("FavoritesTable", new Vector2(0, 600), true, ImGuiWindowFlags.HorizontalScrollbar);
 
-                if (ImGui.BeginTable("FavoritesTable", 19, ImGuiTableFlags.RowBg | ImGuiTableFlags.Borders | ImGuiTableFlags.Resizable))
+                if (ImGui.BeginTable("FavoritesTable", 9, ImGuiTableFlags.RowBg | ImGuiTableFlags.Borders | ImGuiTableFlags.Resizable))
                 {
                     ImGui.TableSetupColumn("ID");
                     ImGui.TableSetupColumn("Rating");
@@ -118,18 +122,10 @@ namespace WahJumps.Windows
                     ImGui.TableSetupColumn("Builder");
                     ImGui.TableSetupColumn("World");
                     ImGui.TableSetupColumn("Address");
-                    ImGui.TableSetupColumn("M");
-                    ImGui.TableSetupColumn("E");
-                    ImGui.TableSetupColumn("S");
-                    ImGui.TableSetupColumn("P");
-                    ImGui.TableSetupColumn("V");
-                    ImGui.TableSetupColumn("J");
-                    ImGui.TableSetupColumn("G");
-                    ImGui.TableSetupColumn("L");
-                    ImGui.TableSetupColumn("X");
-                    ImGui.TableSetupColumn("Goals/Rules");
+                    ImGui.TableSetupColumn("Codes"); 
                     ImGui.TableSetupColumn("Remove from Favorites");
                     ImGui.TableSetupColumn("Travel");
+
                     ImGui.TableHeadersRow();
 
                     foreach (var row in favoritePuzzles)
@@ -154,35 +150,10 @@ namespace WahJumps.Windows
                         ImGui.TableNextColumn();
                         ImGui.Text(row.Address);
 
+                        // Merge Codes (M, E, S, P, V, J, G, L, X) into one column
                         ImGui.TableNextColumn();
-                        ImGui.Text(row.M);
-
-                        ImGui.TableNextColumn();
-                        ImGui.Text(row.E);
-
-                        ImGui.TableNextColumn();
-                        ImGui.Text(row.S);
-
-                        ImGui.TableNextColumn();
-                        ImGui.Text(row.P);
-
-                        ImGui.TableNextColumn();
-                        ImGui.Text(row.V);
-
-                        ImGui.TableNextColumn();
-                        ImGui.Text(row.J);
-
-                        ImGui.TableNextColumn();
-                        ImGui.Text(row.G);
-
-                        ImGui.TableNextColumn();
-                        ImGui.Text(row.L);
-
-                        ImGui.TableNextColumn();
-                        ImGui.Text(row.X);
-
-                        ImGui.TableNextColumn();
-                        ImGui.TextWrapped(row.GoalsOrRules);
+                        string combinedCodes = CombineCodes(row.M, row.E, row.S, row.P, row.V, row.J, row.G, row.L, row.X);
+                        ImGui.Text(combinedCodes);
 
                         // Remove from Favorites Button
                         ImGui.TableNextColumn();
@@ -234,7 +205,7 @@ namespace WahJumps.Windows
         {
             if (csvData.Count > 0)
             {
-                if (ImGui.BeginTable("CSVData", 19, ImGuiTableFlags.RowBg | ImGuiTableFlags.Borders | ImGuiTableFlags.Resizable | ImGuiTableFlags.ScrollY))
+                if (ImGui.BeginTable("CSVData", 9, ImGuiTableFlags.RowBg | ImGuiTableFlags.Borders | ImGuiTableFlags.Resizable | ImGuiTableFlags.ScrollY))
                 {
                     ImGui.TableSetupColumn("ID");
                     ImGui.TableSetupColumn("Rating");
@@ -242,18 +213,10 @@ namespace WahJumps.Windows
                     ImGui.TableSetupColumn("Builder");
                     ImGui.TableSetupColumn("World");
                     ImGui.TableSetupColumn("Address");
-                    ImGui.TableSetupColumn("M");
-                    ImGui.TableSetupColumn("E");
-                    ImGui.TableSetupColumn("S");
-                    ImGui.TableSetupColumn("P");
-                    ImGui.TableSetupColumn("V");
-                    ImGui.TableSetupColumn("J");
-                    ImGui.TableSetupColumn("G");
-                    ImGui.TableSetupColumn("L");
-                    ImGui.TableSetupColumn("X");
-                    ImGui.TableSetupColumn("Goals/Rules");
+                    ImGui.TableSetupColumn("Codes"); 
                     ImGui.TableSetupColumn("Add to Favorites");
                     ImGui.TableSetupColumn("Travel");
+
                     ImGui.TableHeadersRow();
 
                     foreach (var row in csvData)
@@ -278,35 +241,10 @@ namespace WahJumps.Windows
                         ImGui.TableNextColumn();
                         ImGui.Text(row.Address);
 
+                        // Merge Codes (M, E, S, P, V, J, G, L, X) into one column
                         ImGui.TableNextColumn();
-                        ImGui.Text(row.M);
-
-                        ImGui.TableNextColumn();
-                        ImGui.Text(row.E);
-
-                        ImGui.TableNextColumn();
-                        ImGui.Text(row.S);
-
-                        ImGui.TableNextColumn();
-                        ImGui.Text(row.P);
-
-                        ImGui.TableNextColumn();
-                        ImGui.Text(row.V);
-
-                        ImGui.TableNextColumn();
-                        ImGui.Text(row.J);
-
-                        ImGui.TableNextColumn();
-                        ImGui.Text(row.G);
-
-                        ImGui.TableNextColumn();
-                        ImGui.Text(row.L);
-
-                        ImGui.TableNextColumn();
-                        ImGui.Text(row.X);
-
-                        ImGui.TableNextColumn();
-                        ImGui.TextWrapped(row.GoalsOrRules);
+                        string combinedCodes = CombineCodes(row.M, row.E, row.S, row.P, row.V, row.J, row.G, row.L, row.X);
+                        ImGui.Text(combinedCodes);
 
                         // Add to Favorites Button
                         ImGui.TableNextColumn();
@@ -331,6 +269,22 @@ namespace WahJumps.Windows
             {
                 ImGui.Text("No data available for this rating.");
             }
+        }
+
+        // Helper function to combine codes into a single string
+        private string CombineCodes(params string[] codes)
+        {
+            List<string> combinedCodes = new List<string>();
+
+            foreach (var code in codes)
+            {
+                if (!string.IsNullOrEmpty(code))
+                {
+                    combinedCodes.Add(code);
+                }
+            }
+
+            return string.Join(", ", combinedCodes);
         }
 
         private string FormatTravelCommand(JumpPuzzleData row)
@@ -361,18 +315,10 @@ namespace WahJumps.Windows
             Plugin.ChatGui.Print(message);
         }
 
-        private int ConvertRatingToInt(string rating)
+        public void Dispose()
         {
-            if (string.IsNullOrEmpty(rating)) return 0;
-            return rating.Length;
-        }
-
-        private void RefreshData()
-        {
-            csvManager.DeleteExistingCsvs();
-            csvManager.DownloadAndSaveIndividualCsvsAsync();
-            statusMessage = "Refreshing data...";
-            isReady = false;
+            csvManager.StatusUpdated -= OnStatusUpdated;
+            csvManager.CsvProcessingCompleted -= OnCsvProcessingCompleted;
         }
 
         private List<JumpPuzzleData> LoadFavorites()
@@ -480,15 +426,18 @@ namespace WahJumps.Windows
             }
         }
 
-        public void Dispose()
+        private int ConvertRatingToInt(string rating)
         {
-            csvManager.StatusUpdated -= OnStatusUpdated;
-            csvManager.CsvProcessingCompleted -= OnCsvProcessingCompleted;
+            if (string.IsNullOrEmpty(rating)) return 0;
+            return rating.Length;
         }
 
-        public void ToggleVisibility()
+        private void RefreshData()
         {
-            IsOpen = !IsOpen;
+            csvManager.DeleteExistingCsvs();
+            csvManager.DownloadAndSaveIndividualCsvsAsync();
+            statusMessage = "Refreshing data...";
+            isReady = false;
         }
     }
 }
