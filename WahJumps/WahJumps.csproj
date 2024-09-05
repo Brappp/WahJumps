@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <Project Sdk="Microsoft.NET.Sdk">
+  
   <Import Project="Dalamud.Plugin.Bootstrap.targets" />
 
   <PropertyGroup>
@@ -8,6 +9,9 @@
     <PackageProjectUrl>https://github.com/Brappp/WahJumps</PackageProjectUrl>
     <PackageLicenseExpression>AGPL-3.0-or-later</PackageLicenseExpression>
     <IsPackable>false</IsPackable>
+    
+    <!-- Specify the target framework -->
+    <TargetFramework>net8.0</TargetFramework> <!-- You can use net6.0 if your project needs it -->
   </PropertyGroup>
 
   <ItemGroup>
@@ -20,4 +24,5 @@
   <ItemGroup>
     <PackageReference Include="CsvHelper" Version="33.0.1" />
   </ItemGroup>
+
 </Project>
