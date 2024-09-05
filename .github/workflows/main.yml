@@ -1,0 +1,51 @@
+name: Weekly CSV Update and Plugin Build
+
+# Schedule the workflow to run weekly
+on:
+  schedule:
+    - cron: '0 0 * * 1'  # Runs at midnight UTC every Monday
+
+jobs:
+  update-csv-and-build:
+    runs-on: windows-latest  # Since you're using a Windows path, we'll use a Windows runner
+
+    steps:
+      # Checkout the repository
+      - name: Checkout repository
+        uses: actions/checkout@v2
+
+      # Download CSV files and save them into the plugin's output directory
+      - name: Download CSVs
+        run: |
+          mkdir -p WahJumps/Data/CSV
+          
+          # NA Data Centers
+          curl -L "https://docs.google.com/spreadsheets/d/1DyOqqECaNuAEntBxwv2NQ7p5rTrC1tDN9hHpcI_PNs4/export?format=csv&gid=82382952" -o WahJumps/Data/CSV/aether_cleaned.csv
+          curl -L "https://docs.google.com/spreadsheets/d/1DyOqqECaNuAEntBxwv2NQ7p5rTrC1tDN9hHpcI_PNs4/export?format=csv&gid=1186977950" -o WahJumps/Data/CSV/primal_cleaned.csv
+          curl -L "https://docs.google.com/spreadsheets/d/1DyOqqECaNuAEntBxwv2NQ7p5rTrC1tDN9hHpcI_PNs4/export?format=csv&gid=350373672" -o WahJumps/Data/CSV/crystal_cleaned.csv
+          curl -L "https://docs.google.com/spreadsheets/d/1DyOqqECaNuAEntBxwv2NQ7p5rTrC1tDN9hHpcI_PNs4/export?format=csv&gid=1383994086" -o WahJumps/Data/CSV/dynamis_cleaned.csv
+          
+          # EU Data Centers
+          curl -L "https://docs.google.com/spreadsheets/d/1DyOqqECaNuAEntBxwv2NQ7p5rTrC1tDN9hHpcI_PNs4/export?format=csv&gid=1339692877" -o WahJumps/Data/CSV/chaos_cleaned.csv
+          curl -L "https://docs.google.com/spreadsheets/d/1DyOqqECaNuAEntBxwv2NQ7p5rTrC1tDN9hHpcI_PNs4/export?format=csv&gid=175977131" -o WahJumps/Data/CSV/light_cleaned.csv
+          
+          # OCE Data Centers
+          curl -L "https://docs.google.com/spreadsheets/d/1DyOqqECaNuAEntBxwv2NQ7p5rTrC1tDN9hHpcI_PNs4/export?format=csv&gid=874557131" -o WahJumps/Data/CSV/materia_cleaned.csv
+          
+          # JP Data Centers
+          curl -L "https://docs.google.com/spreadsheets/d/1DyOqqECaNuAEntBxwv2NQ7p5rTrC1tDN9hHpcI_PNs4/export?format=csv&gid=1856583868" -o WahJumps/Data/CSV/elemental_cleaned.csv
+          curl -L "https://docs.google.com/spreadsheets/d/1DyOqqECaNuAEntBxwv2NQ7p5rTrC1tDN9hHpcI_PNs4/export?format=csv&gid=1822506732" -o WahJumps/Data/CSV/gaia_cleaned.csv
+          curl -L "https://docs.google.com/spreadsheets/d/1DyOqqECaNuAEntBxwv2NQ7p5rTrC1tDN9hHpcI_PNs4/export?format=csv&gid=1045300014" -o WahJumps/Data/CSV/mana_cleaned.csv
+          curl -L "https://docs.google.com/spreadsheets/d/1DyOqqECaNuAEntBxwv2NQ7p5rTrC1tDN9hHpcI_PNs4/export?format=csv&gid=1643199164" -o WahJumps/Data/CSV/meteor_cleaned.csv
+
+      # Build the plugin
+      - name: Build plugin
+        run: |
+          dotnet build WahJumps.sln --configuration Debug
+
+      # Upload the built plugin as an artifact (optional)
+      - name: Upload built plugin
+        uses: actions/upload-artifact@v2
+        with:
+          name: WahJumpsPlugin
+          path: WahJumps/bin/x64/Debug/  # Correct path based on your build location
