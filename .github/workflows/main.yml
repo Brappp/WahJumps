@@ -1,4 +1,4 @@
-name: Weekly CSV Update
+name: Download CSV Files
 
 on:
   schedule:
@@ -11,7 +11,7 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4  # Update to latest version
 
       # Download CSV files using PowerShell's Invoke-WebRequest
       - name: Download CSVs
@@ -37,9 +37,9 @@ jobs:
           Invoke-WebRequest -Uri "https://docs.google.com/spreadsheets/d/1DyOqqECaNuAEntBxwv2NQ7p5rTrC1tDN9hHpcI_PNs4/export?format=csv&gid=1045300014" -OutFile "WahJumps/Data/CSV/mana_cleaned.csv"
           Invoke-WebRequest -Uri "https://docs.google.com/spreadsheets/d/1DyOqqECaNuAEntBxwv2NQ7p5rTrC1tDN9hHpcI_PNs4/export?format=csv&gid=1643199164" -OutFile "WahJumps/Data/CSV/meteor_cleaned.csv"
 
-      # Optionally, upload the downloaded CSVs as artifacts for inspection
+      # Upload the downloaded CSVs as an artifact
       - name: Upload CSVs
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v4  # Update to the latest version
         with:
           name: WahJumpsCSVs
-          path: WahJumps/Data/CSV/
+          path: WahJumps/Data/CSV  # Path where the CSVs are downloaded
