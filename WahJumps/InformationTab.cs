@@ -12,9 +12,9 @@ namespace WahJumps.Windows
                 // Difficulty Ratings Section
                 if (ImGui.CollapsingHeader("Difficulty Ratings: Setting General Expectations", ImGuiTreeNodeFlags.DefaultOpen))
                 {
-                    ImGui.PushStyleVar(ImGuiStyleVar.CellPadding, new Vector2(6, 6)); // Add some padding
+                    ImGui.PushStyleVar(ImGuiStyleVar.CellPadding, new Vector2(6, 6)); 
 
-                    ImGui.BeginChild("DifficultyRatingsScroll", new Vector2(0, 200), true, ImGuiWindowFlags.HorizontalScrollbar); // Enable scrolling
+                    ImGui.BeginChild("DifficultyRatingsScroll", new Vector2(0, 200), true, ImGuiWindowFlags.HorizontalScrollbar); 
                     if (ImGui.BeginTable("DifficultyRatingsTable", 4, ImGuiTableFlags.SizingStretchSame | ImGuiTableFlags.RowBg | ImGuiTableFlags.Borders))
                     {
                         ImGui.TableSetupColumn("Rating");
@@ -36,7 +36,7 @@ namespace WahJumps.Windows
                         ImGui.EndTable();
                     }
                     ImGui.EndChild();
-                    ImGui.PopStyleVar(); // Reset padding
+                    ImGui.PopStyleVar(); 
                 }
 
                 ImGui.Separator();
@@ -44,9 +44,9 @@ namespace WahJumps.Windows
                 // Sub-type Keys Section
                 if (ImGui.CollapsingHeader("Sub-type Keys: Know What Skillset to Bring", ImGuiTreeNodeFlags.DefaultOpen))
                 {
-                    ImGui.PushStyleVar(ImGuiStyleVar.CellPadding, new Vector2(6, 6)); // Add padding
+                    ImGui.PushStyleVar(ImGuiStyleVar.CellPadding, new Vector2(6, 6)); 
 
-                    ImGui.BeginChild("SubTypeKeysScroll", new Vector2(0, 200), true, ImGuiWindowFlags.HorizontalScrollbar); // Enable scrolling
+                    ImGui.BeginChild("SubTypeKeysScroll", new Vector2(0, 200), true, ImGuiWindowFlags.HorizontalScrollbar); 
                     if (ImGui.BeginTable("SubTypeKeysTable", 3, ImGuiTableFlags.SizingStretchSame | ImGuiTableFlags.RowBg | ImGuiTableFlags.Borders))
                     {
                         ImGui.TableSetupColumn("Code");
@@ -68,7 +68,7 @@ namespace WahJumps.Windows
                         ImGui.EndTable();
                     }
                     ImGui.EndChild();
-                    ImGui.PopStyleVar(); // Reset padding
+                    ImGui.PopStyleVar(); 
                 }
 
                 ImGui.Separator();
@@ -76,9 +76,9 @@ namespace WahJumps.Windows
                 // Other Information Section
                 if (ImGui.CollapsingHeader("Other Information", ImGuiTreeNodeFlags.DefaultOpen))
                 {
-                    ImGui.PushStyleVar(ImGuiStyleVar.CellPadding, new Vector2(6, 6)); // Add padding
+                    ImGui.PushStyleVar(ImGuiStyleVar.CellPadding, new Vector2(6, 6)); 
 
-                    ImGui.BeginChild("OtherInfoScroll", new Vector2(0, 200), true, ImGuiWindowFlags.HorizontalScrollbar); // Enable scrolling
+                    ImGui.BeginChild("OtherInfoScroll", new Vector2(0, 200), true, ImGuiWindowFlags.HorizontalScrollbar); 
                     if (ImGui.BeginTable("OtherInfoTable", 2, ImGuiTableFlags.SizingStretchSame | ImGuiTableFlags.RowBg | ImGuiTableFlags.Borders))
                     {
                         ImGui.TableSetupColumn("Term");
@@ -98,7 +98,7 @@ namespace WahJumps.Windows
                         ImGui.EndTable();
                     }
                     ImGui.EndChild();
-                    ImGui.PopStyleVar(); // Reset padding
+                    ImGui.PopStyleVar(); 
                 }
 
                 ImGui.Separator();
@@ -106,9 +106,9 @@ namespace WahJumps.Windows
                 // Puzzle Accessibility Section
                 if (ImGui.CollapsingHeader("Puzzle Accessibility", ImGuiTreeNodeFlags.DefaultOpen))
                 {
-                    ImGui.PushStyleVar(ImGuiStyleVar.CellPadding, new Vector2(6, 6)); // Add padding
+                    ImGui.PushStyleVar(ImGuiStyleVar.CellPadding, new Vector2(6, 6));
 
-                    ImGui.BeginChild("PuzzleAccessibilityScroll", new Vector2(0, 200), true, ImGuiWindowFlags.HorizontalScrollbar); // Enable scrolling
+                    ImGui.BeginChild("PuzzleAccessibilityScroll", new Vector2(0, 200), true, ImGuiWindowFlags.HorizontalScrollbar); 
                     if (ImGui.BeginTable("PuzzleAccessibilityTable", 2, ImGuiTableFlags.SizingStretchSame | ImGuiTableFlags.RowBg | ImGuiTableFlags.Borders))
                     {
                         ImGui.TableSetupColumn("District");
@@ -126,7 +126,7 @@ namespace WahJumps.Windows
                         ImGui.EndTable();
                     }
                     ImGui.EndChild();
-                    ImGui.PopStyleVar(); // Reset padding
+                    ImGui.PopStyleVar();
                 }
 
                 ImGui.EndTabItem();

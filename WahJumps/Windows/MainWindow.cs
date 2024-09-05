@@ -81,20 +81,16 @@ namespace WahJumps.Windows
 
             if (ImGui.BeginTabBar("MainTabBar"))
             {
-                // Render the Strange Housing Tab
                 strangeHousingTab.Draw();
 
-                // Render the Information Tab
                 informationTab.Draw();
 
-                // Render the Favorites Tab
                 if (ImGui.BeginTabItem("Favorites"))
                 {
                     DrawFavoriteTab();
                     ImGui.EndTabItem();
                 }
 
-                // Render the server tabs (Data Centers)
                 foreach (var dataCenter in csvDataByDataCenter)
                 {
                     if (ImGui.BeginTabItem(dataCenter.Key))
