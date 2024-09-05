@@ -1,4 +1,4 @@
-name: Weekly CSV Update and Plugin Build
+name: Weekly CSV Update
 
 on:
   schedule:
@@ -6,8 +6,8 @@ on:
   workflow_dispatch:      # This enables manual runs
 
 jobs:
-  update-csv-and-build:
-    runs-on: windows-latest  
+  download-csvs:
+    runs-on: windows-latest
 
     steps:
       - name: Checkout repository
@@ -37,14 +37,9 @@ jobs:
           Invoke-WebRequest -Uri "https://docs.google.com/spreadsheets/d/1DyOqqECaNuAEntBxwv2NQ7p5rTrC1tDN9hHpcI_PNs4/export?format=csv&gid=1045300014" -OutFile "WahJumps/Data/CSV/mana_cleaned.csv"
           Invoke-WebRequest -Uri "https://docs.google.com/spreadsheets/d/1DyOqqECaNuAEntBxwv2NQ7p5rTrC1tDN9hHpcI_PNs4/export?format=csv&gid=1643199164" -OutFile "WahJumps/Data/CSV/meteor_cleaned.csv"
 
-      # Build the plugin
-      - name: Build plugin
-        run: |
-          dotnet build WahJumps.sln --configuration Debug
-
-      # Upload the built plugin
-      - name: Upload built plugin
+      # Optionally, upload the downloaded CSVs as artifacts for inspection
+      - name: Upload CSVs
         uses: actions/upload-artifact@v2
         with:
-          name: WahJumpsPlugin
-          path: WahJumps/bin/x64/Debug/  # Correct path based on your build location
+          name: WahJumpsCSVs
+          path: WahJumps/Data/CSV/
