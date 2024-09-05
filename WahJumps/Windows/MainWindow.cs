@@ -456,24 +456,31 @@ namespace WahJumps.Windows
 
             if (address.Contains("Room"))
             {
-                // For FC rooms, remove everything after "Room" and only travel to the Plot
+                // For FC room, only travel to the Plot
                 address = address.Split("Room")[0].Trim();
             }
             else if (address.Contains("Apartment"))
             {
-                // For Apartments, remove everything after "Apartment" and just travel to the apartment building
-                address = address.Split("Apartment")[0].Trim();
-            }
-            else
-            {
-                // If neither "Room" nor "Apartment" is found, assume it's a personal plot and use the full address
-                address = row.Address;
+                // For Apartments, remove the wing but keep the apartment number
+                var parts = address.Split("Apartment");
+                var apartmentPart = parts[1].Trim();  // Keep the apartment number
+                address = parts[0].Split("Wing")[0].Trim();  // Keep the building part, ignore the wing
+
+                // Rebuild the address, appending "Apartment" and the apartment number
+                address = $"{address} Apartment {apartmentPart}";
             }
 
-            // Return the formatted travel command
+            // Display the travel information in the chat
+            DisplayTravelMessage(world, address);
+
             return $"/travel {world} {address}";
         }
 
+        private void DisplayTravelMessage(string world, string address)
+        {
+            var message = $"[WahJumps] Traveling to: {world} {address}";
+            Plugin.ChatGui.Print(message);
+        }
 
         private int ConvertRatingToInt(string rating)
         {
