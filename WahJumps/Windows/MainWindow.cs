@@ -289,25 +289,47 @@ namespace WahJumps.Windows
 
         private string FormatTravelCommand(JumpPuzzleData row)
         {
-            var world = row.World;
-            var address = row.Address;
+            var world = row.World; // Example: Coeurl
+            var address = row.Address; // Example: Goblet Ward 4 Wing 2 Apartment 51
 
             if (address.Contains("Room"))
             {
+                // Handle FC room, just remove the room information
                 address = address.Split("Room")[0].Trim();
             }
             else if (address.Contains("Apartment"))
             {
+                // Split the address for apartment cases
                 var parts = address.Split("Apartment");
-                var apartmentPart = parts[1].Trim();
-                address = parts[0].Split("Wing")[0].Trim();
-                address = $"{address} Apartment {apartmentPart}";
+                var apartmentPart = parts[1].Trim();  // Extract the apartment number
+                address = parts[0].Trim();  // Keep the ward and wing part
+
+                // Handle Wing logic for subdivisions
+                if (address.Contains("Wing 2"))
+                {
+                    // Replace Wing 2 with "subdivision"
+                    address = address.Replace("Wing 2", "subdivision").Trim();
+                    address = $"{address} Apartment {apartmentPart}";
+                }
+                else if (address.Contains("Wing 1"))
+                {
+                    // Remove "Wing 1" (it can be ignored)
+                    address = address.Replace("Wing 1", "").Trim();
+                    address = $"{address} Apartment {apartmentPart}";
+                }
+                else
+                {
+                    // No wings, keep it simple
+                    address = $"{address} Apartment {apartmentPart}";
+                }
             }
 
-            DisplayTravelMessage(world, address);
+            DisplayTravelMessage(world, address);  // Display travel message
 
+            // Return the formatted command
             return $"/travel {world} {address}";
         }
+
 
         private void DisplayTravelMessage(string world, string address)
         {
