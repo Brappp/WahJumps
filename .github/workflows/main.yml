@@ -10,33 +10,41 @@ jobs:
     runs-on: windows-latest  
 
     steps:
-      # Setup .NET 8.0 (or adjust if you use .NET 7.0)
-      - name: Setup .NET Core
-        uses: actions/setup-dotnet@v3
-        with:
-          dotnet-version: '8.0.x'  # Ensure this matches your project's target framework
-
       - name: Checkout repository
         uses: actions/checkout@v2
 
+      # Download CSV files using PowerShell's Invoke-WebRequest
       - name: Download CSVs
         run: |
           mkdir -p WahJumps/Data/CSV
-          
+
           # NA Data Centers
-          curl -L "https://docs.google.com/spreadsheets/d/1DyOqqECaNuAEntBxwv2NQ7p5rTrC1tDN9hHpcI_PNs4/export?format=csv&gid=82382952" -o WahJumps/Data/CSV/aether_cleaned.csv
-          curl -L "https://docs.google.com/spreadsheets/d/1DyOqqECaNuAEntBxwv2NQ7p5rTrC1tDN9hHpcI_PNs4/export?format=csv&gid=1186977950" -o WahJumps/Data/CSV/primal_cleaned.csv
-          curl -L "https://docs.google.com/spreadsheets/d/1DyOqqECaNuAEntBxwv2NQ7p5rTrC1tDN9hHpcI_PNs4/export?format=csv&gid=350373672" -o WahJumps/Data/CSV/crystal_cleaned.csv
-          curl -L "https://docs.google.com/spreadsheets/d/1DyOqqECaNuAEntBxwv2NQ7p5rTrC1tDN9hHpcI_PNs4/export?format=csv&gid=1383994086" -o WahJumps/Data/CSV/dynamis_cleaned.csv
-          
+          Invoke-WebRequest -Uri "https://docs.google.com/spreadsheets/d/1DyOqqECaNuAEntBxwv2NQ7p5rTrC1tDN9hHpcI_PNs4/export?format=csv&gid=82382952" -OutFile "WahJumps/Data/CSV/aether_cleaned.csv"
+          Invoke-WebRequest -Uri "https://docs.google.com/spreadsheets/d/1DyOqqECaNuAEntBxwv2NQ7p5rTrC1tDN9hHpcI_PNs4/export?format=csv&gid=1186977950" -OutFile "WahJumps/Data/CSV/primal_cleaned.csv"
+          Invoke-WebRequest -Uri "https://docs.google.com/spreadsheets/d/1DyOqqECaNuAEntBxwv2NQ7p5rTrC1tDN9hHpcI_PNs4/export?format=csv&gid=350373672" -OutFile "WahJumps/Data/CSV/crystal_cleaned.csv"
+          Invoke-WebRequest -Uri "https://docs.google.com/spreadsheets/d/1DyOqqECaNuAEntBxwv2NQ7p5rTrC1tDN9hHpcI_PNs4/export?format=csv&gid=1383994086" -OutFile "WahJumps/Data/CSV/dynamis_cleaned.csv"
+
           # EU Data Centers
-          curl -L "https://docs.google.com/spreadsheets/d/1DyOqqECaNuAEntBxwv2NQ7p5rTrC1tDN9hHpcI_PNs4/export?format=csv&gid=1339692877" -o WahJumps/Data/CSV/chaos_cleaned.csv
-          curl -L "https://docs.google.com/spreadsheets/d/1DyOqqECaNuAEntBxwv2NQ7p5rTrC1tDN9hHpcI_PNs4/export?format=csv&gid=175977131" -o WahJumps/Data/CSV/light_cleaned.csv
-          
+          Invoke-WebRequest -Uri "https://docs.google.com/spreadsheets/d/1DyOqqECaNuAEntBxwv2NQ7p5rTrC1tDN9hHpcI_PNs4/export?format=csv&gid=1339692877" -OutFile "WahJumps/Data/CSV/chaos_cleaned.csv"
+          Invoke-WebRequest -Uri "https://docs.google.com/spreadsheets/d/1DyOqqECaNuAEntBxwv2NQ7p5rTrC1tDN9hHpcI_PNs4/export?format=csv&gid=175977131" -OutFile "WahJumps/Data/CSV/light_cleaned.csv"
+
           # OCE Data Center
-          curl -L "https://docs.google.com/spreadsheets/d/1DyOqqECaNuAEntBxwv2NQ7p5rTrC1tDN9hHpcI_PNs4/export?format=csv&gid=874557131" -o WahJumps/Data/CSV/materia_cleaned.csv
-          
+          Invoke-WebRequest -Uri "https://docs.google.com/spreadsheets/d/1DyOqqECaNuAEntBxwv2NQ7p5rTrC1tDN9hHpcI_PNs4/export?format=csv&gid=874557131" -OutFile "WahJumps/Data/CSV/materia_cleaned.csv"
+
           # JP Data Centers
-          curl -L "https://docs.google.com/spreadsheets/d/1DyOqqECaNuAEntBxwv2NQ7p5rTrC1tDN9hHpcI_PNs4/export?format=csv&gid=1856583868" -o WahJumps/Data/CSV/elemental_cleaned.csv
-          curl -L "https://docs.google.com/spreadsheets/d/1DyOqqECaNuAEntBxwv2NQ7p5rTrC1tDN9hHpcI_PNs4/export?format=csv&gid=1822506732" -o WahJumps/Data/CSV/gaia_cleaned.csv
-          curl -L "https://docs.google.com/spreadsheets/d/1DyOqqECaNuAEntBxwv2NQ7p5rTrC1tDN9hHpcI_PNs4/export?format=csv&
+          Invoke-WebRequest -Uri "https://docs.google.com/spreadsheets/d/1DyOqqECaNuAEntBxwv2NQ7p5rTrC1tDN9hHpcI_PNs4/export?format=csv&gid=1856583868" -OutFile "WahJumps/Data/CSV/elemental_cleaned.csv"
+          Invoke-WebRequest -Uri "https://docs.google.com/spreadsheets/d/1DyOqqECaNuAEntBxwv2NQ7p5rTrC1tDN9hHpcI_PNs4/export?format=csv&gid=1822506732" -OutFile "WahJumps/Data/CSV/gaia_cleaned.csv"
+          Invoke-WebRequest -Uri "https://docs.google.com/spreadsheets/d/1DyOqqECaNuAEntBxwv2NQ7p5rTrC1tDN9hHpcI_PNs4/export?format=csv&gid=1045300014" -OutFile "WahJumps/Data/CSV/mana_cleaned.csv"
+          Invoke-WebRequest -Uri "https://docs.google.com/spreadsheets/d/1DyOqqECaNuAEntBxwv2NQ7p5rTrC1tDN9hHpcI_PNs4/export?format=csv&gid=1643199164" -OutFile "WahJumps/Data/CSV/meteor_cleaned.csv"
+
+      # Build the plugin
+      - name: Build plugin
+        run: |
+          dotnet build WahJumps.sln --configuration Debug
+
+      # Upload the built plugin
+      - name: Upload built plugin
+        uses: actions/upload-artifact@v2
+        with:
+          name: WahJumpsPlugin
+          path: WahJumps/bin/x64/Debug/  # Correct path based on your build location
