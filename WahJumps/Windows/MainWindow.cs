@@ -15,18 +15,20 @@ namespace WahJumps.Windows
     public class MainWindow : Window, IDisposable
     {
         private readonly CsvManager csvManager;
+        private readonly LifestreamIpcHandler lifestreamIpcHandler;
         private Dictionary<string, List<JumpPuzzleData>> csvDataByDataCenter;
         private List<JumpPuzzleData> favoritePuzzles;
-        private string statusMessage;  // To hold the status message
+        private string statusMessage;  
         private bool isReady;  // To track when all CSVs are ready
         private bool isFirstRender = true; // To check if the window has been rendered before
         private DateTime lastRefreshDate;  // To track the last refresh date
         private string favoritesFilePath;  // Path for storing favorite puzzles
 
-        public MainWindow(CsvManager csvManager)
+        public MainWindow(CsvManager csvManager, LifestreamIpcHandler lifestreamIpcHandler)
             : base("WahJumps", ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoScrollWithMouse)
         {
             this.csvManager = csvManager;
+            this.lifestreamIpcHandler = lifestreamIpcHandler;
             csvDataByDataCenter = new Dictionary<string, List<JumpPuzzleData>>();
             favoritesFilePath = Path.Combine(csvManager.CsvDirectoryPath, "favorites.json");
             favoritePuzzles = LoadFavorites();
@@ -47,8 +49,8 @@ namespace WahJumps.Windows
 
         private void OnCsvProcessingCompleted()
         {
-            statusMessage = "Ready";  
-            isReady = true;  
+            statusMessage = "Ready";
+            isReady = true;
             // Load CSV data and refresh the UI
             LoadCsvData();
         }
@@ -218,7 +220,7 @@ namespace WahJumps.Windows
             {
                 ImGui.BeginChild("FavoritesTable", new Vector2(0, 600), true, ImGuiWindowFlags.HorizontalScrollbar);
 
-                if (ImGui.BeginTable("FavoritesTable", 18, ImGuiTableFlags.RowBg | ImGuiTableFlags.Borders | ImGuiTableFlags.Resizable))
+                if (ImGui.BeginTable("FavoritesTable", 19, ImGuiTableFlags.RowBg | ImGuiTableFlags.Borders | ImGuiTableFlags.Resizable))
                 {
                     // Define table headers
                     ImGui.TableSetupColumn("ID");
@@ -238,6 +240,7 @@ namespace WahJumps.Windows
                     ImGui.TableSetupColumn("X");
                     ImGui.TableSetupColumn("Goals/Rules");
                     ImGui.TableSetupColumn("Remove from Favorites");
+                    ImGui.TableSetupColumn("Travel");
                     ImGui.TableHeadersRow();
 
                     foreach (var row in favoritePuzzles)
@@ -257,6 +260,7 @@ namespace WahJumps.Windows
                         ImGui.Text(row.Builder);
 
                         ImGui.TableNextColumn();
+                        ImGui.Text(row.World);
                         ImGui.Text(row.World);
 
                         ImGui.TableNextColumn();
@@ -292,10 +296,19 @@ namespace WahJumps.Windows
                         ImGui.TableNextColumn();
                         ImGui.TextWrapped(row.GoalsOrRules);
 
+                        // Remove from Favorites Button
                         ImGui.TableNextColumn();
                         if (ImGui.Button($"Remove##{row.Id}"))
                         {
                             RemoveFromFavorites(row);
+                        }
+
+                        // Travel Button
+                        ImGui.TableNextColumn();
+                        if (ImGui.Button($"Travel##{row.Id}"))
+                        {
+                            var travelCommand = FormatTravelCommand(row);
+                            lifestreamIpcHandler.ExecuteLiCommand(travelCommand);
                         }
                     }
 
@@ -332,12 +345,10 @@ namespace WahJumps.Windows
 
         private void DrawJumpPuzzlesTab(List<JumpPuzzleData> csvData)
         {
-            // Ensure we have data
             if (csvData.Count > 0)
             {
-                if (ImGui.BeginTable("CSVData", 18, ImGuiTableFlags.RowBg | ImGuiTableFlags.Borders | ImGuiTableFlags.Resizable | ImGuiTableFlags.ScrollY))
+                if (ImGui.BeginTable("CSVData", 19, ImGuiTableFlags.RowBg | ImGuiTableFlags.Borders | ImGuiTableFlags.Resizable | ImGuiTableFlags.ScrollY))
                 {
-                    // Define table headers
                     ImGui.TableSetupColumn("ID");
                     ImGui.TableSetupColumn("Rating");
                     ImGui.TableSetupColumn("Puzzle Name");
@@ -355,6 +366,7 @@ namespace WahJumps.Windows
                     ImGui.TableSetupColumn("X");
                     ImGui.TableSetupColumn("Goals/Rules");
                     ImGui.TableSetupColumn("Add to Favorites");
+                    ImGui.TableSetupColumn("Travel");
                     ImGui.TableHeadersRow();
 
                     foreach (var row in csvData)
@@ -409,10 +421,19 @@ namespace WahJumps.Windows
                         ImGui.TableNextColumn();
                         ImGui.TextWrapped(row.GoalsOrRules);
 
+                        // Add to Favorites Button
                         ImGui.TableNextColumn();
                         if (ImGui.Button($"Add##{row.Id}"))
                         {
                             AddToFavorites(row);
+                        }
+
+                        // Travel Button
+                        ImGui.TableNextColumn();
+                        if (ImGui.Button($"Travel##{row.Id}"))
+                        {
+                            var travelCommand = FormatTravelCommand(row);
+                            lifestreamIpcHandler.ExecuteLiCommand(travelCommand);
                         }
                     }
 
@@ -425,11 +446,40 @@ namespace WahJumps.Windows
             }
         }
 
+        private string FormatTravelCommand(JumpPuzzleData row)
+        {
+            // Get the server name from the World header
+            var world = row.World;
+
+            // Process the Address column based on its format
+            var address = row.Address;
+
+            if (address.Contains("Room"))
+            {
+                // For FC rooms, remove everything after "Room" and only travel to the Plot
+                address = address.Split("Room")[0].Trim();
+            }
+            else if (address.Contains("Apartment"))
+            {
+                // For Apartments, remove everything after "Apartment" and just travel to the apartment building
+                address = address.Split("Apartment")[0].Trim();
+            }
+            else
+            {
+                // If neither "Room" nor "Apartment" is found, assume it's a personal plot and use the full address
+                address = row.Address;
+            }
+
+            // Return the formatted travel command
+            return $"/travel {world} {address}";
+        }
+
+
         private int ConvertRatingToInt(string rating)
         {
             // Convert star ratings to numbers for sorting (★ = 1 star, ★★ = 2 stars, etc.)
             if (string.IsNullOrEmpty(rating)) return 0;
-            return rating.Length; // The length of the string determines the number of stars
+            return rating.Length; 
         }
 
         private void RefreshData()

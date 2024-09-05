@@ -7,8 +7,6 @@ using Dalamud.Interface.Windowing;
 using WahJumps.Handlers;
 using WahJumps.Windows;
 using System;
-using WahJumps.Logging; 
-using System.Threading.Tasks;
 
 namespace WahJumps
 {
@@ -31,19 +29,18 @@ namespace WahJumps
         {
             string outputDirectory = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "XIVLauncher", "pluginConfigs", "WahJumps");
 
-            CustomLogger.ClearLog();
-
             if (!Directory.Exists(outputDirectory))
             {
                 Directory.CreateDirectory(outputDirectory);
             }
 
-            CsvManager = new CsvManager(ChatGui, outputDirectory);
-            CsvManager.StatusUpdated += OnCsvStatusUpdated; 
-            MainWindow = new MainWindow(CsvManager);
+            // Pass PluginInterface to LifestreamIpcHandler
+            LifestreamIpcHandler = new LifestreamIpcHandler(PluginInterface);
 
-            // Trigger the download process
-            Task.Run(async () => await CsvManager.DownloadAndSaveIndividualCsvsAsync());
+            CsvManager = new CsvManager(ChatGui, outputDirectory);
+
+            // Pass both CsvManager and LifestreamIpcHandler to MainWindow
+            MainWindow = new MainWindow(CsvManager, LifestreamIpcHandler);
 
             WindowSystem.AddWindow(MainWindow);
 
@@ -57,16 +54,7 @@ namespace WahJumps
             PluginInterface.UiBuilder.OpenConfigUi += ToggleConfigUI;
         }
 
-        private void OnCsvStatusUpdated(string message)
-        {
-            CustomLogger.Log(message); 
-        }
-
-        private void ToggleConfigUI()
-        {
-            CustomLogger.Log("Config UI toggled");
-            MainWindow.Toggle();
-        }
+        private void ToggleConfigUI() => MainWindow.ToggleVisibility();
 
         public void Dispose()
         {
@@ -75,23 +63,10 @@ namespace WahJumps
             CommandManager.RemoveHandler(CommandName);
         }
 
-        private void OnCommand(string command, string args)
-        {
-            CustomLogger.Log($"Command received: {command}");
-            ToggleMainUI();
-        }
+        private void OnCommand(string command, string args) => ToggleMainUI();
 
-        private void DrawUI()
-        {
-            CustomLogger.Log("Drawing UI");
-            WindowSystem.Draw();
-        }
+        private void DrawUI() => WindowSystem.Draw();
 
-        public void ToggleMainUI()
-        {
-            CustomLogger.Log("Main window toggled");
-            MainWindow.Toggle();
-        }
-
+        public void ToggleMainUI() => MainWindow.ToggleVisibility();
     }
 }
