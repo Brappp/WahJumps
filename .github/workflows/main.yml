@@ -1,20 +1,21 @@
 name: Weekly CSV Update and Plugin Build
 
-# Schedule the workflow to run weekly
+
 on:
   schedule:
     - cron: '0 0 * * 1'  # Runs at midnight UTC every Monday
+  workflow_dispatch:      # This enables manual runs
 
 jobs:
   update-csv-and-build:
-    runs-on: windows-latest  # Since you're using a Windows path, we'll use a Windows runner
+    runs-on: windows-latest  
 
     steps:
-      # Checkout the repository
+ 
       - name: Checkout repository
         uses: actions/checkout@v2
 
-      # Download CSV files and save them into the plugin's output directory
+    
       - name: Download CSVs
         run: |
           mkdir -p WahJumps/Data/CSV
@@ -29,7 +30,7 @@ jobs:
           curl -L "https://docs.google.com/spreadsheets/d/1DyOqqECaNuAEntBxwv2NQ7p5rTrC1tDN9hHpcI_PNs4/export?format=csv&gid=1339692877" -o WahJumps/Data/CSV/chaos_cleaned.csv
           curl -L "https://docs.google.com/spreadsheets/d/1DyOqqECaNuAEntBxwv2NQ7p5rTrC1tDN9hHpcI_PNs4/export?format=csv&gid=175977131" -o WahJumps/Data/CSV/light_cleaned.csv
           
-          # OCE Data Centers
+          # OCE Data Center
           curl -L "https://docs.google.com/spreadsheets/d/1DyOqqECaNuAEntBxwv2NQ7p5rTrC1tDN9hHpcI_PNs4/export?format=csv&gid=874557131" -o WahJumps/Data/CSV/materia_cleaned.csv
           
           # JP Data Centers
@@ -43,7 +44,7 @@ jobs:
         run: |
           dotnet build WahJumps.sln --configuration Debug
 
-      # Upload the built plugin as an artifact (optional)
+
       - name: Upload built plugin
         uses: actions/upload-artifact@v2
         with:
