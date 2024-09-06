@@ -114,17 +114,18 @@ namespace WahJumps.Windows
             {
                 ImGui.BeginChild("FavoritesTable", new Vector2(0, 600), true, ImGuiWindowFlags.HorizontalScrollbar);
 
-                if (ImGui.BeginTable("FavoritesTable", 9, ImGuiTableFlags.RowBg | ImGuiTableFlags.Borders | ImGuiTableFlags.Resizable))
+                if (ImGui.BeginTable("FavoritesTable", 10, ImGuiTableFlags.RowBg | ImGuiTableFlags.Borders | ImGuiTableFlags.Resizable))
                 {
-                    ImGui.TableSetupColumn("ID");
-                    ImGui.TableSetupColumn("Rating");
-                    ImGui.TableSetupColumn("Puzzle Name");
-                    ImGui.TableSetupColumn("Builder");
-                    ImGui.TableSetupColumn("World");
-                    ImGui.TableSetupColumn("Address");
-                    ImGui.TableSetupColumn("Codes"); 
-                    ImGui.TableSetupColumn("Remove from Favorites");
-                    ImGui.TableSetupColumn("Travel");
+                    ImGui.TableSetupColumn("ID", ImGuiTableColumnFlags.WidthFixed);
+                    ImGui.TableSetupColumn("Rating", ImGuiTableColumnFlags.WidthFixed);
+                    ImGui.TableSetupColumn("Puzzle Name", ImGuiTableColumnFlags.WidthFixed);
+                    ImGui.TableSetupColumn("Builder", ImGuiTableColumnFlags.WidthFixed);
+                    ImGui.TableSetupColumn("World", ImGuiTableColumnFlags.WidthFixed);
+                    ImGui.TableSetupColumn("Address", ImGuiTableColumnFlags.WidthFixed);
+                    ImGui.TableSetupColumn("Codes", ImGuiTableColumnFlags.WidthFixed);
+                    ImGui.TableSetupColumn("GoalsOrRules", ImGuiTableColumnFlags.WidthFixed);
+                    ImGui.TableSetupColumn("Remove from Favorites", ImGuiTableColumnFlags.WidthFixed);
+                    ImGui.TableSetupColumn("Travel", ImGuiTableColumnFlags.WidthFixed);
 
                     ImGui.TableHeadersRow();
 
@@ -154,6 +155,9 @@ namespace WahJumps.Windows
                         ImGui.TableNextColumn();
                         string combinedCodes = CombineCodes(row.M, row.E, row.S, row.P, row.V, row.J, row.G, row.L, row.X);
                         ImGui.Text(combinedCodes);
+
+                        ImGui.TableNextColumn();
+                        ImGui.TextWrapped(row.GoalsOrRules);
 
                         // Remove from Favorites Button
                         ImGui.TableNextColumn();
@@ -205,17 +209,18 @@ namespace WahJumps.Windows
         {
             if (csvData.Count > 0)
             {
-                if (ImGui.BeginTable("CSVData", 9, ImGuiTableFlags.RowBg | ImGuiTableFlags.Borders | ImGuiTableFlags.Resizable | ImGuiTableFlags.ScrollY))
+                if (ImGui.BeginTable("CSVData", 10, ImGuiTableFlags.RowBg | ImGuiTableFlags.Borders | ImGuiTableFlags.Resizable | ImGuiTableFlags.ScrollY))
                 {
-                    ImGui.TableSetupColumn("ID");
-                    ImGui.TableSetupColumn("Rating");
-                    ImGui.TableSetupColumn("Puzzle Name");
-                    ImGui.TableSetupColumn("Builder");
-                    ImGui.TableSetupColumn("World");
-                    ImGui.TableSetupColumn("Address");
-                    ImGui.TableSetupColumn("Codes"); 
-                    ImGui.TableSetupColumn("Add to Favorites");
-                    ImGui.TableSetupColumn("Travel");
+                    ImGui.TableSetupColumn("ID", ImGuiTableColumnFlags.WidthFixed);
+                    ImGui.TableSetupColumn("Rating", ImGuiTableColumnFlags.WidthFixed);
+                    ImGui.TableSetupColumn("Puzzle Name"    , ImGuiTableColumnFlags.WidthFixed);
+                    ImGui.TableSetupColumn("Builder", ImGuiTableColumnFlags.WidthFixed);
+                    ImGui.TableSetupColumn("World", ImGuiTableColumnFlags.WidthFixed);
+                    ImGui.TableSetupColumn("Address", ImGuiTableColumnFlags.WidthFixed);
+                    ImGui.TableSetupColumn("Codes", ImGuiTableColumnFlags.WidthFixed);
+                    ImGui.TableSetupColumn("Goals/Rules", ImGuiTableColumnFlags.WidthFixed);
+                    ImGui.TableSetupColumn("Add to Favorites", ImGuiTableColumnFlags.WidthFixed);
+                    ImGui.TableSetupColumn("Travel", ImGuiTableColumnFlags.WidthFixed);
 
                     ImGui.TableHeadersRow();
 
@@ -245,6 +250,9 @@ namespace WahJumps.Windows
                         ImGui.TableNextColumn();
                         string combinedCodes = CombineCodes(row.M, row.E, row.S, row.P, row.V, row.J, row.G, row.L, row.X);
                         ImGui.Text(combinedCodes);
+
+                        ImGui.TableNextColumn();
+                        ImGui.TextWrapped(row.GoalsOrRules);
 
                         // Add to Favorites Button
                         ImGui.TableNextColumn();
