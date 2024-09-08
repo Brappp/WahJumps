@@ -14,7 +14,7 @@ namespace WahJumps.Windows
                 if (ImGui.CollapsingHeader("Difficulty Ratings: Setting General Expectations", ImGuiTreeNodeFlags.DefaultOpen))
                 {
                     ImGui.PushStyleVar(ImGuiStyleVar.CellPadding, new Vector2(6, 6));
-                    if (ImGui.BeginTable("DifficultyRatingsTable", 4, ImGuiTableFlags.SizingStretchSame | ImGuiTableFlags.RowBg | ImGuiTableFlags.Borders))
+                    if (ImGui.BeginTable("DifficultyRatingsTable", 4, ImGuiTableFlags.SizingFixedFit | ImGuiTableFlags.RowBg | ImGuiTableFlags.Borders))
                     {
                         ImGui.TableSetupColumn("Rating");
                         ImGui.TableSetupColumn("Original System Rating");
@@ -42,7 +42,7 @@ namespace WahJumps.Windows
                 if (ImGui.CollapsingHeader("Sub-type Keys: Know What Skillset to Bring", ImGuiTreeNodeFlags.DefaultOpen))
                 {
                     ImGui.PushStyleVar(ImGuiStyleVar.CellPadding, new Vector2(6, 6));
-                    if (ImGui.BeginTable("SubTypeKeysTable", 3, ImGuiTableFlags.SizingStretchSame | ImGuiTableFlags.RowBg | ImGuiTableFlags.Borders))
+                    if (ImGui.BeginTable("SubTypeKeysTable", 3, ImGuiTableFlags.SizingFixedFit | ImGuiTableFlags.RowBg | ImGuiTableFlags.Borders))
                     {
                         ImGui.TableSetupColumn("Code");
                         ImGui.TableSetupColumn("Element");
@@ -70,7 +70,7 @@ namespace WahJumps.Windows
                 if (ImGui.CollapsingHeader("Other Information", ImGuiTreeNodeFlags.DefaultOpen))
                 {
                     ImGui.PushStyleVar(ImGuiStyleVar.CellPadding, new Vector2(6, 6));
-                    if (ImGui.BeginTable("OtherInfoTable", 2, ImGuiTableFlags.SizingStretchSame | ImGuiTableFlags.RowBg | ImGuiTableFlags.Borders))
+                    if (ImGui.BeginTable("OtherInfoTable", 2, ImGuiTableFlags.SizingFixedFit | ImGuiTableFlags.RowBg | ImGuiTableFlags.Borders))
                     {
                         ImGui.TableSetupColumn("Term");
                         ImGui.TableSetupColumn("Explanation");
@@ -96,7 +96,7 @@ namespace WahJumps.Windows
                 if (ImGui.CollapsingHeader("Puzzle Accessibility", ImGuiTreeNodeFlags.DefaultOpen))
                 {
                     ImGui.PushStyleVar(ImGuiStyleVar.CellPadding, new Vector2(6, 6));
-                    if (ImGui.BeginTable("PuzzleAccessibilityTable", 2, ImGuiTableFlags.SizingStretchSame | ImGuiTableFlags.RowBg | ImGuiTableFlags.Borders))
+                    if (ImGui.BeginTable("PuzzleAccessibilityTable", 2, ImGuiTableFlags.SizingFixedFit | ImGuiTableFlags.RowBg | ImGuiTableFlags.Borders))
                     {
                         ImGui.TableSetupColumn("District");
                         ImGui.TableSetupColumn("Main City Aetheryte Access Conditions");

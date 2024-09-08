@@ -26,6 +26,13 @@ namespace WahJumps.Windows
         private DateTime lastRefreshDate;
         private string favoritesFilePath;
 
+        private string globalSearchQuery = string.Empty;  // Stores the search query
+        private List<JumpPuzzleData> globalSearchResults = new List<JumpPuzzleData>();  // Stores the search results
+
+        // Fields for the selected filters
+        private string selectedServerFilter = "All"; // Default to All servers
+        private string selectedRatingFilter = "All"; // Default to All ratings
+
         public MainWindow(CsvManager csvManager, LifestreamIpcHandler lifestreamIpcHandler)
             : base("WahJumps", ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoScrollWithMouse)
         {
@@ -84,6 +91,7 @@ namespace WahJumps.Windows
             ImGui.SameLine();
             ImGui.Text($"Last Refreshed: {lastRefreshDate}");
 
+            // Existing tab bar rendering logic
             if (ImGui.BeginTabBar("MainTabBar"))
             {
                 strangeHousingTab.Draw(); // Render StrangeHousingTab
@@ -95,16 +103,206 @@ namespace WahJumps.Windows
                     ImGui.EndTabItem();
                 }
 
+                // Global Search Tab
+                if (ImGui.BeginTabItem("Global Search"))
+                {
+                    DrawGlobalSearchTab();
+                    ImGui.EndTabItem();
+                }
+
+                // Render server tabs with colors
                 foreach (var dataCenter in csvDataByDataCenter)
                 {
+                    // Apply colors based on data center group
+                    PushServerColorStyle(dataCenter.Key); // Apply the appropriate color
+
                     if (ImGui.BeginTabItem(dataCenter.Key))
                     {
                         DrawRatingTabs(dataCenter.Value);
                         ImGui.EndTabItem();
                     }
+
+                    ImGui.PopStyleColor(3); // Restore the original colors
                 }
 
                 ImGui.EndTabBar();
+            }
+        }
+
+        // New method to draw the global search tab with filters
+        // Updated method to draw the global search tab without filters
+        // Updated method to draw the global search tab with real-time search
+        private void DrawGlobalSearchTab()
+        {
+            // Capture the current query before modifying it
+            string previousQuery = globalSearchQuery;
+
+            // Global Search Bar
+            ImGui.InputText("Global Search", ref globalSearchQuery, 100);
+
+            // If the query has changed, perform the search
+            if (!previousQuery.Equals(globalSearchQuery, StringComparison.Ordinal))
+            {
+                PerformGlobalSearch(globalSearchQuery); // Perform the search as the user types
+            }
+
+            // Display Search Results if any
+            if (globalSearchResults.Count > 0)
+            {
+                ImGui.Text($"Search Results for '{globalSearchQuery}':");
+
+                if (ImGui.BeginTable("SearchResultsTable", 10, ImGuiTableFlags.RowBg | ImGuiTableFlags.Borders | ImGuiTableFlags.Resizable))
+                {
+                    ImGui.TableSetupColumn("ID", ImGuiTableColumnFlags.WidthFixed);
+                    ImGui.TableSetupColumn("Rating", ImGuiTableColumnFlags.WidthFixed);
+                    ImGui.TableSetupColumn("Puzzle Name", ImGuiTableColumnFlags.WidthFixed);
+                    ImGui.TableSetupColumn("Builder", ImGuiTableColumnFlags.WidthFixed);
+                    ImGui.TableSetupColumn("World", ImGuiTableColumnFlags.WidthFixed);
+                    ImGui.TableSetupColumn("Address", ImGuiTableColumnFlags.WidthFixed);
+                    ImGui.TableSetupColumn("Codes", ImGuiTableColumnFlags.WidthFixed);
+                    ImGui.TableSetupColumn("GoalsOrRules", ImGuiTableColumnFlags.WidthFixed);
+                    ImGui.TableSetupColumn("Add to Favorites", ImGuiTableColumnFlags.WidthFixed);
+                    ImGui.TableSetupColumn("Travel", ImGuiTableColumnFlags.WidthFixed);
+
+                    ImGui.TableHeadersRow();
+
+                    foreach (var row in globalSearchResults)
+                    {
+                        ImGui.TableNextRow();
+
+                        ImGui.TableNextColumn();
+                        ImGui.Text(row.Id.ToString());
+
+                        ImGui.TableNextColumn();
+                        ImGui.Text(row.Rating);
+
+                        ImGui.TableNextColumn();
+                        ImGui.Text(row.PuzzleName);
+
+                        ImGui.TableNextColumn();
+                        ImGui.Text(row.Builder);
+
+                        ImGui.TableNextColumn();
+                        ImGui.Text(row.World);
+
+                        ImGui.TableNextColumn();
+                        ImGui.Text(row.Address);
+
+                        ImGui.TableNextColumn();
+                        string combinedCodes = CombineCodes(row.M, row.E, row.S, row.P, row.V, row.J, row.G, row.L, row.X);
+                        ImGui.Text(combinedCodes);
+
+                        ImGui.TableNextColumn();
+                        ImGui.TextWrapped(row.GoalsOrRules);
+
+                        ImGui.TableNextColumn();
+                        if (ImGui.Button($"Add##{row.Id}"))
+                        {
+                            AddToFavorites(row);
+                        }
+
+                        ImGui.TableNextColumn();
+                        if (ImGui.Button($"Travel##{row.Id}"))
+                        {
+                            var travelCommand = FormatTravelCommand(row);
+                            lifestreamIpcHandler.ExecuteLiCommand(travelCommand);
+                        }
+                    }
+
+                    ImGui.EndTable();
+                }
+            }
+            else if (!string.IsNullOrEmpty(globalSearchQuery))
+            {
+                ImGui.Text("No matching results found.");
+            }
+        }
+
+
+
+        // Perform search with filters
+        private void PerformGlobalSearch(string query)
+        {
+            globalSearchResults.Clear();
+
+            if (string.IsNullOrWhiteSpace(query))
+            {
+                return;  // No need to search if query is empty or null
+            }
+
+            // Search across all data centers
+            foreach (var dataCenter in csvDataByDataCenter)
+            {
+                if (selectedServerFilter != "All" && selectedServerFilter != dataCenter.Key)
+                {
+                    continue; // Skip this server if it's filtered out
+                }
+
+                foreach (var puzzle in dataCenter.Value)
+                {
+                    // Apply Rating Filter
+                    if (selectedRatingFilter != "All" && puzzle.Rating != selectedRatingFilter)
+                    {
+                        continue; // Skip this puzzle if the rating doesn't match
+                    }
+
+                    // Search query match on puzzle name, builder, or world
+                    if (puzzle.PuzzleName.Contains(query, StringComparison.OrdinalIgnoreCase) ||
+                        puzzle.World.Contains(query, StringComparison.OrdinalIgnoreCase) ||
+                        puzzle.Builder.Contains(query, StringComparison.OrdinalIgnoreCase))
+                    {
+                        globalSearchResults.Add(puzzle);  // Add matching puzzle to the result
+                    }
+                }
+            }
+        }
+
+        // Helper method to apply colors based on the server
+        private void PushServerColorStyle(string dataCenterKey)
+        {
+            switch (dataCenterKey.ToLower())
+            {
+                // NA Blues
+                case "aether":
+                case "primal":
+                case "crystal":
+                case "dynamis":
+                    ImGui.PushStyleColor(ImGuiCol.Tab, new Vector4(0.098f, 0.608f, 0.8f, 1.0f)); // Dark #189BCC
+                    ImGui.PushStyleColor(ImGuiCol.TabHovered, new Vector4(0.365f, 0.729f, 0.859f, 1.0f)); // Medium #5DBADB
+                    ImGui.PushStyleColor(ImGuiCol.TabActive, new Vector4(0.639f, 0.843f, 0.922f, 1.0f)); // Light #A3D7EB
+                    break;
+
+                // EU Purples
+                case "light":
+                case "chaos":
+                    ImGui.PushStyleColor(ImGuiCol.Tab, new Vector4(0.624f, 0.529f, 0.718f, 1.0f)); // Dark #9F87B7
+                    ImGui.PushStyleColor(ImGuiCol.TabHovered, new Vector4(0.773f, 0.718f, 0.831f, 1.0f)); // Medium #C5B7D4
+                    ImGui.PushStyleColor(ImGuiCol.TabActive, new Vector4(0.875f, 0.843f, 0.906f, 1.0f)); // Light #DFD7E7
+                    break;
+
+                // Materia Yellows
+                case "materia":
+                    ImGui.PushStyleColor(ImGuiCol.Tab, new Vector4(1.0f, 0.764f, 0.509f, 1.0f)); // Dark #FFC382
+                    ImGui.PushStyleColor(ImGuiCol.TabHovered, new Vector4(0.988f, 0.851f, 0.706f, 1.0f)); // Medium #FCD9B4
+                    ImGui.PushStyleColor(ImGuiCol.TabActive, new Vector4(0.996f, 0.941f, 0.882f, 1.0f)); // Light #FEF0E1
+                    break;
+
+                // Japan Reds
+                case "elemental":
+                case "gaia":
+                case "mana":
+                case "meteor":
+                    ImGui.PushStyleColor(ImGuiCol.Tab, new Vector4(0.847f, 0.42f, 0.467f, 1.0f)); // Dark #D86B77
+                    ImGui.PushStyleColor(ImGuiCol.TabHovered, new Vector4(0.894f, 0.592f, 0.627f, 1.0f)); // Medium #E497A0
+                    ImGui.PushStyleColor(ImGuiCol.TabActive, new Vector4(0.953f, 0.827f, 0.839f, 1.0f)); // Light #F3D3D6
+                    break;
+
+                default:
+                    // Default colors if no matching data center is found
+                    ImGui.PushStyleColor(ImGuiCol.Tab, ImGui.GetStyle().Colors[(int)ImGuiCol.Tab]);
+                    ImGui.PushStyleColor(ImGuiCol.TabHovered, ImGui.GetStyle().Colors[(int)ImGuiCol.TabHovered]);
+                    ImGui.PushStyleColor(ImGuiCol.TabActive, ImGui.GetStyle().Colors[(int)ImGuiCol.TabActive]);
+                    break;
             }
         }
 
@@ -213,7 +411,7 @@ namespace WahJumps.Windows
                 {
                     ImGui.TableSetupColumn("ID", ImGuiTableColumnFlags.WidthFixed);
                     ImGui.TableSetupColumn("Rating", ImGuiTableColumnFlags.WidthFixed);
-                    ImGui.TableSetupColumn("Puzzle Name"    , ImGuiTableColumnFlags.WidthFixed);
+                    ImGui.TableSetupColumn("Puzzle Name", ImGuiTableColumnFlags.WidthFixed);
                     ImGui.TableSetupColumn("Builder", ImGuiTableColumnFlags.WidthFixed);
                     ImGui.TableSetupColumn("World", ImGuiTableColumnFlags.WidthFixed);
                     ImGui.TableSetupColumn("Address", ImGuiTableColumnFlags.WidthFixed);
@@ -337,7 +535,6 @@ namespace WahJumps.Windows
             // Return the formatted command
             return $"/travel {world} {address}";
         }
-
 
         private void DisplayTravelMessage(string world, string address)
         {
