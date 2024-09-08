@@ -5,16 +5,20 @@ namespace WahJumps.Windows
 {
     public class InformationTab
     {
+        // Array to store column widths after auto-adjusting the first table
+        private float[] columnWidths = new float[4];
+
         public void Draw()
         {
             if (ImGui.BeginTabItem("Information"))
             {
                 ImGui.BeginChild("InformationScrollArea", new Vector2(0, 0), true, ImGuiWindowFlags.HorizontalScrollbar);
 
+                // First Table: Auto-adjusted column widths
                 if (ImGui.CollapsingHeader("Difficulty Ratings: Setting General Expectations", ImGuiTreeNodeFlags.DefaultOpen))
                 {
                     ImGui.PushStyleVar(ImGuiStyleVar.CellPadding, new Vector2(6, 6));
-                    if (ImGui.BeginTable("DifficultyRatingsTable", 4, ImGuiTableFlags.SizingFixedFit | ImGuiTableFlags.RowBg | ImGuiTableFlags.Borders))
+                    if (ImGui.BeginTable("DifficultyRatingsTable", 4, ImGuiTableFlags.RowBg | ImGuiTableFlags.Borders))
                     {
                         ImGui.TableSetupColumn("Rating");
                         ImGui.TableSetupColumn("Original System Rating");
@@ -32,6 +36,12 @@ namespace WahJumps.Windows
                         AddDifficultyRatingRow("T", "Event", "Event-specific puzzle, only available sometimes", "");
                         AddDifficultyRatingRow("F", "In Flux", "Puzzle undergoes changes", "");
 
+                        // Fetch column widths after rendering the first table
+                        for (int i = 0; i < 4; i++)
+                        {
+                            columnWidths[i] = ImGui.GetColumnWidth(i);
+                        }
+
                         ImGui.EndTable();
                     }
                     ImGui.PopStyleVar();
@@ -39,14 +49,15 @@ namespace WahJumps.Windows
 
                 ImGui.Separator();
 
+                // Subsequent tables will use the same column widths as the first one
                 if (ImGui.CollapsingHeader("Sub-type Keys: Know What Skillset to Bring", ImGuiTreeNodeFlags.DefaultOpen))
                 {
                     ImGui.PushStyleVar(ImGuiStyleVar.CellPadding, new Vector2(6, 6));
-                    if (ImGui.BeginTable("SubTypeKeysTable", 3, ImGuiTableFlags.SizingFixedFit | ImGuiTableFlags.RowBg | ImGuiTableFlags.Borders))
+                    if (ImGui.BeginTable("SubTypeKeysTable", 3, ImGuiTableFlags.RowBg | ImGuiTableFlags.Borders))
                     {
-                        ImGui.TableSetupColumn("Code");
-                        ImGui.TableSetupColumn("Element");
-                        ImGui.TableSetupColumn("More Info");
+                        ImGui.TableSetupColumn("Code", ImGuiTableColumnFlags.WidthFixed, columnWidths[0]); // Using the width of first column from the previous table
+                        ImGui.TableSetupColumn("Element", ImGuiTableColumnFlags.WidthFixed, columnWidths[1]);
+                        ImGui.TableSetupColumn("More Info", ImGuiTableColumnFlags.WidthFixed, columnWidths[2]);
 
                         ImGui.TableHeadersRow();
 
@@ -70,10 +81,10 @@ namespace WahJumps.Windows
                 if (ImGui.CollapsingHeader("Other Information", ImGuiTreeNodeFlags.DefaultOpen))
                 {
                     ImGui.PushStyleVar(ImGuiStyleVar.CellPadding, new Vector2(6, 6));
-                    if (ImGui.BeginTable("OtherInfoTable", 2, ImGuiTableFlags.SizingFixedFit | ImGuiTableFlags.RowBg | ImGuiTableFlags.Borders))
+                    if (ImGui.BeginTable("OtherInfoTable", 2, ImGuiTableFlags.RowBg | ImGuiTableFlags.Borders))
                     {
-                        ImGui.TableSetupColumn("Term");
-                        ImGui.TableSetupColumn("Explanation");
+                        ImGui.TableSetupColumn("Term", ImGuiTableColumnFlags.WidthFixed, columnWidths[0]);
+                        ImGui.TableSetupColumn("Explanation", ImGuiTableColumnFlags.WidthFixed, columnWidths[1]);
 
                         ImGui.TableHeadersRow();
 
@@ -96,10 +107,10 @@ namespace WahJumps.Windows
                 if (ImGui.CollapsingHeader("Puzzle Accessibility", ImGuiTreeNodeFlags.DefaultOpen))
                 {
                     ImGui.PushStyleVar(ImGuiStyleVar.CellPadding, new Vector2(6, 6));
-                    if (ImGui.BeginTable("PuzzleAccessibilityTable", 2, ImGuiTableFlags.SizingFixedFit | ImGuiTableFlags.RowBg | ImGuiTableFlags.Borders))
+                    if (ImGui.BeginTable("PuzzleAccessibilityTable", 2, ImGuiTableFlags.RowBg | ImGuiTableFlags.Borders))
                     {
-                        ImGui.TableSetupColumn("District");
-                        ImGui.TableSetupColumn("Main City Aetheryte Access Conditions");
+                        ImGui.TableSetupColumn("District", ImGuiTableColumnFlags.WidthFixed, columnWidths[0]);
+                        ImGui.TableSetupColumn("Main City Aetheryte Access Conditions", ImGuiTableColumnFlags.WidthFixed, columnWidths[1]);
 
                         ImGui.TableHeadersRow();
 
