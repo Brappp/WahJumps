@@ -16,7 +16,7 @@ namespace WahJumps.Handlers
     public class CsvManager
     {
         public event Action<string>? StatusUpdated;
-        public event Action? CsvProcessingCompleted;  
+        public event Action? CsvProcessingCompleted;
 
         private readonly string outputDirectory;
         private readonly IChatGui chatGui;
@@ -49,7 +49,7 @@ namespace WahJumps.Handlers
 
         public async Task DownloadAndSaveIndividualCsvsAsync()
         {
-            var dataCenters = WorldData.GetDataCenterInfo();  
+            var dataCenters = WorldData.GetDataCenterInfo();
 
             foreach (var dataCenter in dataCenters)
             {
@@ -63,7 +63,10 @@ namespace WahJumps.Handlers
                     continue;
                 }
 
-                var cleanedData = CleanCsvData(csvData);
+                // Preprocess the CSV data to ensure the "ID" column is present
+                var preprocessedCsv = PreprocessCsvForMissingId(csvData);
+
+                var cleanedData = CleanCsvData(preprocessedCsv);
                 SaveCsv(cleanedData, Path.Combine(outputDirectory, $"{dataCenter.CsvName}_cleaned.csv"));
             }
 
@@ -118,6 +121,37 @@ namespace WahJumps.Handlers
             {
                 StatusUpdated?.Invoke($"Error saving cleaned CSV: {ex.Message}");
             }
+        }
+
+        /// <summary>
+        /// Preprocesses the CSV data to ensure the "ID" column is present.
+        /// </summary>
+        private string PreprocessCsvForMissingId(string csvData)
+        {
+            var lines = csvData.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries);
+
+            if (lines.Length == 0)
+            {
+                throw new Exception("CSV data is empty.");
+            }
+
+            // Check if the first line contains an "ID" column
+            var headers = lines[0].Split(',');
+            if (!headers.Contains("ID"))
+            {
+                StatusUpdated?.Invoke("ID column missing, adding it dynamically.");
+
+                // Add "ID" to the header and prepend ID values to each subsequent row
+                var processedLines = new List<string> { "ID," + lines[0] };
+                for (int i = 1; i < lines.Length; i++)
+                {
+                    processedLines.Add($"{i},{lines[i]}");
+                }
+
+                return string.Join(Environment.NewLine, processedLines);
+            }
+
+            return csvData; // No modification needed if "ID" exists
         }
     }
 }
