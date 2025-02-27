@@ -1,5 +1,5 @@
 // File: WahJumps/Windows/StrangeHousingTab.cs
-// Status: COMPACTED VERSION - More professional
+// Status: UPDATED - Using filled heart symbol
 
 using ImGuiNET;
 using WahJumps.Utilities;
@@ -12,7 +12,7 @@ namespace WahJumps.Windows
     {
         public void Draw()
         {
-            // Fixed TabItem usage
+            // Fixed TabItem usage with NoCloseWithMiddleMouseButton flag
             using var tabItem = new ImRaii.TabItem("Strange Housing");
             if (!tabItem.Success) return;
 
@@ -39,6 +39,17 @@ namespace WahJumps.Windows
 
                 ImGui.Spacing();
                 ImGui.Separator();
+                ImGui.Spacing();
+
+                // Thank you message (new)
+                using (var thankYouColor = new ImRaii.StyleColor(ImGuiCol.Text, UiTheme.Primary))
+                {
+                    ImGui.PushTextWrapPos(ImGui.GetWindowWidth() * 0.9f);
+                    UiTheme.CenteredText("A huge thank you to the Strange Housing staff and community for their efforts in building such a wonderful community!");
+                    ImGui.PopTextWrapPos();
+                }
+
+                ImGui.Spacing();
                 ImGui.Spacing();
 
                 // Links Section
@@ -73,17 +84,34 @@ namespace WahJumps.Windows
                 ImGui.Spacing();
                 ImGui.Spacing();
 
-                // LifeStream Notice
-                UiComponents.NotificationBox(
-                    "⚠️ The LifeStream plugin is required for travel buttons to work\n" +
-                    "Download it from GitHub: NightmareXIV/Lifestream",
-                    UiTheme.Warning
-                );
+                // LifeStream Notice - Updated without symbols
+                ImGui.PushTextWrapPos(ImGui.GetWindowWidth() * 0.8f);
+                UiTheme.CenteredText("The LifeStream plugin is required for travel buttons to work", UiTheme.Warning);
+                ImGui.PopTextWrapPos();
 
                 ImGui.Spacing();
 
+                // Direct GitHub button for LifeStream
                 ImGui.SetCursorPosX((windowWidth - buttonWidth) / 2);
-                DrawLinkButton("LifeStream Plugin", "https://github.com/NightmareXIV/Lifestream", buttonWidth);
+                DrawLinkButton("Download LifeStream Plugin", "https://github.com/NightmareXIV/Lifestream", buttonWidth);
+
+                ImGui.Spacing();
+                ImGui.Spacing();
+                ImGui.Spacing();
+
+                // Signature with filled heart symbol (♥) - same as used in favorites
+                using (var signatureColor = new ImRaii.StyleColor(ImGuiCol.Text, UiTheme.Accent))
+                {
+                    // "Made with ♥" line
+                    textWidth = ImGui.CalcTextSize("Made with ♥").X;
+                    ImGui.SetCursorPosX((windowWidth - textWidth) / 2);
+                    ImGui.TextUnformatted("Made with ♥");
+
+                    // "wah" on next line
+                    textWidth = ImGui.CalcTextSize("wah").X;
+                    ImGui.SetCursorPosX((windowWidth - textWidth) / 2);
+                    ImGui.TextUnformatted("wah");
+                }
             }
         }
 

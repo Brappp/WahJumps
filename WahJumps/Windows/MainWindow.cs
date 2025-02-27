@@ -1,5 +1,5 @@
 // File: WahJumps/Windows/MainWindow.cs
-// Status: UPDATED - Colored region tabs
+// Status: FINAL VERSION - Fixed row highlighting
 
 using System;
 using System.Collections.Generic;
@@ -267,7 +267,8 @@ namespace WahJumps.Windows
             ImGui.PushStyleColor(ImGuiCol.TabHovered, new Vector4(0.3f, 0.5f, 0.7f, 1.0f));
             ImGui.PushStyleVar(ImGuiStyleVar.TabRounding, 4.0f);
 
-            using var tabBar = new ImRaii.TabBar("MainTabBar", ImGuiTabBarFlags.FittingPolicyScroll);
+            // Added NoCloseWithMiddleMouseButton flag to remove X from tabs
+            using var tabBar = new ImRaii.TabBar("MainTabBar", ImGuiTabBarFlags.FittingPolicyScroll | ImGuiTabBarFlags.NoCloseWithMiddleMouseButton);
 
             if (tabBar.Success)
             {
@@ -277,7 +278,7 @@ namespace WahJumps.Windows
 
                 // Favorites Tab
                 bool favTabOpen = true;
-                if (ImGui.BeginTabItem("Favorites", ref favTabOpen))
+                if (ImGui.BeginTabItem("Favorites", ref favTabOpen, ImGuiTabItemFlags.NoCloseWithMiddleMouseButton))
                 {
                     DrawFavoritesTab();
                     ImGui.EndTabItem();
@@ -285,7 +286,7 @@ namespace WahJumps.Windows
 
                 // Search Tab
                 bool searchTabOpen = true;
-                if (ImGui.BeginTabItem("Search", ref searchTabOpen))
+                if (ImGui.BeginTabItem("Search", ref searchTabOpen, ImGuiTabItemFlags.NoCloseWithMiddleMouseButton))
                 {
                     searchFilter.Draw(csvDataByDataCenter);
                     ImGui.EndTabItem();
@@ -318,10 +319,10 @@ namespace WahJumps.Windows
                 );
 
                 bool isRegionOpen = true;
-                if (ImGui.BeginTabItem(regionName, ref isRegionOpen))
+                if (ImGui.BeginTabItem(regionName, ref isRegionOpen, ImGuiTabItemFlags.NoCloseWithMiddleMouseButton))
                 {
                     // Create a nested tab bar for this region's data centers
-                    using var dcTabBar = new ImRaii.TabBar($"{regionName}DataCenters", ImGuiTabBarFlags.FittingPolicyScroll);
+                    using var dcTabBar = new ImRaii.TabBar($"{regionName}DataCenters", ImGuiTabBarFlags.FittingPolicyScroll | ImGuiTabBarFlags.NoCloseWithMiddleMouseButton);
 
                     if (dcTabBar.Success)
                     {
@@ -358,7 +359,7 @@ namespace WahJumps.Windows
                     (ImGuiCol.TabActive, colors.Light)
                 );
 
-                if (ImGui.BeginTabItem(dataCenterName, ref isOpen))
+                if (ImGui.BeginTabItem(dataCenterName, ref isOpen, ImGuiTabItemFlags.NoCloseWithMiddleMouseButton))
                 {
                     DrawRatingTabs(puzzles);
                     ImGui.EndTabItem();
@@ -366,7 +367,7 @@ namespace WahJumps.Windows
             }
             else
             {
-                if (ImGui.BeginTabItem(dataCenterName, ref isOpen))
+                if (ImGui.BeginTabItem(dataCenterName, ref isOpen, ImGuiTabItemFlags.NoCloseWithMiddleMouseButton))
                 {
                     DrawRatingTabs(puzzles);
                     ImGui.EndTabItem();
@@ -403,12 +404,12 @@ namespace WahJumps.Windows
                 .GroupBy(p => p.Rating)
                 .OrderByDescending(g => ConvertRatingToInt(g.Key));
 
-            using var tabBar = new ImRaii.TabBar("RatingTabs");
+            using var tabBar = new ImRaii.TabBar("RatingTabs", ImGuiTabBarFlags.NoCloseWithMiddleMouseButton);
             if (!tabBar.Success) return;
 
             // Add an "All" tab first - using bool instead of ImRaii.TabItem
             bool allTabOpen = true;
-            if (ImGui.BeginTabItem("All", ref allTabOpen))
+            if (ImGui.BeginTabItem("All", ref allTabOpen, ImGuiTabItemFlags.NoCloseWithMiddleMouseButton))
             {
                 DrawPuzzleTable(puzzles);
                 ImGui.EndTabItem();
@@ -425,7 +426,7 @@ namespace WahJumps.Windows
                 );
 
                 bool ratingTabOpen = true;
-                if (ImGui.BeginTabItem(ratingGroup.Key, ref ratingTabOpen))
+                if (ImGui.BeginTabItem(ratingGroup.Key, ref ratingTabOpen, ImGuiTabItemFlags.NoCloseWithMiddleMouseButton))
                 {
                     DrawPuzzleTable(ratingGroup.ToList());
                     ImGui.EndTabItem();
@@ -433,7 +434,7 @@ namespace WahJumps.Windows
             }
         }
 
-        // Condensed table drawing method
+        // Updated table drawing method with row highlighting that works with any ImGui version
         private void DrawPuzzleTable(List<JumpPuzzleData> puzzles, bool includeAddToFavorites = true)
         {
             if (puzzles.Count == 0)
@@ -444,6 +445,10 @@ namespace WahJumps.Windows
 
             // Apply consistent table styling
             UiTheme.StyleTable();
+
+            // Style for row highlighting - using Header color which is supported in all ImGui versions
+            ImGui.PushStyleColor(ImGuiCol.Header, new Vector4(0.3f, 0.4f, 0.5f, 0.3f));
+            ImGui.PushStyleColor(ImGuiCol.HeaderHovered, new Vector4(0.3f, 0.5f, 0.6f, 0.5f));
 
             ImGuiTableFlags flags = ImGuiTableFlags.RowBg |
                                    ImGuiTableFlags.Borders |
@@ -473,12 +478,21 @@ namespace WahJumps.Windows
                 ImGui.TableHeadersRow();
 
                 // Draw each row
-                foreach (var puzzle in puzzles)
+                for (int i = 0; i < puzzles.Count; i++)
                 {
+                    var puzzle = puzzles[i];
                     ImGui.TableNextRow();
-
-                    // Rating
                     ImGui.TableNextColumn();
+
+                    // Use Selectable to highlight the row - SpanAllColumns makes it cover the whole row
+                    ImGui.PushID(i);
+                    ImGui.Selectable($"##row_{i}", false, ImGuiSelectableFlags.SpanAllColumns);
+                    ImGui.PopID();
+
+                    // Reset cursor to start of row for the actual content
+                    ImGui.TableSetColumnIndex(0);
+
+                    // Rating 
                     RenderRatingWithColor(puzzle.Rating);
 
                     // Puzzle Name
@@ -547,6 +561,9 @@ namespace WahJumps.Windows
 
                 ImGui.EndTable();
             }
+
+            // Pop style colors
+            ImGui.PopStyleColor(2);
 
             // End table styling
             UiTheme.EndTableStyle();
