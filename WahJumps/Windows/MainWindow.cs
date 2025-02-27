@@ -1,5 +1,5 @@
 // File: WahJumps/Windows/MainWindow.cs
-// Status: FINAL VERSION - Fixed row highlighting
+// Status: FINAL VERSION - Fixed row highlighting and tab close buttons
 
 using System;
 using System.Collections.Generic;
@@ -267,8 +267,7 @@ namespace WahJumps.Windows
             ImGui.PushStyleColor(ImGuiCol.TabHovered, new Vector4(0.3f, 0.5f, 0.7f, 1.0f));
             ImGui.PushStyleVar(ImGuiStyleVar.TabRounding, 4.0f);
 
-            // Added NoCloseWithMiddleMouseButton flag to remove X from tabs
-            using var tabBar = new ImRaii.TabBar("MainTabBar", ImGuiTabBarFlags.FittingPolicyScroll | ImGuiTabBarFlags.NoCloseWithMiddleMouseButton);
+            using var tabBar = new ImRaii.TabBar("MainTabBar", ImGuiTabBarFlags.FittingPolicyScroll);
 
             if (tabBar.Success)
             {
@@ -276,17 +275,15 @@ namespace WahJumps.Windows
                 strangeHousingTab.Draw();
                 informationTab.Draw();
 
-                // Favorites Tab
-                bool favTabOpen = true;
-                if (ImGui.BeginTabItem("Favorites", ref favTabOpen, ImGuiTabItemFlags.NoCloseWithMiddleMouseButton))
+                // Favorites Tab - no boolean reference = no close button
+                if (ImGui.BeginTabItem("Favorites"))
                 {
                     DrawFavoritesTab();
                     ImGui.EndTabItem();
                 }
 
-                // Search Tab
-                bool searchTabOpen = true;
-                if (ImGui.BeginTabItem("Search", ref searchTabOpen, ImGuiTabItemFlags.NoCloseWithMiddleMouseButton))
+                // Search Tab - no boolean reference = no close button
+                if (ImGui.BeginTabItem("Search"))
                 {
                     searchFilter.Draw(csvDataByDataCenter);
                     ImGui.EndTabItem();
@@ -318,11 +315,11 @@ namespace WahJumps.Windows
                     (ImGuiCol.TabActive, regionData.ActiveColor)
                 );
 
-                bool isRegionOpen = true;
-                if (ImGui.BeginTabItem(regionName, ref isRegionOpen, ImGuiTabItemFlags.NoCloseWithMiddleMouseButton))
+                // Change this line - remove the boolean reference entirely
+                if (ImGui.BeginTabItem(regionName))
                 {
                     // Create a nested tab bar for this region's data centers
-                    using var dcTabBar = new ImRaii.TabBar($"{regionName}DataCenters", ImGuiTabBarFlags.FittingPolicyScroll | ImGuiTabBarFlags.NoCloseWithMiddleMouseButton);
+                    using var dcTabBar = new ImRaii.TabBar($"{regionName}DataCenters", ImGuiTabBarFlags.FittingPolicyScroll);
 
                     if (dcTabBar.Success)
                     {
@@ -347,9 +344,6 @@ namespace WahJumps.Windows
             // Apply data center color theming if enabled
             var config = settingsManager.Configuration;
 
-            // Use bool manually to handle tab opening
-            bool isOpen = true;
-
             if (config.ShowDataCenterColors)
             {
                 var colors = UiTheme.GetDataCenterColors(dataCenterName);
@@ -359,7 +353,8 @@ namespace WahJumps.Windows
                     (ImGuiCol.TabActive, colors.Light)
                 );
 
-                if (ImGui.BeginTabItem(dataCenterName, ref isOpen, ImGuiTabItemFlags.NoCloseWithMiddleMouseButton))
+                // No boolean reference = no close button
+                if (ImGui.BeginTabItem(dataCenterName))
                 {
                     DrawRatingTabs(puzzles);
                     ImGui.EndTabItem();
@@ -367,7 +362,8 @@ namespace WahJumps.Windows
             }
             else
             {
-                if (ImGui.BeginTabItem(dataCenterName, ref isOpen, ImGuiTabItemFlags.NoCloseWithMiddleMouseButton))
+                // No boolean reference = no close button
+                if (ImGui.BeginTabItem(dataCenterName))
                 {
                     DrawRatingTabs(puzzles);
                     ImGui.EndTabItem();
@@ -404,12 +400,11 @@ namespace WahJumps.Windows
                 .GroupBy(p => p.Rating)
                 .OrderByDescending(g => ConvertRatingToInt(g.Key));
 
-            using var tabBar = new ImRaii.TabBar("RatingTabs", ImGuiTabBarFlags.NoCloseWithMiddleMouseButton);
+            using var tabBar = new ImRaii.TabBar("RatingTabs");
             if (!tabBar.Success) return;
 
-            // Add an "All" tab first - using bool instead of ImRaii.TabItem
-            bool allTabOpen = true;
-            if (ImGui.BeginTabItem("All", ref allTabOpen, ImGuiTabItemFlags.NoCloseWithMiddleMouseButton))
+            // Add an "All" tab first - no boolean reference = no close button
+            if (ImGui.BeginTabItem("All"))
             {
                 DrawPuzzleTable(puzzles);
                 ImGui.EndTabItem();
@@ -425,8 +420,8 @@ namespace WahJumps.Windows
                     (ImGuiCol.TabActive, tabColor)
                 );
 
-                bool ratingTabOpen = true;
-                if (ImGui.BeginTabItem(ratingGroup.Key, ref ratingTabOpen, ImGuiTabItemFlags.NoCloseWithMiddleMouseButton))
+                // No boolean reference = no close button
+                if (ImGui.BeginTabItem(ratingGroup.Key))
                 {
                     DrawPuzzleTable(ratingGroup.ToList());
                     ImGui.EndTabItem();

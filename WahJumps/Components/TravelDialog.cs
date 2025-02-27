@@ -167,7 +167,7 @@ namespace WahJumps.Windows.Components
                     // Warning if LifeStream is needed
                     using (var warning = new ImRaii.StyleColor(ImGuiCol.Text, UiTheme.Warning))
                     {
-                        UiTheme.CenteredText("⚠️ The LifeStream plugin is required for travel to work.");
+                        UiTheme.CenteredText("The LifeStream plugin is required for travel to work.");
                     }
 
                     ImGui.Spacing();
