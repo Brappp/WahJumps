@@ -1,3 +1,6 @@
+// File: WahJumps/Plugin.cs
+// Status: SIMPLIFIED VERSION - No global style changes
+
 using Dalamud.Plugin;
 using Dalamud.Plugin.Services;
 using Dalamud.IoC;
@@ -16,6 +19,7 @@ namespace WahJumps
         [PluginService] internal static ICommandManager CommandManager { get; private set; } = null!;
         [PluginService] internal static IChatGui ChatGui { get; private set; } = null!;
         [PluginService] internal static ITextureProvider TextureProvider { get; private set; } = null!;
+        [PluginService] internal static IPluginLog PluginLog { get; private set; } = null!;
 
         private const string CommandName = "/WahJumps";
 
@@ -24,40 +28,60 @@ namespace WahJumps
 
         public readonly WindowSystem WindowSystem = new("WahJumps");
         private MainWindow MainWindow { get; init; }
+        private string ConfigDirectory { get; }
 
         public Plugin()
         {
-            string outputDirectory = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "XIVLauncher", "pluginConfigs", "WahJumps");
+            // Set up configuration directory
+            ConfigDirectory = CreateConfigDirectory();
+
+            // Initialize handlers
+            LifestreamIpcHandler = new LifestreamIpcHandler(PluginInterface);
+            CsvManager = new CsvManager(ChatGui, ConfigDirectory);
+
+            // Set up main window
+            MainWindow = new MainWindow(CsvManager, LifestreamIpcHandler);
+            WindowSystem.AddWindow(MainWindow);
+
+            // Register commands
+            CommandManager.AddHandler(CommandName, new CommandInfo(OnCommand)
+            {
+                HelpMessage = "Opens the WahJumps UI for finding jump puzzles"
+            });
+
+            // Register UI events
+            PluginInterface.UiBuilder.Draw += DrawUI;
+            PluginInterface.UiBuilder.OpenMainUi += ToggleMainUI;
+            PluginInterface.UiBuilder.OpenConfigUi += ToggleConfigUI;
+
+            // Log initialization
+            PluginLog.Information("WahJumps plugin initialized");
+        }
+
+        private string CreateConfigDirectory()
+        {
+            string outputDirectory = Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+                "XIVLauncher",
+                "pluginConfigs",
+                "WahJumps"
+            );
 
             if (!Directory.Exists(outputDirectory))
             {
                 Directory.CreateDirectory(outputDirectory);
+                PluginLog.Information($"Created configuration directory: {outputDirectory}");
             }
 
-            // Pass PluginInterface to LifestreamIpcHandler
-            LifestreamIpcHandler = new LifestreamIpcHandler(PluginInterface);
-
-            CsvManager = new CsvManager(ChatGui, outputDirectory);
-
-            // Pass both CsvManager and LifestreamIpcHandler to MainWindow
-            MainWindow = new MainWindow(CsvManager, LifestreamIpcHandler);
-
-            WindowSystem.AddWindow(MainWindow);
-
-            CommandManager.AddHandler(CommandName, new CommandInfo(OnCommand)
-            {
-                HelpMessage = "Open the WahJumps UI"
-            });
-
-            PluginInterface.UiBuilder.Draw += DrawUI;
-            PluginInterface.UiBuilder.OpenMainUi += ToggleMainUI;
-            PluginInterface.UiBuilder.OpenConfigUi += ToggleConfigUI;
+            return outputDirectory;
         }
 
         private void ToggleConfigUI() => MainWindow.ToggleVisibility();
 
         public void Dispose()
         {
+            PluginLog.Information("Disposing WahJumps plugin");
+
             WindowSystem.RemoveAllWindows();
             MainWindow.Dispose();
             CommandManager.RemoveHandler(CommandName);
