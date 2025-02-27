@@ -1,5 +1,5 @@
 // File: WahJumps/Windows/SettingsTab.cs
-// Status: UPDATED - Removed compact mode option
+// Status: COMPLETE - Fixed tabs
 
 using ImGuiNET;
 using System;
@@ -28,7 +28,7 @@ namespace WahJumps.Windows
 
         public void Draw()
         {
-            // Fixed TabItem usage
+            // Use ImRaii.TabItem with no parameters - no flags needed now
             using var tabItem = new ImRaii.TabItem("Settings");
             if (!tabItem.Success) return;
 

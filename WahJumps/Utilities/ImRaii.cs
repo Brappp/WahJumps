@@ -1,5 +1,5 @@
 // File: WahJumps/Utilities/ImRaii.cs
-// Status: NEW FILE - Create this file (FIXED VERSION)
+// Status: FINAL FIX - Fixed ref keyword error
 
 using System;
 using ImGuiNET;
@@ -52,14 +52,24 @@ namespace WahJumps.Utilities
         {
             private readonly bool _success;
 
-            // Fixed constructor - no ref parameter issues
-            public TabItem(string label, ImGuiTabItemFlags flags = ImGuiTabItemFlags.None)
+            // Simple constructor - just the label
+            public TabItem(string label)
             {
-                _success = ImGui.BeginTabItem(label);
+                // This overload doesn't support flags directly, so we use a dummy bool
+                bool dummyOpen = true;
+                _success = ImGui.BeginTabItem(label, ref dummyOpen, ImGuiTabItemFlags.NoCloseWithMiddleMouseButton);
             }
 
-            public TabItem(string label, ref bool open, ImGuiTabItemFlags flags = ImGuiTabItemFlags.None)
+            // Constructor with ref parameter
+            public TabItem(string label, ref bool open)
             {
+                _success = ImGui.BeginTabItem(label, ref open, ImGuiTabItemFlags.NoCloseWithMiddleMouseButton);
+            }
+
+            // Constructor with ref parameter and flags
+            public TabItem(string label, ref bool open, ImGuiTabItemFlags flags)
+            {
+                flags |= ImGuiTabItemFlags.NoCloseWithMiddleMouseButton;
                 _success = ImGui.BeginTabItem(label, ref open, flags);
             }
 

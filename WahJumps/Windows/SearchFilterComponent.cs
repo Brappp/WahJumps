@@ -1,5 +1,5 @@
 // File: WahJumps/Windows/SearchFilterComponent.cs
-// Status: FIXED VERSION - Compatible with condensed UI components
+// Status: FIXED VERSION - Compatible with condensed UI components and fixed row highlighting
 
 using System;
 using System.Collections.Generic;
@@ -336,12 +336,21 @@ namespace WahJumps.Windows
                 ImGui.TableHeadersRow();
 
                 // Draw each row
-                foreach (var puzzle in puzzles)
+                for (int i = 0; i < puzzles.Count; i++)
                 {
+                    var puzzle = puzzles[i];
                     ImGui.TableNextRow();
+                    ImGui.TableNextColumn();
+
+                    // Add AllowItemOverlap to allow clicks through to buttons
+                    ImGui.PushID(i);
+                    ImGui.Selectable($"##row_{i}", false, ImGuiSelectableFlags.SpanAllColumns | ImGuiSelectableFlags.AllowItemOverlap);
+                    ImGui.PopID();
+
+                    // Reset cursor to start of row for the actual content
+                    ImGui.TableSetColumnIndex(0);
 
                     // Rating column with color
-                    ImGui.TableNextColumn();
                     RenderRatingWithColor(puzzle.Rating);
 
                     // Puzzle Name

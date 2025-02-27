@@ -1,5 +1,5 @@
 // File: WahJumps/Windows/StrangeHousingTab.cs
-// Status: UPDATED - Using filled heart symbol
+// Status: COMPLETE - Fixed tabs and heart symbol
 
 using ImGuiNET;
 using WahJumps.Utilities;
@@ -12,7 +12,7 @@ namespace WahJumps.Windows
     {
         public void Draw()
         {
-            // Fixed TabItem usage with NoCloseWithMiddleMouseButton flag
+            // Simple call with no parameters
             using var tabItem = new ImRaii.TabItem("Strange Housing");
             if (!tabItem.Success) return;
 

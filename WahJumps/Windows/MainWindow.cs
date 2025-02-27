@@ -486,7 +486,7 @@ namespace WahJumps.Windows
 
                     // Use Selectable to highlight the row - SpanAllColumns makes it cover the whole row
                     ImGui.PushID(i);
-                    ImGui.Selectable($"##row_{i}", false, ImGuiSelectableFlags.SpanAllColumns);
+                    ImGui.Selectable($"##row_{i}", false, ImGuiSelectableFlags.SpanAllColumns | ImGuiSelectableFlags.AllowItemOverlap);
                     ImGui.PopID();
 
                     // Reset cursor to start of row for the actual content
