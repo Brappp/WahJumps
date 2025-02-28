@@ -24,6 +24,7 @@ namespace WahJumps.Configuration
         public bool AutoRefreshOnStartup { get; set; } = true;
         public int RefreshIntervalDays { get; set; } = 7;
         public bool ShowTravelConfirmation { get; set; } = true;
+        public bool ShowSpeedrunOptions { get; set; } = true;
 
         // Filter Settings
         public string DefaultDataCenter { get; set; } = "All";

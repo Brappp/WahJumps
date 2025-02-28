@@ -1,6 +1,4 @@
 // File: WahJumps/Plugin.cs
-// Status: ENHANCED VERSION - Improved speedrun functionality with splits and templates
-
 using Dalamud.Plugin;
 using Dalamud.Plugin.Services;
 using Dalamud.IoC;
@@ -13,6 +11,7 @@ using WahJumps.Data;
 using System;
 using System.Linq;
 using System.Collections.Generic;
+using WahJumps.Logging;
 
 namespace WahJumps
 {
@@ -34,12 +33,12 @@ namespace WahJumps
 
         // Speedrun components
         public SpeedrunManager SpeedrunManager { get; private set; }
+        public SpeedrunTab SpeedrunTab { get; private set; }
+        public TimerWindow TimerWindow { get; private set; }
         private Dictionary<string, List<SplitTemplate>> defaultTemplates;
 
         public readonly WindowSystem WindowSystem = new("WahJumps");
         private MainWindow MainWindow { get; init; }
-        private SpeedrunOverlayWindow SpeedrunOverlayWindow { get; init; }
-        private SpeedrunRecordsWindow SpeedrunRecordsWindow { get; init; }
         private string ConfigDirectory { get; }
 
         public Plugin()
@@ -57,13 +56,16 @@ namespace WahJumps
 
             // Set up windows
             MainWindow = new MainWindow(CsvManager, LifestreamIpcHandler, this);
-            SpeedrunOverlayWindow = new SpeedrunOverlayWindow(SpeedrunManager);
-            SpeedrunRecordsWindow = new SpeedrunRecordsWindow(SpeedrunManager);
+
+            // Initialize SpeedrunTab
+            SpeedrunTab = new SpeedrunTab(SpeedrunManager, this);
 
             // Add windows to the window system
             WindowSystem.AddWindow(MainWindow);
-            WindowSystem.AddWindow(SpeedrunOverlayWindow);
-            WindowSystem.AddWindow(SpeedrunRecordsWindow);
+
+            // Create and add the timer window
+            TimerWindow = new TimerWindow(SpeedrunManager);
+            WindowSystem.AddWindow(TimerWindow);
 
             // Register commands
             CommandManager.AddHandler(CommandName, new CommandInfo(OnCommand)
@@ -88,7 +90,7 @@ namespace WahJumps
 
             // Register UI events
             PluginInterface.UiBuilder.Draw += DrawUI;
-            PluginInterface.UiBuilder.OpenMainUi += ToggleMainUI;
+            PluginInterface.UiBuilder.OpenMainUi += ToggleVisibility;
             PluginInterface.UiBuilder.OpenConfigUi += ToggleConfigUI;
 
             // Register event handlers
@@ -96,6 +98,9 @@ namespace WahJumps
 
             // Log initialization
             PluginLog.Information("WahJumps plugin initialized with enhanced speedrun functionality");
+
+            // Initialize logging
+            CustomLogger.Log("Plugin initialized successfully");
         }
 
         private void OnRunCompleted(SpeedrunRecord record)
@@ -120,19 +125,6 @@ namespace WahJumps
                 PluginLog.Information($"Created configuration directory: {outputDirectory}");
             }
 
-            // Create subdirectories for templates and custom puzzles
-            string templatesDir = Path.Combine(outputDirectory, "Templates");
-            if (!Directory.Exists(templatesDir))
-            {
-                Directory.CreateDirectory(templatesDir);
-            }
-
-            string customPuzzlesDir = Path.Combine(outputDirectory, "CustomPuzzles");
-            if (!Directory.Exists(customPuzzlesDir))
-            {
-                Directory.CreateDirectory(customPuzzlesDir);
-            }
-
             return outputDirectory;
         }
 
@@ -140,17 +132,14 @@ namespace WahJumps
         {
             defaultTemplates = new Dictionary<string, List<SplitTemplate>>();
 
-            // Basic templates with common splits
             var basicTemplate = new SplitTemplate("Basic Jump Template");
             basicTemplate.Splits.Add(new SplitCheckpoint("Start Platform", 0));
             basicTemplate.Splits.Add(new SplitCheckpoint("Halfway Point", 1));
             basicTemplate.Splits.Add(new SplitCheckpoint("Final Stretch", 2));
             basicTemplate.Splits.Add(new SplitCheckpoint("Finish", 3));
 
-            // Add to the default templates collection
             defaultTemplates["Basic"] = new List<SplitTemplate> { basicTemplate };
 
-            // Check if any default templates should be added to the manager
             var existingTemplates = SpeedrunManager.GetTemplates();
             if (!existingTemplates.Any(t => t.Name == "Basic Jump Template"))
             {
@@ -164,138 +153,64 @@ namespace WahJumps
         {
             PluginLog.Information("Disposing WahJumps plugin");
 
-            // Unregister event handlers
+            // Unsubscribe from events
             SpeedrunManager.RunCompleted -= OnRunCompleted;
 
             WindowSystem.RemoveAllWindows();
             MainWindow.Dispose();
-            SpeedrunOverlayWindow.Dispose();
-            SpeedrunRecordsWindow.Dispose();
+            SpeedrunTab.Dispose();
+            TimerWindow.Dispose();
+
             CommandManager.RemoveHandler(CommandName);
             CommandManager.RemoveHandler(TimerCommandName);
             CommandManager.RemoveHandler(SplitsCommandName);
             CommandManager.RemoveHandler(RecordsCommandName);
         }
 
-        private void OnCommand(string command, string args) => ToggleMainUI();
+        private void OnCommand(string command, string args) => MainWindow.ToggleVisibility();
 
         private void OnTimerCommand(string command, string args)
         {
-            // Parse arguments to provide more functionality
-            string[] argParts = args.Split(' ', StringSplitOptions.RemoveEmptyEntries);
-
-            if (argParts.Length == 0)
-            {
-                // Default behavior - show the timer overlay
-                ToggleSpeedrunOverlay();
-                return;
-            }
-
-            string subCommand = argParts[0].ToLower();
-
-            switch (subCommand)
-            {
-                case "records":
-                case "history":
-                    ToggleSpeedrunRecords();
-                    break;
-
-                case "start":
-                    // Start the timer with a specific puzzle (if selected in main window)
-                    if (SpeedrunManager.GetCurrentPuzzle() != null)
-                    {
-                        ToggleSpeedrunOverlay();
-                        SpeedrunManager.StartCountdown();
-                    }
-                    else
-                    {
-                        ChatGui.Print("[WahJumps] No puzzle selected. Please select a puzzle first.");
-                    }
-                    break;
-
-                case "split":
-                    // Mark a split if the timer is running
-                    if (SpeedrunManager.GetState() == SpeedrunManager.SpeedrunState.Running)
-                    {
-                        SpeedrunManager.MarkSplit();
-                        ChatGui.Print("[WahJumps] Split marked!");
-                    }
-                    else
-                    {
-                        ChatGui.Print("[WahJumps] Timer not running. Cannot mark split.");
-                    }
-                    break;
-
-                case "stop":
-                    // Stop the timer if it's running
-                    if (SpeedrunManager.GetState() == SpeedrunManager.SpeedrunState.Running)
-                    {
-                        SpeedrunManager.StopTimer();
-                        ChatGui.Print("[WahJumps] Timer stopped!");
-                    }
-                    else
-                    {
-                        ChatGui.Print("[WahJumps] Timer not running.");
-                    }
-                    break;
-
-                case "reset":
-                    // Reset the timer
-                    SpeedrunManager.ResetTimer();
-                    ChatGui.Print("[WahJumps] Timer reset!");
-                    break;
-
-                case "help":
-                    // Show help message
-                    ChatGui.Print("[WahJumps] Speedrun Timer Commands:");
-                    ChatGui.Print("  /jumptimer          - Toggle timer overlay");
-                    ChatGui.Print("  /jumptimer records  - Show records window");
-                    ChatGui.Print("  /jumptimer start    - Start timer with selected puzzle");
-                    ChatGui.Print("  /jumptimer split    - Mark a split during a run");
-                    ChatGui.Print("  /jumptimer stop     - Stop the timer");
-                    ChatGui.Print("  /jumptimer reset    - Reset the timer");
-                    break;
-
-                default:
-                    // Show the timer overlay for any other input
-                    ToggleSpeedrunOverlay();
-                    break;
-            }
+            // Toggle the timer window
+            TimerWindow.Toggle();
         }
 
         private void OnSplitsCommand(string command, string args)
         {
-            // Toggle the speedrun overlay window
-            ToggleSpeedrunOverlay();
+            MainWindow.ToggleVisibility();
+            SpeedrunTab.ForceActivate();
         }
 
         private void OnRecordsCommand(string command, string args)
         {
-            // Toggle the speedrun records window
-            ToggleSpeedrunRecords();
+            MainWindow.ToggleVisibility();
+            SpeedrunTab.ForceActivate();
         }
 
-        private void DrawUI() => WindowSystem.Draw();
+        private void DrawUI()
+        {
+            // Update the speedrun timer every frame
+            SpeedrunManager.Update();
 
-        public void ToggleMainUI() => MainWindow.IsOpen = !MainWindow.IsOpen;
+            WindowSystem.Draw();
+        }
 
-        public void ToggleSpeedrunOverlay() => SpeedrunOverlayWindow.IsOpen = !SpeedrunOverlayWindow.IsOpen;
+        public void ToggleVisibility() => MainWindow.ToggleVisibility();
 
-        public void ToggleSpeedrunRecords() => SpeedrunRecordsWindow.IsOpen = !SpeedrunRecordsWindow.IsOpen;
+        public void ToggleSpeedrunOverlay() => TimerWindow.Toggle();
+
+        public void ToggleSpeedrunRecords() => MainWindow.ToggleVisibility();
 
         public void SelectPuzzleForSpeedrun(JumpPuzzleData puzzle)
         {
             if (puzzle != null)
             {
-                // Set the puzzle in the speedrun manager
-                SpeedrunManager.SetPuzzle(puzzle);
-
-                // Open the speedrun overlay
-                ToggleSpeedrunOverlay();
+                SpeedrunTab.SetPuzzle(puzzle);
+                TimerWindow.ShowTimer();
+                MainWindow.ToggleVisibility();
             }
         }
 
-        // Method to get default templates for a specific category
         public List<SplitTemplate> GetDefaultTemplates(string category)
         {
             if (defaultTemplates.TryGetValue(category, out var templates))

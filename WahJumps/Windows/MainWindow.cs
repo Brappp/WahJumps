@@ -32,6 +32,7 @@ namespace WahJumps.Windows
         private readonly SettingsTab settingsTab;
         private readonly SearchFilterComponent searchFilter;
         private readonly TravelDialog travelDialog;
+        private readonly SpeedrunTab speedrunTab;
 
         // Data
         private Dictionary<string, List<JumpPuzzleData>> csvDataByDataCenter;
@@ -44,7 +45,7 @@ namespace WahJumps.Windows
         private DateTime lastRefreshDate;
         private string favoritesFilePath;
         private int viewMode = 0; // 0=Tabs, 1=Unified Search
-        private bool showSpeedrunOptions = true;
+        private bool showSpeedrunOptions => settingsManager.Configuration.ShowSpeedrunOptions;
 
         // Tab names for TabBar
         private readonly string[] mainTabs = new[] { "Strange Housing", "Information", "Favorites", "Search", "Settings" };
@@ -91,6 +92,7 @@ namespace WahJumps.Windows
             strangeHousingTab = new StrangeHousingTab();
             informationTab = new InformationTab();
             settingsTab = new SettingsTab(settingsManager, csvManager.CsvDirectoryPath, OnSettingsChanged);
+            speedrunTab = new SpeedrunTab(plugin.SpeedrunManager, plugin);
 
             // Initialize data
             csvDataByDataCenter = new Dictionary<string, List<JumpPuzzleData>>();
@@ -234,37 +236,29 @@ namespace WahJumps.Windows
             {
                 RefreshData();
             }
-
             ImGui.SameLine();
             ImGui.Text($"Last Updated: {lastRefreshDate.ToString("yyyy-MM-dd HH:mm")}");
-
-            // Add Speedrun buttons
-            ImGui.SameLine(ImGui.GetWindowWidth() - 460);
-
-            if (ImGui.Button("Speedrun Timer"))
+            // Add Jump Timing button
+            ImGui.SameLine(ImGui.GetWindowWidth() - 300);
+            if (ImGui.Button("Jump Timing"))
             {
-                plugin.ToggleSpeedrunOverlay();
-            }
+                // Open the timer window
+                plugin.TimerWindow.ShowTimer();
 
+                // Also toggle main window to speedrun tab
+                speedrunTab.ForceActivate();
+
+                // Toggle visibility if not already visible
+                if (!IsOpen)
+                {
+                    ToggleVisibility();
+                }
+            }
             if (ImGui.IsItemHovered())
             {
-                ImGui.SetTooltip("Open the speedrun timer overlay");
+                ImGui.SetTooltip("Open the speedrun timing features");
             }
-
-            ImGui.SameLine();
-
-            if (ImGui.Button("Records"))
-            {
-                plugin.ToggleSpeedrunRecords();
-            }
-
-            if (ImGui.IsItemHovered())
-            {
-                ImGui.SetTooltip("View speedrun records");
-            }
-
-            ImGui.SameLine(ImGui.GetWindowWidth() - 270);
-
+            ImGui.SameLine(ImGui.GetWindowWidth() - 170);
             string[] modes = new[] { "Tabbed View", "Search View" };
             ImGui.SetNextItemWidth(160);
             if (ImGui.Combo("##viewMode", ref viewMode, modes, modes.Length))
@@ -273,20 +267,6 @@ namespace WahJumps.Windows
                 settingsManager.Configuration.DefaultViewMode = viewMode;
                 settingsManager.SaveConfiguration();
             }
-
-            ImGui.SameLine();
-
-            // Logging checkbox
-            bool enableLogging = settingsManager.Configuration.EnableLogging;
-            if (ImGui.Checkbox("Log", ref enableLogging))
-            {
-                settingsManager.Configuration.EnableLogging = enableLogging;
-                CustomLogger.IsLoggingEnabled = enableLogging;
-                settingsManager.SaveConfiguration();
-            }
-
-            // Second row: Speedrun and filter options
-            ImGui.Checkbox("Show Speedrun Options", ref showSpeedrunOptions);
         }
 
         private void DrawTabMode()
@@ -322,6 +302,9 @@ namespace WahJumps.Windows
 
                 // Settings Tab
                 settingsTab.Draw();
+
+                // Speedrun Tab
+                speedrunTab.Draw();
 
                 // Region tabs with nested data center tabs
                 DrawRegionTabs();
@@ -483,7 +466,6 @@ namespace WahJumps.Windows
                                    ImGuiTableFlags.SizingStretchProp;
 
             int columnCount = includeAddToFavorites ? 10 : 9;
-            if (showSpeedrunOptions) columnCount++; // Add column for speedrun button
 
             if (ImGui.BeginTable("PuzzlesTable", columnCount, flags))
             {
@@ -503,14 +485,8 @@ namespace WahJumps.Windows
 
                 ImGui.TableSetupColumn("Go", ImGuiTableColumnFlags.WidthFixed, 35);
 
-                // Timer button column
+                // Speedrun button column
                 ImGui.TableSetupColumn("Timer", ImGuiTableColumnFlags.WidthFixed, 35);
-
-                // Speedrun button column (optional)
-                if (showSpeedrunOptions)
-                {
-                    ImGui.TableSetupColumn("Run", ImGuiTableColumnFlags.WidthFixed, 35);
-                }
 
                 ImGui.TableSetupScrollFreeze(0, 1);
                 ImGui.TableHeadersRow();
@@ -596,41 +572,23 @@ namespace WahJumps.Windows
                     if (ImGui.IsItemHovered()) ImGui.SetTooltip($"Travel to {puzzle.World} {puzzle.Address}");
                     ImGui.PopStyleColor();
 
-                    // Timer Button (simple timer)
+                    // Speedrun Button with timer icon
                     ImGui.TableNextColumn();
-                    ImGui.PushStyleColor(ImGuiCol.Text, new Vector4(0.0f, 0.8f, 0.2f, 1.0f));
-                    if (ImGui.Button($"⏱##{puzzle.Id}"))
+                    ImGui.PushStyleColor(ImGuiCol.Text, new Vector4(0.0f, 0.6f, 0.9f, 1.0f));
+                    if (ImGui.Button($"Time##{puzzle.Id}"))
                     {
-                        StartSpeedrunTimer(puzzle);
+                        // Set the puzzle in the speedrun tab
+                        speedrunTab.SetPuzzle(puzzle);
+                        speedrunTab.ForceActivate();
+
+                        // Open the timer window
+                        plugin.TimerWindow.ShowTimer();
                     }
                     if (ImGui.IsItemHovered())
                     {
-                        ImGui.BeginTooltip();
-                        ImGui.Text("Start speedrun timer for this puzzle");
-                        ImGui.Text("Click to open the speedrun interface");
-                        ImGui.Text("(or use /jumptimer command)");
-                        ImGui.EndTooltip();
+                        ImGui.SetTooltip("Time this puzzle");
                     }
                     ImGui.PopStyleColor();
-
-                    // Speedrun Button (full featured)
-                    if (showSpeedrunOptions)
-                    {
-                        ImGui.TableNextColumn();
-                        ImGui.PushStyleColor(ImGuiCol.Text, new Vector4(0.0f, 0.5f, 0.9f, 1.0f));
-                        if (ImGui.Button($"⚡##{puzzle.Id}"))
-                        {
-                            StartAdvancedSpeedrun(puzzle);
-                        }
-                        if (ImGui.IsItemHovered())
-                        {
-                            ImGui.BeginTooltip();
-                            ImGui.Text("Start advanced speedrun with splits");
-                            ImGui.Text("Opens full speedrun interface with splits");
-                            ImGui.EndTooltip();
-                        }
-                        ImGui.PopStyleColor();
-                    }
                 }
 
                 ImGui.EndTable();
@@ -641,30 +599,6 @@ namespace WahJumps.Windows
 
             // End table styling
             UiTheme.EndTableStyle();
-        }
-
-        // Helper method to start the speedrun timer for a selected puzzle
-        private void StartSpeedrunTimer(JumpPuzzleData puzzle)
-        {
-            // Use the plugin method to select the puzzle for speedrunning
-            plugin.SelectPuzzleForSpeedrun(puzzle);
-
-            // The SelectPuzzleForSpeedrun method will:
-            // 1. Set the puzzle in the SpeedrunManager
-            // 2. Open the overlay window
-        }
-
-        // Helper method to start advanced speedrun with splits for a selected puzzle
-        private void StartAdvancedSpeedrun(JumpPuzzleData puzzle)
-        {
-            // First, select the puzzle in the speedrun manager
-            plugin.SpeedrunManager.SetPuzzle(puzzle);
-
-            // Open the overlay window
-            plugin.ToggleSpeedrunOverlay();
-
-            // If it's a new puzzle without templates, this will create a default template
-            // The SpeedrunOverlayWindow will show the splits editor for further customization
         }
 
         private void RenderRatingWithColor(string rating)
@@ -846,6 +780,7 @@ namespace WahJumps.Windows
         {
             csvManager.StatusUpdated -= OnStatusUpdated;
             csvManager.CsvProcessingCompleted -= OnCsvProcessingCompleted;
+            speedrunTab.Dispose();
         }
 
         private List<JumpPuzzleData> LoadFavorites()

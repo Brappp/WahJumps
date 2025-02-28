@@ -155,6 +155,28 @@ namespace WahJumps.Windows
                 ImGui.SetTooltip("Show a confirmation dialog before traveling to a location");
             }
 
+            // Speedrun Settings
+            ImGui.Spacing();
+            ImGui.Spacing();
+
+            using (var header = new ImRaii.StyleColor(ImGuiCol.Text, UiTheme.Primary))
+            {
+                ImGui.Text("Speedrun Settings");
+            }
+            ImGui.Separator();
+
+            bool showSpeedrunOptions = config.ShowSpeedrunOptions;
+            if (ImGui.Checkbox("Show Speedrun Options", ref showSpeedrunOptions))
+            {
+                config.ShowSpeedrunOptions = showSpeedrunOptions;
+                configChanged = true;
+            }
+
+            if (ImGui.IsItemHovered())
+            {
+                ImGui.SetTooltip("Display speedrun related options in the interface");
+            }
+
             // Data Cache Section
             ImGui.Spacing();
             ImGui.Spacing();
