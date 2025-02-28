@@ -238,7 +238,7 @@ namespace WahJumps.Windows
             ImGui.Text($"Last Updated: {lastRefreshDate.ToString("yyyy-MM-dd HH:mm")}");
 
             // Add Speedrun buttons
-            ImGui.SameLine(ImGui.GetWindowWidth() - 380);
+            ImGui.SameLine(ImGui.GetWindowWidth() - 460);
 
             if (ImGui.Button("Speedrun Timer"))
             {
