@@ -1,4 +1,5 @@
 using CsvHelper.Configuration;
+using WahJumps.Data;
 
 namespace WahJumps.Models
 {

@@ -44,6 +44,7 @@ namespace WahJumps.Windows
         private DateTime lastRefreshDate;
         private string favoritesFilePath;
         private int viewMode = 0; // 0=Tabs, 1=Unified Search
+        private bool showSpeedrunOptions = true;
 
         // Tab names for TabBar
         private readonly string[] mainTabs = new[] { "Strange Housing", "Information", "Favorites", "Search", "Settings" };
@@ -283,6 +284,9 @@ namespace WahJumps.Windows
                 CustomLogger.IsLoggingEnabled = enableLogging;
                 settingsManager.SaveConfiguration();
             }
+
+            // Second row: Speedrun and filter options
+            ImGui.Checkbox("Show Speedrun Options", ref showSpeedrunOptions);
         }
 
         private void DrawTabMode()
@@ -478,7 +482,10 @@ namespace WahJumps.Windows
                                    ImGuiTableFlags.ScrollY |
                                    ImGuiTableFlags.SizingStretchProp;
 
-            if (ImGui.BeginTable("PuzzlesTable", includeAddToFavorites ? 10 : 9, flags))
+            int columnCount = includeAddToFavorites ? 10 : 9;
+            if (showSpeedrunOptions) columnCount++; // Add column for speedrun button
+
+            if (ImGui.BeginTable("PuzzlesTable", columnCount, flags))
             {
                 // Configure columns, now more condensed
                 ImGui.TableSetupColumn("Rating", ImGuiTableColumnFlags.WidthFixed, 45);
@@ -495,7 +502,15 @@ namespace WahJumps.Windows
                 }
 
                 ImGui.TableSetupColumn("Go", ImGuiTableColumnFlags.WidthFixed, 35);
-                ImGui.TableSetupColumn("Timer", ImGuiTableColumnFlags.WidthFixed, 50);
+
+                // Timer button column
+                ImGui.TableSetupColumn("Timer", ImGuiTableColumnFlags.WidthFixed, 35);
+
+                // Speedrun button column (optional)
+                if (showSpeedrunOptions)
+                {
+                    ImGui.TableSetupColumn("Run", ImGuiTableColumnFlags.WidthFixed, 35);
+                }
 
                 ImGui.TableSetupScrollFreeze(0, 1);
                 ImGui.TableHeadersRow();
@@ -536,7 +551,7 @@ namespace WahJumps.Windows
 
                     // Codes (compacted)
                     ImGui.TableNextColumn();
-                    string combinedCodes = UiComponents.CombineCodes(puzzle.M, puzzle.E, puzzle.S, puzzle.P, puzzle.V, puzzle.J, puzzle.G, puzzle.L, puzzle.X);
+                    string combinedCodes = SpeedrunUiComponents.CombineCodes(puzzle.M, puzzle.E, puzzle.S, puzzle.P, puzzle.V, puzzle.J, puzzle.G, puzzle.L, puzzle.X);
                     RenderCodesWithTooltips(combinedCodes);
 
                     // Goals/Rules
@@ -581,15 +596,41 @@ namespace WahJumps.Windows
                     if (ImGui.IsItemHovered()) ImGui.SetTooltip($"Travel to {puzzle.World} {puzzle.Address}");
                     ImGui.PopStyleColor();
 
-                    // Speedrun Timer Button (new)
+                    // Timer Button (simple timer)
                     ImGui.TableNextColumn();
                     ImGui.PushStyleColor(ImGuiCol.Text, new Vector4(0.0f, 0.8f, 0.2f, 1.0f));
                     if (ImGui.Button($"⏱##{puzzle.Id}"))
                     {
                         StartSpeedrunTimer(puzzle);
                     }
-                    if (ImGui.IsItemHovered()) ImGui.SetTooltip("Start speedrun timer for this puzzle");
+                    if (ImGui.IsItemHovered())
+                    {
+                        ImGui.BeginTooltip();
+                        ImGui.Text("Start speedrun timer for this puzzle");
+                        ImGui.Text("Click to open the speedrun interface");
+                        ImGui.Text("(or use /jumptimer command)");
+                        ImGui.EndTooltip();
+                    }
                     ImGui.PopStyleColor();
+
+                    // Speedrun Button (full featured)
+                    if (showSpeedrunOptions)
+                    {
+                        ImGui.TableNextColumn();
+                        ImGui.PushStyleColor(ImGuiCol.Text, new Vector4(0.0f, 0.5f, 0.9f, 1.0f));
+                        if (ImGui.Button($"⚡##{puzzle.Id}"))
+                        {
+                            StartAdvancedSpeedrun(puzzle);
+                        }
+                        if (ImGui.IsItemHovered())
+                        {
+                            ImGui.BeginTooltip();
+                            ImGui.Text("Start advanced speedrun with splits");
+                            ImGui.Text("Opens full speedrun interface with splits");
+                            ImGui.EndTooltip();
+                        }
+                        ImGui.PopStyleColor();
+                    }
                 }
 
                 ImGui.EndTable();
@@ -603,18 +644,27 @@ namespace WahJumps.Windows
         }
 
         // Helper method to start the speedrun timer for a selected puzzle
-        // In MainWindow.cs, update the StartSpeedrunTimer method:
-
         private void StartSpeedrunTimer(JumpPuzzleData puzzle)
         {
-            // Reset the timer
-            plugin.SpeedrunManager.ResetTimer();
+            // Use the plugin method to select the puzzle for speedrunning
+            plugin.SelectPuzzleForSpeedrun(puzzle);
 
-            // Set the current puzzle and show the overlay
+            // The SelectPuzzleForSpeedrun method will:
+            // 1. Set the puzzle in the SpeedrunManager
+            // 2. Open the overlay window
+        }
+
+        // Helper method to start advanced speedrun with splits for a selected puzzle
+        private void StartAdvancedSpeedrun(JumpPuzzleData puzzle)
+        {
+            // First, select the puzzle in the speedrun manager
             plugin.SpeedrunManager.SetPuzzle(puzzle);
 
             // Open the overlay window
             plugin.ToggleSpeedrunOverlay();
+
+            // If it's a new puzzle without templates, this will create a default template
+            // The SpeedrunOverlayWindow will show the splits editor for further customization
         }
 
         private void RenderRatingWithColor(string rating)
