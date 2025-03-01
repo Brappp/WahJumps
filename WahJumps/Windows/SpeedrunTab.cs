@@ -23,6 +23,12 @@ namespace WahJumps.Windows
         private int countdownRemaining;
         private string newSplitName = string.Empty;
 
+        // Split practice mode
+        private int practicingSplitIndex = -1;
+        private TimeSpan practiceSplitStartTime;
+        private bool isPracticingAnyMode = false;
+        private List<TimeSpan> bestPracticeTimes = new List<TimeSpan>();
+
         // Display settings
         private Vector4 timeColor = new Vector4(0.0f, 0.8f, 0.2f, 1.0f);
         private enum ContentView { HowTo, Timer, Records, Splits }
@@ -48,6 +54,26 @@ namespace WahJumps.Windows
             // Called when a puzzle is selected from the main window
             currentPuzzle = puzzle;
             speedrunManager.SetPuzzle(puzzle);
+
+            // Initialize practice best times list when a new puzzle is selected
+            ResetPracticeTimes();
+        }
+
+        private void ResetPracticeTimes()
+        {
+            var splits = speedrunManager.GetCurrentTemplate()?.Splits;
+            if (splits != null)
+            {
+                bestPracticeTimes = new List<TimeSpan>(new TimeSpan[splits.Count]);
+                for (int i = 0; i < bestPracticeTimes.Count; i++)
+                {
+                    bestPracticeTimes[i] = TimeSpan.MaxValue;
+                }
+            }
+            else
+            {
+                bestPracticeTimes = new List<TimeSpan>();
+            }
         }
 
         // Method to force speedrun tab to be the active tab
@@ -72,6 +98,12 @@ namespace WahJumps.Windows
             {
                 currentView = ContentView.Timer;
             }
+
+            // If we were in practice mode and the run stopped, record the time
+            if (isPracticingAnyMode && state == SpeedrunManager.SpeedrunState.Finished)
+            {
+                RecordPracticeTime();
+            }
         }
 
         private void OnTimeUpdated(TimeSpan time)
@@ -87,6 +119,35 @@ namespace WahJumps.Windows
         private void OnRunCompleted(SpeedrunRecord record)
         {
             lastFinishedRun = record;
+        }
+
+        private void StartSplitPractice(int splitIndex)
+        {
+            // Reset current run and start practicing a specific split
+            speedrunManager.ResetTimer();
+            practicingSplitIndex = splitIndex;
+            isPracticingAnyMode = true;
+            practiceSplitStartTime = TimeSpan.Zero;
+
+            // Start the timer immediately in practice mode
+            speedrunManager.StartCountdown();
+            speedrunManager.SkipCountdown();
+        }
+
+        private void RecordPracticeTime()
+        {
+            if (practicingSplitIndex >= 0 && practicingSplitIndex < bestPracticeTimes.Count)
+            {
+                // Record the practice time if it's better than previous attempts
+                if (currentTime < bestPracticeTimes[practicingSplitIndex] || bestPracticeTimes[practicingSplitIndex] == TimeSpan.MaxValue)
+                {
+                    bestPracticeTimes[practicingSplitIndex] = currentTime;
+                }
+            }
+
+            // Reset practice mode state
+            isPracticingAnyMode = false;
+            practicingSplitIndex = -1;
         }
 
         public void Draw()
@@ -172,6 +233,24 @@ namespace WahJumps.Windows
                     // Return to main window to select another puzzle
                     ImGui.SetTabItemClosed("Speedrun");
                 }
+
+                // Display practice mode indicator if active
+                if (isPracticingAnyMode)
+                {
+                    ImGui.TextColored(new Vector4(1.0f, 0.7f, 0.0f, 1.0f),
+                        "PRACTICE MODE ACTIVE");
+
+                    if (practicingSplitIndex >= 0)
+                    {
+                        var splits = speedrunManager.GetCurrentTemplate()?.Splits;
+                        if (splits != null && practicingSplitIndex < splits.Count)
+                        {
+                            ImGui.SameLine();
+                            ImGui.TextColored(new Vector4(1.0f, 0.7f, 0.0f, 1.0f),
+                                $"Split: {splits[practicingSplitIndex].Name}");
+                        }
+                    }
+                }
             }
             else
             {
@@ -193,7 +272,7 @@ namespace WahJumps.Windows
                 ImGui.PushTextWrapPos(ImGui.GetContentRegionAvail().X);
 
                 ImGui.TextColored(UiTheme.Primary, "1. Getting Started");
-                ImGui.Text("• Select a puzzle from the main window by clicking the timer (Time) button");
+                ImGui.Text("• Select a puzzle from the main window by clicking the timer (⏱) button");
                 ImGui.Text("• Go to the Timer tab to start your run");
                 ImGui.Text("• Use the Start Timer button to begin (with countdown) or Skip Countdown to start immediately");
                 ImGui.Spacing();
@@ -208,7 +287,8 @@ namespace WahJumps.Windows
                 ImGui.TextColored(UiTheme.Primary, "3. Managing Splits");
                 ImGui.Text("• Go to the Splits tab to create and edit split checkpoints");
                 ImGui.Text("• Add descriptive splits like \"First Jump\", \"Halfway Point\", etc.");
-                ImGui.Text("• Splits help track your progress through different parts of the puzzle");
+                ImGui.Text("• You can practice individual splits by clicking the Practice button next to any split");
+                ImGui.Text("• This helps you perfect difficult sections of a puzzle");
                 ImGui.Spacing();
 
                 ImGui.TextColored(UiTheme.Primary, "4. Viewing Records");
@@ -222,6 +302,22 @@ namespace WahJumps.Windows
                 ImGui.Text("• This window stays visible even when the main plugin window is closed");
                 ImGui.Text("• Perfect for keeping track of your time while focusing on the game");
                 ImGui.Text("• Can be expanded or minimized to show just what you need");
+                ImGui.Spacing();
+
+                ImGui.TextColored(UiTheme.Primary, "6. Chat Commands");
+                ImGui.Text("• Use /jumptimer start - Start the timer");
+                ImGui.Text("• Use /jumptimer stop - Stop the timer");
+                ImGui.Text("• Use /jumptimer split - Mark a split");
+                ImGui.Text("• Use /jumptimer reset - Reset the timer");
+                ImGui.Text("• Use /jumptimer show - Show the timer window");
+                ImGui.Text("• Use /jumptimer hide - Hide the timer window");
+                ImGui.Spacing();
+
+                ImGui.TextColored(UiTheme.Primary, "7. Split Practice Mode");
+                ImGui.Text("• In the Splits tab, you can click Practice next to any split");
+                ImGui.Text("• This lets you focus on mastering specific sections");
+                ImGui.Text("• Your best practice times are saved for each split");
+                ImGui.Text("• Use this feature to improve your weakest segments");
 
                 ImGui.PopTextWrapPos();
             }
@@ -246,7 +342,7 @@ namespace WahJumps.Windows
             }
 
             // If we're in a finished state, show completion info
-            if (state == SpeedrunManager.SpeedrunState.Finished && lastFinishedRun != null)
+            if (state == SpeedrunManager.SpeedrunState.Finished && lastFinishedRun != null && !isPracticingAnyMode)
             {
                 DrawRunCompletedInfo();
                 return;
@@ -270,8 +366,35 @@ namespace WahJumps.Windows
             ImGui.SetWindowFontScale(1.0f);
             ImGui.PopStyleColor();
 
+            // Practice mode indicator if active
+            if (isPracticingAnyMode)
+            {
+                ImGui.SetCursorPosX((ImGui.GetWindowWidth() - ImGui.CalcTextSize("PRACTICE MODE").X) / 2);
+                ImGui.TextColored(new Vector4(1.0f, 0.7f, 0.0f, 1.0f), "PRACTICE MODE");
+
+                if (practicingSplitIndex >= 0)
+                {
+                    var splits = speedrunManager.GetCurrentTemplate()?.Splits;
+                    if (splits != null && practicingSplitIndex < splits.Count)
+                    {
+                        string splitName = splits[practicingSplitIndex].Name;
+                        ImGui.SetCursorPosX((ImGui.GetWindowWidth() - ImGui.CalcTextSize(splitName).X) / 2);
+                        ImGui.TextColored(new Vector4(1.0f, 0.7f, 0.0f, 1.0f), splitName);
+
+                        // Show best practice time if available
+                        if (bestPracticeTimes.Count > practicingSplitIndex &&
+                            bestPracticeTimes[practicingSplitIndex] != TimeSpan.MaxValue)
+                        {
+                            string bestTime = $"Best: {FormatTime(bestPracticeTimes[practicingSplitIndex])}";
+                            ImGui.SetCursorPosX((ImGui.GetWindowWidth() - ImGui.CalcTextSize(bestTime).X) / 2);
+                            ImGui.TextColored(new Vector4(0.0f, 0.8f, 0.0f, 1.0f), bestTime);
+                        }
+                    }
+                }
+            }
+
             // Splits display
-            if (state == SpeedrunManager.SpeedrunState.Running)
+            if (state == SpeedrunManager.SpeedrunState.Running && !isPracticingAnyMode)
             {
                 DrawRunningSplits();
             }
@@ -417,9 +540,19 @@ namespace WahJumps.Windows
             else if (state == SpeedrunManager.SpeedrunState.Running)
             {
                 // Running control buttons
-                if (ImGui.Button("Split", new Vector2(buttonWidth, 40)))
+                if (!isPracticingAnyMode)
                 {
-                    speedrunManager.MarkSplit();
+                    if (ImGui.Button("Split", new Vector2(buttonWidth, 40)))
+                    {
+                        speedrunManager.MarkSplit();
+                    }
+                }
+                else
+                {
+                    if (ImGui.Button("Complete", new Vector2(buttonWidth, 40)))
+                    {
+                        speedrunManager.StopTimer();
+                    }
                 }
 
                 ImGui.SameLine(0, buttonSpacing);
@@ -434,6 +567,8 @@ namespace WahJumps.Windows
                 if (ImGui.Button("Reset", new Vector2(buttonWidth, 40)))
                 {
                     speedrunManager.ResetTimer();
+                    isPracticingAnyMode = false;
+                    practicingSplitIndex = -1;
                 }
             }
             else if (state == SpeedrunManager.SpeedrunState.Finished)
@@ -443,13 +578,26 @@ namespace WahJumps.Windows
                 {
                     speedrunManager.ResetTimer();
                     lastFinishedRun = null;
+                    isPracticingAnyMode = false;
+                    practicingSplitIndex = -1;
                 }
 
                 ImGui.SameLine(0, buttonSpacing);
 
-                if (ImGui.Button("View Records", new Vector2(buttonWidth, 40)))
+                if (isPracticingAnyMode)
                 {
-                    currentView = ContentView.Records;
+                    if (ImGui.Button("Practice Again", new Vector2(buttonWidth, 40)))
+                    {
+                        int currentSplit = practicingSplitIndex;
+                        StartSplitPractice(currentSplit);
+                    }
+                }
+                else
+                {
+                    if (ImGui.Button("View Records", new Vector2(buttonWidth, 40)))
+                    {
+                        currentView = ContentView.Records;
+                    }
                 }
             }
         }
@@ -553,6 +701,17 @@ namespace WahJumps.Windows
                     .ToList();
 
                 DrawRecordsTable(currentPuzzleRecords);
+
+                // If there are any records with splits, show detailed view
+                var recordWithSplits = currentPuzzleRecords.FirstOrDefault(r => r.Splits.Count > 0);
+                if (recordWithSplits != null)
+                {
+                    ImGui.Spacing();
+                    ImGui.Separator();
+                    ImGui.TextColored(UiTheme.Primary, "Detailed Split Analysis");
+
+                    DrawDetailedSplitsTable(currentPuzzleRecords);
+                }
             }
             else
             {
@@ -568,6 +727,15 @@ namespace WahJumps.Windows
                     if (ImGui.CollapsingHeader(puzzleName))
                     {
                         DrawRecordsTable(puzzleRecords);
+
+                        // If there are any records with splits, show detailed view
+                        var recordWithSplits = puzzleRecords.FirstOrDefault(r => r.Splits.Count > 0);
+                        if (recordWithSplits != null)
+                        {
+                            ImGui.Spacing();
+                            ImGui.TextColored(UiTheme.Primary, "Detailed Split Analysis");
+                            DrawDetailedSplitsTable(puzzleRecords);
+                        }
                     }
                 }
 
@@ -577,11 +745,12 @@ namespace WahJumps.Windows
 
         private void DrawRecordsTable(List<SpeedrunRecord> records)
         {
-            if (ImGui.BeginTable("RecordsTable", 3, ImGuiTableFlags.Borders | ImGuiTableFlags.RowBg))
+            if (ImGui.BeginTable("RecordsTable", 4, ImGuiTableFlags.Borders | ImGuiTableFlags.RowBg))
             {
                 ImGui.TableSetupColumn("Date", ImGuiTableColumnFlags.WidthFixed, 120);
                 ImGui.TableSetupColumn("Time", ImGuiTableColumnFlags.WidthFixed, 100);
-                ImGui.TableSetupColumn("Splits", ImGuiTableColumnFlags.WidthStretch);
+                ImGui.TableSetupColumn("Splits", ImGuiTableColumnFlags.WidthFixed, 60);
+                ImGui.TableSetupColumn("Actions", ImGuiTableColumnFlags.WidthStretch);
                 ImGui.TableHeadersRow();
 
                 foreach (var record in records)
@@ -598,7 +767,165 @@ namespace WahJumps.Windows
 
                     // Splits count
                     ImGui.TableNextColumn();
-                    ImGui.Text($"{record.Splits.Count} splits");
+                    ImGui.Text($"{record.Splits.Count}");
+
+                    // Actions - View details
+                    ImGui.TableNextColumn();
+                    ImGui.PushID(record.Id.ToString());
+                    if (ImGui.Button("Details") && record.Splits.Count > 0)
+                    {
+                        // Show details popup
+                        ImGui.OpenPopup("RecordDetailsPopup");
+                        lastFinishedRun = record; // Use this to display details
+                    }
+
+                    // Details popup
+                    if (ImGui.BeginPopup("RecordDetailsPopup"))
+                    {
+                        ImGui.Text($"Record from {record.Date}");
+                        ImGui.Text($"Total Time: {FormatTime(record.Time)}");
+                        ImGui.Separator();
+
+                        if (record.Splits.Count > 0)
+                        {
+                            // Simple table for splits in popup
+                            if (ImGui.BeginTable("DetailSplitsTable", 3, ImGuiTableFlags.Borders))
+                            {
+                                ImGui.TableSetupColumn("Split");
+                                ImGui.TableSetupColumn("Split Time");
+                                ImGui.TableSetupColumn("Total Time");
+                                ImGui.TableHeadersRow();
+
+                                foreach (var split in record.Splits.OrderBy(s => s.Order))
+                                {
+                                    ImGui.TableNextRow();
+
+                                    // Split name
+                                    ImGui.TableNextColumn();
+                                    ImGui.Text(split.Name);
+
+                                    // Split time
+                                    ImGui.TableNextColumn();
+                                    if (split.SplitTime.HasValue)
+                                    {
+                                        ImGui.Text(FormatTime(split.SplitTime.Value));
+                                    }
+                                    else
+                                    {
+                                        ImGui.Text("-");
+                                    }
+
+                                    // Total time at split
+                                    ImGui.TableNextColumn();
+                                    ImGui.Text(FormatTime(split.Time));
+                                }
+
+                                ImGui.EndTable();
+                            }
+                        }
+                        else
+                        {
+                            ImGui.Text("No splits available for this record.");
+                        }
+
+                        ImGui.EndPopup();
+                    }
+
+                    ImGui.PopID();
+                }
+
+                ImGui.EndTable();
+            }
+        }
+
+        private void DrawDetailedSplitsTable(List<SpeedrunRecord> records)
+        {
+            // Find the best record (fastest) with splits
+            var bestRecord = records
+                .Where(r => r.Splits.Count > 0)
+                .OrderBy(r => r.Time)
+                .FirstOrDefault();
+
+            if (bestRecord == null) return;
+
+            // Get all split names in order from the best record
+            var splitNames = bestRecord.Splits
+                .OrderBy(s => s.Order)
+                .Select(s => s.Name)
+                .ToList();
+
+            if (ImGui.BeginTable("DetailedSplitsTable", splitNames.Count + 2, ImGuiTableFlags.Borders | ImGuiTableFlags.ScrollX))
+            {
+                // Setup header columns
+                ImGui.TableSetupColumn("Date/Time", ImGuiTableColumnFlags.WidthFixed, 150);
+                ImGui.TableSetupColumn("Total", ImGuiTableColumnFlags.WidthFixed, 100);
+
+                // Setup split columns
+                foreach (var splitName in splitNames)
+                {
+                    ImGui.TableSetupColumn(splitName, ImGuiTableColumnFlags.WidthFixed, 100);
+                }
+
+                ImGui.TableHeadersRow();
+
+                // For each record with splits
+                foreach (var record in records.Where(r => r.Splits.Count > 0).OrderBy(r => r.Time).Take(5))
+                {
+                    ImGui.TableNextRow();
+
+                    // Date and total time
+                    ImGui.TableNextColumn();
+                    ImGui.Text(record.Date.ToString("yyyy-MM-dd HH:mm"));
+
+                    ImGui.TableNextColumn();
+                    ImGui.Text(FormatTime(record.Time));
+
+                    // Each split time
+                    var recordSplits = record.Splits.OrderBy(s => s.Order).ToList();
+
+                    for (int i = 0; i < splitNames.Count; i++)
+                    {
+                        ImGui.TableNextColumn();
+
+                        // Find corresponding split in this record
+                        var split = recordSplits.FirstOrDefault(s => s.Name == splitNames[i]);
+
+                        if (split != null && split.SplitTime.HasValue)
+                        {
+                            // Color good/bad splits based on comparison to best
+                            var bestSplit = bestRecord.Splits
+                                .FirstOrDefault(s => s.Name == splitNames[i]);
+
+                            if (bestSplit != null && bestSplit.SplitTime.HasValue)
+                            {
+                                float ratio = (float)(split.SplitTime.Value.TotalMilliseconds / bestSplit.SplitTime.Value.TotalMilliseconds);
+
+                                if (ratio <= 1.05f) // Within 5% of best
+                                {
+                                    ImGui.TextColored(new Vector4(0.0f, 0.8f, 0.2f, 1.0f),
+                                        FormatTime(split.SplitTime.Value));
+                                }
+                                else if (ratio <= 1.2f) // Within 20% of best
+                                {
+                                    ImGui.TextColored(new Vector4(0.9f, 0.8f, 0.0f, 1.0f),
+                                        FormatTime(split.SplitTime.Value));
+                                }
+                                else // Much worse than best
+                                {
+                                    ImGui.TextColored(new Vector4(0.9f, 0.4f, 0.4f, 1.0f),
+                                        FormatTime(split.SplitTime.Value));
+                                }
+                            }
+                            else
+                            {
+                                ImGui.Text(FormatTime(split.SplitTime.Value));
+                            }
+                        }
+                        else
+                        {
+                            ImGui.Text("-");
+                        }
+                    }
                 }
 
                 ImGui.EndTable();
@@ -634,11 +961,14 @@ namespace WahJumps.Windows
                     template.Splits.Add(new SplitCheckpoint("Finish", 0));
                     speedrunManager.UpdateTemplate(template);
                     speedrunManager.SetTemplate(template);
+
+                    // Initialize practice times
+                    ResetPracticeTimes();
                 }
                 return;
             }
 
-            ImGui.TextColored(UiTheme.Primary, $"Editing Splits for: {currentPuzzle.PuzzleName}");
+            ImGui.TextColored(UiTheme.Primary, $"Splits for: {currentPuzzle.PuzzleName}");
 
             // Template name
             string templateName = currentTemplate.Name;
@@ -650,16 +980,21 @@ namespace WahJumps.Windows
             }
 
             ImGui.Separator();
-            ImGui.Text("Splits:");
+            ImGui.TextColored(UiTheme.Primary, "Splits:");
+
+            // Informational text for practice mode
+            ImGui.TextColored(UiTheme.Secondary, "Click 'Practice' to time yourself on individual sections");
 
             // Splits list
             if (currentTemplate.Splits.Count > 0)
             {
-                if (ImGui.BeginTable("SplitsTable", 3, ImGuiTableFlags.Borders))
+                if (ImGui.BeginTable("SplitsTable", 5, ImGuiTableFlags.Borders))
                 {
                     ImGui.TableSetupColumn("Name", ImGuiTableColumnFlags.WidthStretch);
                     ImGui.TableSetupColumn("Order", ImGuiTableColumnFlags.WidthFixed, 60);
-                    ImGui.TableSetupColumn("Actions", ImGuiTableColumnFlags.WidthFixed, 60);
+                    ImGui.TableSetupColumn("Best Practice", ImGuiTableColumnFlags.WidthFixed, 100);
+                    ImGui.TableSetupColumn("Actions", ImGuiTableColumnFlags.WidthFixed, 140);
+                    ImGui.TableSetupColumn("Practice", ImGuiTableColumnFlags.WidthFixed, 80);
                     ImGui.TableHeadersRow();
 
                     // Get ordered splits
@@ -692,12 +1027,70 @@ namespace WahJumps.Windows
                             speedrunManager.UpdateTemplate(currentTemplate);
                         }
 
-                        // Delete button
+                        // Best practice time column
                         ImGui.TableNextColumn();
-                        if (ImGui.Button("X"))
+                        if (i < bestPracticeTimes.Count && bestPracticeTimes[i] != TimeSpan.MaxValue)
+                        {
+                            ImGui.TextColored(timeColor, FormatTime(bestPracticeTimes[i]));
+                        }
+                        else
+                        {
+                            ImGui.Text("No data");
+                        }
+
+                        // Actions column
+                        ImGui.TableNextColumn();
+
+                        // Move up button
+                        if (i > 0 && ImGui.Button("Up##" + i))
+                        {
+                            // Swap this split with the one above it
+                            int thisOrder = split.Order;
+                            int prevOrder = orderedSplits[i - 1].Order;
+
+                            split.Order = prevOrder;
+                            orderedSplits[i - 1].Order = thisOrder;
+
+                            speedrunManager.UpdateTemplate(currentTemplate);
+                        }
+
+                        ImGui.SameLine();
+
+                        // Move down button
+                        if (i < orderedSplits.Count - 1 && ImGui.Button("Down##" + i))
+                        {
+                            // Swap this split with the one below it
+                            int thisOrder = split.Order;
+                            int nextOrder = orderedSplits[i + 1].Order;
+
+                            split.Order = nextOrder;
+                            orderedSplits[i + 1].Order = thisOrder;
+
+                            speedrunManager.UpdateTemplate(currentTemplate);
+                        }
+
+                        ImGui.SameLine();
+
+                        // Delete button
+                        if (ImGui.Button("Delete##" + i))
                         {
                             currentTemplate.Splits.Remove(split);
+
+                            // Remove the corresponding practice time
+                            if (i < bestPracticeTimes.Count)
+                            {
+                                bestPracticeTimes.RemoveAt(i);
+                            }
+
                             speedrunManager.UpdateTemplate(currentTemplate);
+                        }
+
+                        // Practice column
+                        ImGui.TableNextColumn();
+                        if (ImGui.Button("Practice##" + i))
+                        {
+                            StartSplitPractice(i);
+                            currentView = ContentView.Timer;
                         }
 
                         ImGui.PopID();
@@ -730,12 +1123,31 @@ namespace WahJumps.Windows
 
                 currentTemplate.Splits.Add(new SplitCheckpoint(newSplitName, nextOrder));
                 speedrunManager.UpdateTemplate(currentTemplate);
+
+                // Add a new practice time slot
+                bestPracticeTimes.Add(TimeSpan.MaxValue);
+
                 newSplitName = string.Empty;
+            }
+
+            ImGui.Spacing();
+
+            // Full run practice button
+            if (currentTemplate.Splits.Count > 0)
+            {
+                if (ImGui.Button("Practice Full Run", new Vector2(200, 30)))
+                {
+                    isPracticingAnyMode = true;
+                    practicingSplitIndex = -1;
+                    speedrunManager.ResetTimer();
+                    speedrunManager.StartCountdown();
+                    currentView = ContentView.Timer;
+                }
             }
 
             // Helper text
             ImGui.TextColored(new Vector4(0.7f, 0.7f, 0.7f, 1.0f),
-                "Tip: Add splits for key checkpoints in your puzzle run.");
+                "Tip: Create splits for key checkpoints in your puzzle run.");
         }
 
         private string FormatTime(TimeSpan time)

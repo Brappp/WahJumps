@@ -1,5 +1,5 @@
 // File: WahJumps/Windows/MainWindow.cs
-// Status: ENHANCED VERSION - Added speedrun functionality
+// Status: ENHANCED VERSION - Updated for better speedrun functionality
 
 using System;
 using System.Collections.Generic;
@@ -238,9 +238,10 @@ namespace WahJumps.Windows
             }
             ImGui.SameLine();
             ImGui.Text($"Last Updated: {lastRefreshDate.ToString("yyyy-MM-dd HH:mm")}");
-            // Add Jump Timing button
+
+            // Add Run button (renamed from "Jump Timing")
             ImGui.SameLine(ImGui.GetWindowWidth() - 300);
-            if (ImGui.Button("Jump Timing"))
+            if (ImGui.Button("Run"))
             {
                 // Open the timer window
                 plugin.TimerWindow.ShowTimer();
@@ -258,6 +259,7 @@ namespace WahJumps.Windows
             {
                 ImGui.SetTooltip("Open the speedrun timing features");
             }
+
             ImGui.SameLine(ImGui.GetWindowWidth() - 170);
             string[] modes = new[] { "Tabbed View", "Search View" };
             ImGui.SetNextItemWidth(160);
@@ -575,7 +577,7 @@ namespace WahJumps.Windows
                     // Speedrun Button with timer icon
                     ImGui.TableNextColumn();
                     ImGui.PushStyleColor(ImGuiCol.Text, new Vector4(0.0f, 0.6f, 0.9f, 1.0f));
-                    if (ImGui.Button($"Time##{puzzle.Id}"))
+                    if (ImGui.Button($"⏱##{puzzle.Id}"))
                     {
                         // Set the puzzle in the speedrun tab
                         speedrunTab.SetPuzzle(puzzle);
@@ -898,6 +900,12 @@ namespace WahJumps.Windows
             csvManager.DownloadAndSaveIndividualCsvsAsync();
             statusMessage = "Refreshing data...";
             isReady = false;
+        }
+
+        // Add a method to access the CSV data for use by the TimerWindow
+        public Dictionary<string, List<JumpPuzzleData>> GetCsvDataByDataCenter()
+        {
+            return csvDataByDataCenter;
         }
     }
 }

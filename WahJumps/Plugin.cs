@@ -28,6 +28,14 @@ namespace WahJumps
         private const string SplitsCommandName = "/JumpSplits";
         private const string RecordsCommandName = "/JumpRecords";
 
+        // New specific commands for controlling the timer
+        private const string TimerStartCommand = "/jumptimer start";
+        private const string TimerStopCommand = "/jumptimer stop";
+        private const string TimerSplitCommand = "/jumptimer split";
+        private const string TimerResetCommand = "/jumptimer reset";
+        private const string TimerShowCommand = "/jumptimer show";
+        private const string TimerHideCommand = "/jumptimer hide";
+
         public CsvManager CsvManager { get; private set; }
         public LifestreamIpcHandler LifestreamIpcHandler { get; private set; }
 
@@ -35,10 +43,11 @@ namespace WahJumps
         public SpeedrunManager SpeedrunManager { get; private set; }
         public SpeedrunTab SpeedrunTab { get; private set; }
         public TimerWindow TimerWindow { get; private set; }
+        public MainWindow MainWindow { get; private set; }
+
         private Dictionary<string, List<SplitTemplate>> defaultTemplates;
 
         public readonly WindowSystem WindowSystem = new("WahJumps");
-        private MainWindow MainWindow { get; init; }
         private string ConfigDirectory { get; }
 
         public Plugin()
@@ -63,8 +72,8 @@ namespace WahJumps
             // Add windows to the window system
             WindowSystem.AddWindow(MainWindow);
 
-            // Create and add the timer window
-            TimerWindow = new TimerWindow(SpeedrunManager);
+            // Create and add the timer window - now passing 'this' as reference
+            TimerWindow = new TimerWindow(SpeedrunManager, this);
             WindowSystem.AddWindow(TimerWindow);
 
             // Register commands
@@ -75,12 +84,12 @@ namespace WahJumps
 
             CommandManager.AddHandler(TimerCommandName, new CommandInfo(OnTimerCommand)
             {
-                HelpMessage = "Opens the jump puzzle speedrun timer"
+                HelpMessage = "Controls the jump puzzle speedrun timer. Usage: /jumptimer [start|stop|split|reset|show|hide]"
             });
 
             CommandManager.AddHandler(SplitsCommandName, new CommandInfo(OnSplitsCommand)
             {
-                HelpMessage = "Toggle speedrun splits timer overlay"
+                HelpMessage = "Open speedrun splits editor"
             });
 
             CommandManager.AddHandler(RecordsCommandName, new CommandInfo(OnRecordsCommand)
@@ -171,8 +180,85 @@ namespace WahJumps
 
         private void OnTimerCommand(string command, string args)
         {
-            // Toggle the timer window
-            TimerWindow.Toggle();
+            // Process timer commands with arguments
+            if (string.IsNullOrEmpty(args))
+            {
+                // No args means toggle the timer window
+                TimerWindow.Toggle();
+                return;
+            }
+
+            // Convert to lowercase for case-insensitive comparison
+            string lowerArgs = args.ToLower().Trim();
+
+            switch (lowerArgs)
+            {
+                case "start":
+                    // Start the timer with countdown
+                    SpeedrunManager.StartCountdown();
+                    TimerWindow.ShowTimer();
+                    ChatGui.Print("[WahJumps] Timer started with countdown");
+                    break;
+
+                case "stop":
+                    // Stop the current run
+                    if (SpeedrunManager.GetState() == SpeedrunManager.SpeedrunState.Running)
+                    {
+                        SpeedrunManager.StopTimer();
+                        ChatGui.Print("[WahJumps] Timer stopped");
+                    }
+                    else
+                    {
+                        ChatGui.Print("[WahJumps] Timer is not currently running");
+                    }
+                    break;
+
+                case "split":
+                    // Mark a split
+                    if (SpeedrunManager.GetState() == SpeedrunManager.SpeedrunState.Running)
+                    {
+                        SpeedrunManager.MarkSplit();
+
+                        // Get the split that was just marked
+                        var currentSplit = SpeedrunManager.GetCurrentSplit();
+                        if (currentSplit != null)
+                        {
+                            ChatGui.Print($"[WahJumps] Split marked: {currentSplit.Name}");
+                        }
+                        else
+                        {
+                            ChatGui.Print("[WahJumps] Split marked");
+                        }
+                    }
+                    else
+                    {
+                        ChatGui.Print("[WahJumps] Timer is not currently running");
+                    }
+                    break;
+
+                case "reset":
+                    // Reset the timer
+                    SpeedrunManager.ResetTimer();
+                    ChatGui.Print("[WahJumps] Timer reset");
+                    break;
+
+                case "show":
+                    // Show the timer window
+                    TimerWindow.ShowTimer();
+                    ChatGui.Print("[WahJumps] Timer window shown");
+                    break;
+
+                case "hide":
+                    // Hide the timer window
+                    TimerWindow.HideTimer();
+                    ChatGui.Print("[WahJumps] Timer window hidden");
+                    break;
+
+                default:
+                    // Unknown command
+                    ChatGui.Print("[WahJumps] Timer commands: start, stop, split, reset, show, hide");
+                    break;
+            }
         }
 
         private void OnSplitsCommand(string command, string args)
