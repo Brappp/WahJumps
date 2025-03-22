@@ -41,7 +41,7 @@ namespace WahJumps.Windows
         private bool isFirstRender = true;
         private DateTime lastRefreshDate;
         private string favoritesFilePath;
-        private int viewMode = 0; // 0=Tabs, 1=Unified Search
+        private int viewMode = 0; // 0=Tabs - We're removing the dropdown but keeping this for compatibility
         private float currentProgress = 0f; // Track progress for loading bar
         private bool clearFavoritesConfirmOpen = false;
 
@@ -186,22 +186,13 @@ namespace WahJumps.Windows
 
                 ImGui.Separator();
 
-                // Main content
-                if (viewMode == 0)
-                {
-                    // Tab view mode
-                    DrawTabMode();
-                }
-                else
-                {
-                    // Unified search mode
-                    DrawUnifiedSearchMode();
-                }
+                // We've removed the view mode dropdown, so now always use tab mode
+                DrawTabMode();
 
                 // Draw travel dialog (if active)
                 travelDialog.Draw();
 
-                // Draw confirmation popup if active
+                // Handle the confirmation popup
                 if (clearFavoritesConfirmOpen)
                 {
                     DrawClearFavoritesConfirm();
@@ -219,15 +210,17 @@ namespace WahJumps.Windows
 
         private void DrawClearFavoritesConfirm()
         {
-            // Center the popup
+            // Set popup position before beginning the popup
             Vector2 center = ImGui.GetMainViewport().GetCenter();
             ImGui.SetNextWindowPos(center, ImGuiCond.Appearing, new Vector2(0.5f, 0.5f));
 
+            // Begin the popup modal
             if (ImGui.BeginPopupModal("Clear Favorites", ref clearFavoritesConfirmOpen, ImGuiWindowFlags.AlwaysAutoResize))
             {
                 ImGui.TextWrapped("Are you sure you want to remove all favorites?");
                 ImGui.TextWrapped("This action cannot be undone.");
                 ImGui.Separator();
+                ImGui.Spacing();
 
                 float buttonWidth = 120f;
                 float spacing = 10f;
@@ -248,21 +241,19 @@ namespace WahJumps.Windows
 
                 if (ImGui.Button("Yes, Clear All", new Vector2(buttonWidth, 0)))
                 {
+                    // Clear the favorites list
+                    favoritePuzzles.Clear();
+                    SaveFavorites();
+                    CustomLogger.Log("All favorites cleared");
+
+                    // Close the popup
                     clearFavoritesConfirmOpen = false;
-                    ClearAllFavorites();
                     ImGui.CloseCurrentPopup();
                 }
 
                 ImGui.PopStyleColor(2);
                 ImGui.EndPopup();
             }
-        }
-
-        private void ClearAllFavorites()
-        {
-            favoritePuzzles.Clear();
-            SaveFavorites();
-            CustomLogger.Log("All favorites cleared");
         }
 
         private void DrawLoadingState()
@@ -300,8 +291,8 @@ namespace WahJumps.Windows
             ImGui.SameLine();
             ImGui.Text($"Last Updated: {lastRefreshDate.ToString("yyyy-MM-dd HH:mm")}");
 
-            // Add Timer button (renamed from "Run")
-            ImGui.SameLine(ImGui.GetWindowWidth() - 300);
+            // Add Timer button (right-aligned)
+            ImGui.SameLine(ImGui.GetWindowWidth() - 80);
 
             // Use a better looking Timer button with a matching icon
             ImGui.PushStyleColor(ImGuiCol.Button, new Vector4(0.2f, 0.4f, 0.6f, 1.0f));
@@ -319,15 +310,7 @@ namespace WahJumps.Windows
 
             ImGui.PopStyleColor(2);
 
-            ImGui.SameLine(ImGui.GetWindowWidth() - 170);
-            string[] modes = new[] { "Tabbed View", "Search View" };
-            ImGui.SetNextItemWidth(160);
-            if (ImGui.Combo("##viewMode", ref viewMode, modes, modes.Length))
-            {
-                // Save this preference
-                settingsManager.Configuration.DefaultViewMode = viewMode;
-                settingsManager.SaveConfiguration();
-            }
+            // We've removed the view mode dropdown as requested
         }
 
         private void DrawTabMode()
@@ -443,40 +426,15 @@ namespace WahJumps.Windows
             }
         }
 
-        private void DrawUnifiedSearchMode()
-        {
-            using var child = new ImRaii.Child("UnifiedSearchView", Vector2.Zero, false);
-
-            searchFilter.Draw(csvDataByDataCenter);
-        }
-
         private void DrawFavoritesTab()
         {
-            // Add a clear favorites button at the top
+            // Show favorites if any exist
             if (favoritePuzzles.Count > 0)
             {
-                float buttonWidth = 130;
-                float windowWidth = ImGui.GetContentRegionAvail().X;
-
-                // Right-align the button
-                ImGui.SetCursorPosX(windowWidth - buttonWidth - 10);
-
-                // Use a red button for warning
-                ImGui.PushStyleColor(ImGuiCol.Button, new Vector4(0.7f, 0.1f, 0.1f, 1.0f));
-                ImGui.PushStyleColor(ImGuiCol.ButtonHovered, new Vector4(0.8f, 0.2f, 0.2f, 1.0f));
-
-                if (ImGui.Button("Clear All Favorites", new Vector2(buttonWidth, 0)))
-                {
-                    // Show confirmation popup
-                    clearFavoritesConfirmOpen = true;
-                    ImGui.OpenPopup("Clear Favorites");
-                }
-
-                ImGui.PopStyleColor(2);
-
                 using var child = new ImRaii.Child("FavoritesView", new Vector2(0, 0), true);
 
-                DrawPuzzleTable(favoritePuzzles, false);
+                // Draw the favorites table with a special column for unfavorite buttons
+                DrawFavoritesTable(favoritePuzzles);
             }
             else
             {
@@ -519,6 +477,122 @@ namespace WahJumps.Windows
                     ImGui.EndTabItem();
                 }
             }
+        }
+
+        // New method specifically for drawing the favorites table with unfavorite buttons
+        private void DrawFavoritesTable(List<JumpPuzzleData> puzzles)
+        {
+            if (puzzles.Count == 0)
+            {
+                UiTheme.CenteredText("No puzzles available.");
+                return;
+            }
+
+            // Apply consistent table styling
+            UiTheme.StyleTable();
+
+            // Style for row highlighting
+            ImGui.PushStyleColor(ImGuiCol.Header, new Vector4(0.3f, 0.4f, 0.5f, 0.3f));
+            ImGui.PushStyleColor(ImGuiCol.HeaderHovered, new Vector4(0.3f, 0.5f, 0.6f, 0.5f));
+
+            ImGuiTableFlags flags = ImGuiTableFlags.RowBg |
+                                   ImGuiTableFlags.Borders |
+                                   ImGuiTableFlags.Resizable |
+                                   ImGuiTableFlags.ScrollY |
+                                   ImGuiTableFlags.SizingStretchProp;
+
+            if (ImGui.BeginTable("FavoritesTable", 9, flags))
+            {
+                // Configure columns with improved widths
+                ImGui.TableSetupColumn("Rating", ImGuiTableColumnFlags.WidthFixed, 45);
+                ImGui.TableSetupColumn("Name", ImGuiTableColumnFlags.WidthStretch, 200);
+                ImGui.TableSetupColumn("Builder", ImGuiTableColumnFlags.WidthStretch, 130);
+                ImGui.TableSetupColumn("World", ImGuiTableColumnFlags.WidthFixed, 70);
+                ImGui.TableSetupColumn("Address", ImGuiTableColumnFlags.WidthStretch, 180);
+                ImGui.TableSetupColumn("Type", ImGuiTableColumnFlags.WidthFixed, 60);
+                ImGui.TableSetupColumn("Rules", ImGuiTableColumnFlags.WidthStretch, 170);
+                ImGui.TableSetupColumn("Unfavorite", ImGuiTableColumnFlags.WidthFixed, 70); // New column specifically for unfavorite
+                ImGui.TableSetupColumn("Go", ImGuiTableColumnFlags.WidthFixed, 40);
+
+                ImGui.TableSetupScrollFreeze(0, 1);
+                ImGui.TableHeadersRow();
+
+                // Draw each row
+                for (int i = 0; i < puzzles.Count; i++)
+                {
+                    var puzzle = puzzles[i];
+                    ImGui.TableNextRow();
+                    ImGui.TableNextColumn();
+
+                    // Use Selectable to highlight the row
+                    ImGui.PushID(i);
+                    ImGui.Selectable($"##row_{i}", false, ImGuiSelectableFlags.SpanAllColumns | ImGuiSelectableFlags.AllowItemOverlap);
+                    ImGui.PopID();
+
+                    // Reset cursor to start of row for the actual content
+                    ImGui.TableSetColumnIndex(0);
+
+                    // Rating with color
+                    RenderRatingWithColor(puzzle.Rating);
+
+                    // Puzzle Name
+                    ImGui.TableNextColumn();
+                    ImGui.TextWrapped(puzzle.PuzzleName);
+
+                    // Builder
+                    ImGui.TableNextColumn();
+                    ImGui.Text(puzzle.Builder);
+
+                    // World
+                    ImGui.TableNextColumn();
+                    ImGui.Text(puzzle.World);
+
+                    // Address
+                    ImGui.TableNextColumn();
+                    ImGui.TextWrapped(puzzle.Address);
+
+                    // Codes (compacted)
+                    ImGui.TableNextColumn();
+                    string combinedCodes = UiComponents.CombineCodes(puzzle.M, puzzle.E, puzzle.S, puzzle.P, puzzle.V, puzzle.J, puzzle.G, puzzle.L, puzzle.X);
+                    RenderCodesWithTooltips(combinedCodes);
+
+                    // Goals/Rules
+                    ImGui.TableNextColumn();
+                    ImGui.TextWrapped(puzzle.GoalsOrRules);
+
+                    // Unfavorite Button
+                    ImGui.TableNextColumn();
+                    ImGui.PushStyleColor(ImGuiCol.Button, new Vector4(0.7f, 0.1f, 0.1f, 1.0f)); // Red button
+                    ImGui.PushStyleColor(ImGuiCol.ButtonHovered, new Vector4(0.8f, 0.2f, 0.2f, 1.0f));
+
+                    if (ImGui.Button($"Remove##{puzzle.Id}"))
+                    {
+                        RemoveFromFavorites(puzzle);
+                    }
+                    ImGui.PopStyleColor(2);
+
+                    if (ImGui.IsItemHovered())
+                        ImGui.SetTooltip("Remove from favorites");
+
+                    // Travel Button (compact icon)
+                    ImGui.TableNextColumn();
+                    ImGui.PushStyleColor(ImGuiCol.Text, UiTheme.Primary);
+                    if (ImGui.Button($"→##{puzzle.Id}"))
+                    {
+                        OnTravelRequest(puzzle);
+                    }
+                    if (ImGui.IsItemHovered()) ImGui.SetTooltip($"Travel to {puzzle.World} {puzzle.Address}");
+                    ImGui.PopStyleColor();
+                }
+
+                ImGui.EndTable();
+            }
+
+            // Pop style colors
+            ImGui.PopStyleColor(2);
+
+            // End table styling
+            UiTheme.EndTableStyle();
         }
 
         // Updated table drawing method with row highlighting that works with any ImGui version
