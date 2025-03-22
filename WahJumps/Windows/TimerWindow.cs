@@ -2,7 +2,6 @@
 using System;
 using System.Numerics;
 using Dalamud.Interface.Windowing;
-using Dalamud.Interface;
 using ImGuiNET;
 using WahJumps.Data;
 using WahJumps.Utilities;
@@ -11,7 +10,7 @@ namespace WahJumps.Windows
 {
     public class TimerWindow : Window, IDisposable
     {
-        // Core elements we'll keep
+        // Core elements
         private readonly SpeedrunManager speedrunManager;
         private readonly Plugin plugin;
 
@@ -21,11 +20,10 @@ namespace WahJumps.Windows
         private Vector4 timeColor = new Vector4(0.0f, 0.8f, 0.2f, 1.0f);
         private int countdownSeconds = 3; // Default countdown seconds
 
-        // Fixed window dimensions to prevent auto-shrinking
+        // Fixed window dimensions - these set the initial size
         private readonly Vector2 windowSize = new Vector2(300, 200);
 
         public TimerWindow(SpeedrunManager speedrunManager, Plugin plugin)
-            // Keep it simple: only use NoScrollbar, avoiding AutoResize which causes shrinking
             : base("Jump Timer", ImGuiWindowFlags.NoScrollbar)
         {
             this.speedrunManager = speedrunManager;
@@ -36,13 +34,11 @@ namespace WahJumps.Windows
             speedrunManager.StateChanged += OnStateChanged;
             speedrunManager.CountdownTick += OnCountdownTick;
 
-            // Set initial position and fixed size constraints
-            Position = new Vector2(100, 100);
-            SizeConstraints = new WindowSizeConstraints
-            {
-                MinimumSize = windowSize,
-                MaximumSize = windowSize
-            };
+            // Set initial size only; omit explicit Position assignment so the window remains movable.
+            Size = windowSize;
+
+            // Do not set SizeConstraints so that the window is not locked.
+            // SizeConstraints = null;
 
             // Start with window closed
             IsOpen = false;
@@ -56,7 +52,7 @@ namespace WahJumps.Windows
 
         private void OnStateChanged(SpeedrunManager.SpeedrunState state)
         {
-            // Make sure window is visible when timer is running
+            // Make sure window is visible when timer is running or counting down
             if (state == SpeedrunManager.SpeedrunState.Running ||
                 state == SpeedrunManager.SpeedrunState.Countdown)
             {
@@ -74,8 +70,8 @@ namespace WahJumps.Windows
 
         public override void Draw()
         {
-            // Set window size explicitly each frame to prevent auto-shrinking
-            ImGui.SetWindowSize(windowSize);
+            // IMPORTANT: Do NOT call SetWindowSize here
+            // That's what was preventing window movement
 
             // Get current state from speedrun manager
             var state = speedrunManager.GetState();
@@ -95,16 +91,15 @@ namespace WahJumps.Windows
             // Add a pulsing effect based on time
             float pulseFactor = 0.2f * (float)Math.Sin(ImGui.GetTime() * 3.0) + 1.0f;
 
-            // Important: Get content region dimensions AFTER SetWindowSize
+            // Get content region dimensions
             Vector2 contentSize = ImGui.GetContentRegionAvail();
             float windowWidth = contentSize.X;
             float windowHeight = contentSize.Y;
 
-            // Get window position for background - but don't draw directly in title bar area
-            float titleBarHeight = ImGui.GetFrameHeight();
+            // Get window position for background
             Vector2 startPos = ImGui.GetCursorScreenPos();
 
-            // Draw Background - explicitly avoid title bar area
+            // Draw Background
             ImDrawListPtr drawList = ImGui.GetWindowDrawList();
             drawList.AddRectFilledMultiColor(
                 startPos,
@@ -130,7 +125,7 @@ namespace WahJumps.Windows
             ImGui.SetWindowFontScale(1.0f);
             ImGui.PopStyleColor();
 
-            // Get Ready text with glow effect
+            // "Get Ready!" text with glow effect
             string readyText = "Get Ready!";
             textSize = ImGui.CalcTextSize(readyText);
             centerX = (windowWidth - textSize.X) * 0.5f;
@@ -173,56 +168,46 @@ namespace WahJumps.Windows
             var puzzle = speedrunManager.GetCurrentPuzzle();
             if (puzzle != null)
             {
-                // Simple title display - avoid child windows
                 ImGui.PushStyleColor(ImGuiCol.Text, UiTheme.Primary);
-
                 string title = puzzle.PuzzleName;
                 float textWidth = ImGui.CalcTextSize(title).X;
                 ImGui.SetCursorPosX((contentWidth - textWidth) * 0.5f);
                 ImGui.Text(title);
-
                 ImGui.PopStyleColor();
-
                 ImGui.Separator();
             }
 
             ImGui.Spacing();
             ImGui.Spacing();
 
-            // Format time
+            // Format time display
             string timeText = FormatTime(currentTime);
 
             // Apply dynamic color based on elapsed time
-            // Green -> Yellow -> Red as time increases (if running)
             if (state == SpeedrunManager.SpeedrunState.Running)
             {
                 if (currentTime.TotalMinutes < 3)
                 {
-                    // 0-3 minutes: Green
-                    timeColor = new Vector4(0.0f, 0.8f, 0.2f, 1.0f);
+                    timeColor = new Vector4(0.0f, 0.8f, 0.2f, 1.0f); // Green
                 }
                 else if (currentTime.TotalMinutes < 10)
                 {
-                    // 3-10 minutes: Yellow
-                    timeColor = new Vector4(0.9f, 0.9f, 0.0f, 1.0f);
+                    timeColor = new Vector4(0.9f, 0.9f, 0.0f, 1.0f); // Yellow
                 }
                 else
                 {
-                    // 10+ minutes: Red
-                    timeColor = new Vector4(1.0f, 0.3f, 0.3f, 1.0f);
+                    timeColor = new Vector4(1.0f, 0.3f, 0.3f, 1.0f); // Red
                 }
             }
             else if (state == SpeedrunManager.SpeedrunState.Finished)
             {
-                // Finished state: use a gold/achievement color
-                timeColor = new Vector4(1.0f, 0.8f, 0.0f, 1.0f);
+                timeColor = new Vector4(1.0f, 0.8f, 0.0f, 1.0f); // Gold
             }
 
-            // Time display - large and centered
-            float fontSize = 2.5f; // Make it slightly larger
+            // Display the time in a large, centered format
+            float fontSize = 2.5f;
             ImGui.PushStyleColor(ImGuiCol.Text, timeColor);
 
-            // Center the time display
             var textSize = ImGui.CalcTextSize(timeText) * fontSize;
             ImGui.SetCursorPosX((contentWidth - textSize.X) * 0.5f);
             ImGui.SetCursorPosY(ImGui.GetCursorPosY() + 10);
@@ -232,7 +217,7 @@ namespace WahJumps.Windows
             ImGui.SetWindowFontScale(1.0f);
             ImGui.PopStyleColor();
 
-            // Add labels above controls if running
+            // Display status label if running or finished
             if (state == SpeedrunManager.SpeedrunState.Running)
             {
                 string statusLabel = "Running...";
@@ -248,20 +233,16 @@ namespace WahJumps.Windows
                 ImGui.TextColored(new Vector4(0.8f, 0.8f, 0.0f, 1.0f), statusLabel);
             }
 
-            // Control buttons - more spaced
             ImGui.Spacing();
             ImGui.Spacing();
 
             DrawControls(state);
 
-            // Simplified footer with just countdown value and close
+            // Footer: show countdown value and a Close button
             ImGui.Separator();
-
-            // Align countdown text to left and close button to right
             ImGui.Text($"Countdown: {countdownSeconds}s");
             ImGui.SameLine(contentWidth - 60);
 
-            // Better looking close button
             ImGui.PushStyleColor(ImGuiCol.Button, new Vector4(0.2f, 0.2f, 0.25f, 1.0f));
             ImGui.PushStyleColor(ImGuiCol.ButtonHovered, new Vector4(0.3f, 0.3f, 0.35f, 1.0f));
             if (ImGui.Button("Close", new Vector2(50, 0)))
@@ -273,14 +254,12 @@ namespace WahJumps.Windows
 
         private void DrawControls(SpeedrunManager.SpeedrunState state)
         {
-            float buttonWidth = 80; // Slightly wider buttons
+            float buttonWidth = 80;
             float contentWidth = ImGui.GetContentRegionAvail().X;
 
-            // Apply consistent button styling with nicer colors
             switch (state)
             {
                 case SpeedrunManager.SpeedrunState.Idle:
-                    // Start button with green color
                     float startX = (contentWidth - buttonWidth) * 0.5f;
                     ImGui.SetCursorPosX(startX);
 
@@ -298,7 +277,6 @@ namespace WahJumps.Windows
                     break;
 
                 case SpeedrunManager.SpeedrunState.Running:
-                    // Stop button with red color
                     startX = (contentWidth - buttonWidth) * 0.5f;
                     ImGui.SetCursorPosX(startX);
 
@@ -316,7 +294,6 @@ namespace WahJumps.Windows
                     break;
 
                 case SpeedrunManager.SpeedrunState.Finished:
-                    // Reset button with blue color
                     ImGui.SetCursorPosX((contentWidth - buttonWidth) * 0.5f);
 
                     ImGui.PushStyleColor(ImGuiCol.Button, new Vector4(0.2f, 0.4f, 0.6f, 1.0f));

@@ -415,7 +415,7 @@ namespace WahJumps.Windows
             ImGui.PushStyleColor(ImGuiCol.ButtonHovered, new Vector4(0.25f, 0.45f, 0.68f, 1.0f));
             ImGui.PushStyleColor(ImGuiCol.ButtonActive, new Vector4(0.15f, 0.30f, 0.50f, 1.0f));
 
-            if (ImGui.Button("↻ Refresh Data"))
+            if (ImGui.Button("Refresh Data"))
             {
                 RefreshData();
                 ShowNotification("Refreshing data...", MessageType.Info);
@@ -442,7 +442,7 @@ namespace WahJumps.Windows
             ImGui.PushStyleColor(ImGuiCol.ButtonHovered, new Vector4(0.3f, 0.5f, 0.7f, 1.0f));
             ImGui.PushStyleColor(ImGuiCol.ButtonActive, new Vector4(0.15f, 0.35f, 0.55f, 1.0f));
 
-            if (ImGui.Button("⏱ Timer"))
+            if (ImGui.Button("Timer"))
             {
                 // Open the timer window
                 plugin.TimerWindow.ShowTimer();
