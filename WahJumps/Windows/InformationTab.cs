@@ -1,6 +1,3 @@
-// File: WahJumps/Windows/InformationTab.cs
-// Status: UPDATED VERSION - Fixed formatting issues
-
 using System.Numerics;
 using ImGuiNET;
 using WahJumps.Utilities;
@@ -106,22 +103,14 @@ namespace WahJumps.Windows
 
                 if (ImGui.BeginTable("SubTypeKeysTable", 3, tableFlags))
                 {
-                    // Use column widths from first table if available
-                    if (isInitialized)
-                    {
-                        ImGui.TableSetupColumn("Code", ImGuiTableColumnFlags.WidthFixed, columnWidths[0]);
-                        ImGui.TableSetupColumn("Element", ImGuiTableColumnFlags.WidthFixed, columnWidths[1]);
-                        ImGui.TableSetupColumn("More Info", ImGuiTableColumnFlags.WidthFixed, columnWidths[2]);
-                    }
-                    else
-                    {
-                        ImGui.TableSetupColumn("Code");
-                        ImGui.TableSetupColumn("Element");
-                        ImGui.TableSetupColumn("More Info");
-                    }
+                    // Setup columns with explicit widths
+                    ImGui.TableSetupColumn("Code", ImGuiTableColumnFlags.WidthFixed, 60);
+                    ImGui.TableSetupColumn("Element", ImGuiTableColumnFlags.WidthFixed, 100);
+                    ImGui.TableSetupColumn("More Info", ImGuiTableColumnFlags.WidthStretch);
 
                     ImGui.TableHeadersRow();
 
+                    // Add rows with proper text wrapping
                     AddSubTypeKeyRow("M", "Mystery", "Hard-to-find or maze-like paths, tricky");
                     AddSubTypeKeyRow("E", "Emote", "Requires emote interaction");
                     AddSubTypeKeyRow("S", "Speed", "Sprinting and time-based actions");
@@ -205,7 +194,7 @@ namespace WahJumps.Windows
                     if (isInitialized)
                     {
                         ImGui.TableSetupColumn("District", ImGuiTableColumnFlags.WidthFixed, columnWidths[0]);
-                        ImGui.TableSetupColumn("Main City Aetheryte Access Conditions", ImGuiTableColumnFlags.WidthFixed, columnWidths[1]);
+                        ImGui.TableSetupColumn("Main City Aetheryte Access Conditions", ImGuiTableColumnFlags.WidthStretch);
                     }
                     else
                     {
@@ -271,7 +260,7 @@ namespace WahJumps.Windows
             ImGui.TextWrapped(explanation);
 
             ImGui.TableNextColumn();
-            ImGui.Text(squareEnixEquivalent);
+            ImGui.TextWrapped(squareEnixEquivalent);
         }
 
         private void AddSubTypeKeyRow(string code, string element, string moreInfo)

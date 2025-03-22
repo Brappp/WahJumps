@@ -16,6 +16,7 @@ namespace WahJumps.Handlers
     public class CsvManager
     {
         public event Action<string>? StatusUpdated;
+        public event Action<float>? ProgressUpdated;
         public event Action? CsvProcessingCompleted;
 
         private readonly string outputDirectory;
@@ -50,16 +51,27 @@ namespace WahJumps.Handlers
         public async Task DownloadAndSaveIndividualCsvsAsync()
         {
             var dataCenters = WorldData.GetDataCenterInfo();
+            int totalDataCenters = dataCenters.Count;
+            int processedCount = 0;
+
+            StatusUpdated?.Invoke($"Processing 0/{totalDataCenters} data centers...");
+            ProgressUpdated?.Invoke(0f); // Start with 0 progress
 
             foreach (var dataCenter in dataCenters)
             {
-                StatusUpdated?.Invoke($"Processing sheet: {dataCenter.DataCenter}");
+                StatusUpdated?.Invoke($"Processing {dataCenter.DataCenter} ({processedCount + 1}/{totalDataCenters})");
 
                 var csvData = await DownloadCsv(dataCenter.Url);
 
                 if (csvData == null)
                 {
                     StatusUpdated?.Invoke($"Failed to download CSV for {dataCenter.DataCenter}");
+                    processedCount++;
+
+                    // Update progress even on failure
+                    float progress = (float)processedCount / totalDataCenters;
+                    ProgressUpdated?.Invoke(progress);
+
                     continue;
                 }
 
@@ -68,6 +80,12 @@ namespace WahJumps.Handlers
 
                 var cleanedData = CleanCsvData(preprocessedCsv);
                 SaveCsv(cleanedData, Path.Combine(outputDirectory, $"{dataCenter.CsvName}_cleaned.csv"));
+
+                processedCount++;
+
+                // Update progress
+                float progressValue = (float)processedCount / totalDataCenters;
+                ProgressUpdated?.Invoke(progressValue);
             }
 
             CsvProcessingCompleted?.Invoke();

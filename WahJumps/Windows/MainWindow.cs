@@ -1,6 +1,4 @@
 // File: WahJumps/Windows/MainWindow.cs
-// Status: ENHANCED VERSION - Updated for better speedrun functionality
-
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -32,7 +30,6 @@ namespace WahJumps.Windows
         private readonly SettingsTab settingsTab;
         private readonly SearchFilterComponent searchFilter;
         private readonly TravelDialog travelDialog;
-        private readonly SpeedrunTab speedrunTab;
 
         // Data
         private Dictionary<string, List<JumpPuzzleData>> csvDataByDataCenter;
@@ -45,7 +42,7 @@ namespace WahJumps.Windows
         private DateTime lastRefreshDate;
         private string favoritesFilePath;
         private int viewMode = 0; // 0=Tabs, 1=Unified Search
-        private bool showSpeedrunOptions => settingsManager.Configuration.ShowSpeedrunOptions;
+        private float currentProgress = 0f; // Track progress for loading bar
 
         // Tab names for TabBar
         private readonly string[] mainTabs = new[] { "Strange Housing", "Information", "Favorites", "Search", "Settings" };
@@ -92,7 +89,6 @@ namespace WahJumps.Windows
             strangeHousingTab = new StrangeHousingTab();
             informationTab = new InformationTab();
             settingsTab = new SettingsTab(settingsManager, csvManager.CsvDirectoryPath, OnSettingsChanged);
-            speedrunTab = new SpeedrunTab(plugin.SpeedrunManager, plugin);
 
             // Initialize data
             csvDataByDataCenter = new Dictionary<string, List<JumpPuzzleData>>();
@@ -115,6 +111,7 @@ namespace WahJumps.Windows
 
             // Register event handlers
             csvManager.StatusUpdated += OnStatusUpdated;
+            csvManager.ProgressUpdated += OnProgressUpdated;
             csvManager.CsvProcessingCompleted += OnCsvProcessingCompleted;
 
             // Set initial state
@@ -142,6 +139,11 @@ namespace WahJumps.Windows
         private void OnStatusUpdated(string message)
         {
             statusMessage = message;
+        }
+
+        private void OnProgressUpdated(float progress)
+        {
+            currentProgress = progress;
         }
 
         private void OnCsvProcessingCompleted()
@@ -224,9 +226,8 @@ namespace WahJumps.Windows
             ImGui.SetCursorPosX(progressX);
             ImGui.SetCursorPosY(centerY + 50);
 
-            // Animated loading bar
-            float progress = (float)Math.Sin(ImGui.GetTime() * 1.5f) * 0.25f + 0.5f;
-            ImGui.ProgressBar(progress, new Vector2(progressWidth, 20), "");
+            // Use actual progress value instead of animated value
+            ImGui.ProgressBar(currentProgress, new Vector2(progressWidth, 20), "");
         }
 
         private void DrawTopToolbar()
@@ -245,19 +246,10 @@ namespace WahJumps.Windows
             {
                 // Open the timer window
                 plugin.TimerWindow.ShowTimer();
-
-                // Also toggle main window to speedrun tab
-                speedrunTab.ForceActivate();
-
-                // Toggle visibility if not already visible
-                if (!IsOpen)
-                {
-                    ToggleVisibility();
-                }
             }
             if (ImGui.IsItemHovered())
             {
-                ImGui.SetTooltip("Open the speedrun timing features");
+                ImGui.SetTooltip("Open the timer window");
             }
 
             ImGui.SameLine(ImGui.GetWindowWidth() - 170);
@@ -304,9 +296,6 @@ namespace WahJumps.Windows
 
                 // Settings Tab
                 settingsTab.Draw();
-
-                // Speedrun Tab
-                speedrunTab.Draw();
 
                 // Region tabs with nested data center tabs
                 DrawRegionTabs();
@@ -487,7 +476,7 @@ namespace WahJumps.Windows
 
                 ImGui.TableSetupColumn("Go", ImGuiTableColumnFlags.WidthFixed, 35);
 
-                // Speedrun button column
+                // Timer button column
                 ImGui.TableSetupColumn("Timer", ImGuiTableColumnFlags.WidthFixed, 35);
 
                 ImGui.TableSetupScrollFreeze(0, 1);
@@ -529,7 +518,7 @@ namespace WahJumps.Windows
 
                     // Codes (compacted)
                     ImGui.TableNextColumn();
-                    string combinedCodes = SpeedrunUiComponents.CombineCodes(puzzle.M, puzzle.E, puzzle.S, puzzle.P, puzzle.V, puzzle.J, puzzle.G, puzzle.L, puzzle.X);
+                    string combinedCodes = UiComponents.CombineCodes(puzzle.M, puzzle.E, puzzle.S, puzzle.P, puzzle.V, puzzle.J, puzzle.G, puzzle.L, puzzle.X);
                     RenderCodesWithTooltips(combinedCodes);
 
                     // Goals/Rules
@@ -574,14 +563,13 @@ namespace WahJumps.Windows
                     if (ImGui.IsItemHovered()) ImGui.SetTooltip($"Travel to {puzzle.World} {puzzle.Address}");
                     ImGui.PopStyleColor();
 
-                    // Speedrun Button with timer icon
+                    // Timer Button with timer icon
                     ImGui.TableNextColumn();
                     ImGui.PushStyleColor(ImGuiCol.Text, new Vector4(0.0f, 0.6f, 0.9f, 1.0f));
                     if (ImGui.Button($"⏱##{puzzle.Id}"))
                     {
-                        // Set the puzzle in the speedrun tab
-                        speedrunTab.SetPuzzle(puzzle);
-                        speedrunTab.ForceActivate();
+                        // Set the puzzle in the speedrun manager
+                        plugin.SpeedrunManager.SetPuzzle(puzzle);
 
                         // Open the timer window
                         plugin.TimerWindow.ShowTimer();
@@ -781,8 +769,8 @@ namespace WahJumps.Windows
         public void Dispose()
         {
             csvManager.StatusUpdated -= OnStatusUpdated;
+            csvManager.ProgressUpdated -= OnProgressUpdated;
             csvManager.CsvProcessingCompleted -= OnCsvProcessingCompleted;
-            speedrunTab.Dispose();
         }
 
         private List<JumpPuzzleData> LoadFavorites()
@@ -899,6 +887,7 @@ namespace WahJumps.Windows
             csvManager.DeleteExistingCsvs();
             csvManager.DownloadAndSaveIndividualCsvsAsync();
             statusMessage = "Refreshing data...";
+            currentProgress = 0f;
             isReady = false;
         }
 
