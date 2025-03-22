@@ -41,9 +41,13 @@ namespace WahJumps.Windows
         private bool isFirstRender = true;
         private DateTime lastRefreshDate;
         private string favoritesFilePath;
-        private int viewMode = 0; // 0=Tabs - We're removing the dropdown but keeping this for compatibility
+        private int viewMode = 0; // 0=Tabs only
         private float currentProgress = 0f; // Track progress for loading bar
-        private bool clearFavoritesConfirmOpen = false;
+
+        // Notification system
+        private float notificationTimer = 0;
+        private string notificationMessage = "";
+        private MessageType notificationType = MessageType.Info;
 
         // Tab names for TabBar
         private readonly string[] mainTabs = new[] { "Strange Housing", "Information", "Favorites", "Search", "Settings" };
@@ -71,6 +75,8 @@ namespace WahJumps.Windows
                     new Vector4(0.7f, 0.3f, 0.3f, 1.0f),        // JP Hover Red
                     new Vector4(0.8f, 0.4f, 0.4f, 1.0f)) }      // JP Active Red
         };
+
+        public enum MessageType { Info, Success, Warning, Error }
 
         public MainWindow(CsvManager csvManager, LifestreamIpcHandler lifestreamIpcHandler, Plugin plugin)
             : base("Jump Puzzle Directory", ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoScrollWithMouse)
@@ -155,17 +161,23 @@ namespace WahJumps.Windows
 
             // Update search filter with available data
             searchFilter.SetAvailableData(csvDataByDataCenter);
+
+            // Show success notification
+            ShowNotification("Data loading completed successfully!", MessageType.Success);
         }
 
         public override void Draw()
         {
-            // Create a new ID scope to isolate our styling
+            // Create a new ID scope to isolate our styling - ensures no style leakage
             ImGui.PushID("WahJumpsPlugin");
 
             try
             {
                 // Apply consistent styling
                 UiTheme.ApplyGlobalStyle();
+
+                // Draw window chrome (header and border)
+                DrawWindowChrome();
 
                 // First render setup
                 if (isFirstRender)
@@ -177,9 +189,12 @@ namespace WahJumps.Windows
                 // Loading state
                 if (!isReady)
                 {
-                    DrawLoadingState();
+                    DrawAnimatedLoadingState();
                     return;
                 }
+
+                // Draw header banner
+                DrawHeaderBanner();
 
                 // Draw top toolbar with search and options
                 DrawTopToolbar();
@@ -192,102 +207,230 @@ namespace WahJumps.Windows
                 // Draw travel dialog (if active)
                 travelDialog.Draw();
 
-                // Handle the confirmation popup
-                if (clearFavoritesConfirmOpen)
-                {
-                    DrawClearFavoritesConfirm();
-                }
+                // Draw any active notifications
+                DrawNotifications();
             }
             finally
             {
                 // Clean up styling
                 UiTheme.EndGlobalStyle();
 
-                // Always pop the ID scope to ensure styles don't leak
+                // Pop the ID scope
                 ImGui.PopID();
             }
         }
 
-        private void DrawClearFavoritesConfirm()
+        private void DrawWindowChrome()
         {
-            // Set popup position before beginning the popup
-            Vector2 center = ImGui.GetMainViewport().GetCenter();
-            ImGui.SetNextWindowPos(center, ImGuiCond.Appearing, new Vector2(0.5f, 0.5f));
+            // Draw a subtle window border
+            ImDrawListPtr drawList = ImGui.GetWindowDrawList();
+            Vector2 windowPos = ImGui.GetWindowPos();
+            Vector2 windowSize = ImGui.GetWindowSize();
 
-            // Begin the popup modal
-            if (ImGui.BeginPopupModal("Clear Favorites", ref clearFavoritesConfirmOpen, ImGuiWindowFlags.AlwaysAutoResize))
-            {
-                ImGui.TextWrapped("Are you sure you want to remove all favorites?");
-                ImGui.TextWrapped("This action cannot be undone.");
-                ImGui.Separator();
-                ImGui.Spacing();
+            // Subtle gradient header
+            drawList.AddRectFilledMultiColor(
+                windowPos,
+                new Vector2(windowPos.X + windowSize.X, windowPos.Y + 4),
+                ImGui.GetColorU32(UiTheme.Primary),
+                ImGui.GetColorU32(UiTheme.PrimaryLight),
+                ImGui.GetColorU32(UiTheme.PrimaryLight),
+                ImGui.GetColorU32(UiTheme.Primary)
+            );
 
-                float buttonWidth = 120f;
-                float spacing = 10f;
-                float windowWidth = ImGui.GetWindowWidth();
-                float totalWidth = buttonWidth * 2 + spacing;
-                ImGui.SetCursorPosX((windowWidth - totalWidth) * 0.5f);
-
-                if (ImGui.Button("Cancel", new Vector2(buttonWidth, 0)))
-                {
-                    clearFavoritesConfirmOpen = false;
-                    ImGui.CloseCurrentPopup();
-                }
-
-                ImGui.SameLine(0, spacing);
-
-                ImGui.PushStyleColor(ImGuiCol.Button, new Vector4(0.7f, 0.1f, 0.1f, 1.0f));
-                ImGui.PushStyleColor(ImGuiCol.ButtonHovered, new Vector4(0.8f, 0.2f, 0.2f, 1.0f));
-
-                if (ImGui.Button("Yes, Clear All", new Vector2(buttonWidth, 0)))
-                {
-                    // Clear the favorites list
-                    favoritePuzzles.Clear();
-                    SaveFavorites();
-                    CustomLogger.Log("All favorites cleared");
-
-                    // Close the popup
-                    clearFavoritesConfirmOpen = false;
-                    ImGui.CloseCurrentPopup();
-                }
-
-                ImGui.PopStyleColor(2);
-                ImGui.EndPopup();
-            }
+            // Subtle window border
+            drawList.AddRect(
+                windowPos,
+                new Vector2(windowPos.X + windowSize.X, windowPos.Y + windowSize.Y),
+                ImGui.GetColorU32(new Vector4(0.3f, 0.3f, 0.35f, 0.5f)),
+                0,
+                ImDrawFlags.None,
+                1.0f
+            );
         }
 
-        private void DrawLoadingState()
+        private void DrawHeaderBanner()
+        {
+            ImDrawListPtr drawList = ImGui.GetWindowDrawList();
+            Vector2 pos = ImGui.GetCursorScreenPos();
+            float width = ImGui.GetWindowWidth();
+
+            // Subtle gradient background
+            drawList.AddRectFilledMultiColor(
+                new Vector2(pos.X, pos.Y),
+                new Vector2(pos.X + width, pos.Y + 40),
+                ImGui.GetColorU32(new Vector4(0.1f, 0.1f, 0.15f, 1.0f)),
+                ImGui.GetColorU32(new Vector4(0.15f, 0.2f, 0.25f, 1.0f)),
+                ImGui.GetColorU32(new Vector4(0.15f, 0.2f, 0.25f, 1.0f)),
+                ImGui.GetColorU32(new Vector4(0.1f, 0.1f, 0.15f, 1.0f))
+            );
+
+            // Add logo text with slight glow
+            string appName = "WahJumps";
+            float textWidth = ImGui.CalcTextSize(appName).X;
+            Vector2 textPos = new Vector2(pos.X + 15, pos.Y + 10);
+
+            // Text shadow/glow
+            drawList.AddText(
+                new Vector2(textPos.X + 1, textPos.Y + 1),
+                ImGui.GetColorU32(new Vector4(0.0f, 0.0f, 0.0f, 0.5f)),
+                appName
+            );
+
+            // Main text
+            drawList.AddText(
+                textPos,
+                ImGui.GetColorU32(UiTheme.Primary),
+                appName
+            );
+
+            // Version text
+            string version = "v1.0.1";
+            Vector2 versionSize = ImGui.CalcTextSize(version);
+            drawList.AddText(
+                new Vector2(pos.X + width - versionSize.X - 15, pos.Y + 15),
+                ImGui.GetColorU32(new Vector4(0.6f, 0.6f, 0.6f, 1.0f)),
+                version
+            );
+
+            // Advance cursor past the header
+            ImGui.Dummy(new Vector2(0, 40));
+        }
+
+        private void DrawAnimatedLoadingState()
         {
             float centerY = ImGui.GetWindowHeight() * 0.4f;
             ImGui.SetCursorPosY(centerY);
 
+            // Draw a professional looking heading
             UiTheme.CenteredText("Loading Jump Puzzle Data", UiTheme.Primary);
             ImGui.Spacing();
-            UiTheme.CenteredText(statusMessage);
 
-            // Progress indicator
+            // Draw a pulsing status message
+            float pulseValue = (float)Math.Sin(ImGui.GetTime() * 2) * 0.1f + 0.9f;
+            Vector4 pulsingColor = new Vector4(0.8f, 0.8f, 0.8f, pulseValue);
+
+            ImGui.PushStyleColor(ImGuiCol.Text, pulsingColor);
+            UiTheme.CenteredText(statusMessage);
+            ImGui.PopStyleColor();
+
+            // Draw a professional progress bar
             float progressWidth = ImGui.GetWindowWidth() * 0.7f;
             float progressX = (ImGui.GetWindowWidth() - progressWidth) * 0.5f;
 
             ImGui.SetCursorPosX(progressX);
             ImGui.SetCursorPosY(centerY + 50);
 
-            // Use actual progress value instead of animated value
-            ImGui.ProgressBar(currentProgress, new Vector2(progressWidth, 20), "");
+            // Drawing a more professional looking progress bar
+            ImDrawListPtr drawList = ImGui.GetWindowDrawList();
+            Vector2 pos = ImGui.GetCursorScreenPos();
 
-            // Add a loading spinner
+            // Progress bar background
+            drawList.AddRectFilled(
+                pos,
+                new Vector2(pos.X + progressWidth, pos.Y + 20),
+                ImGui.GetColorU32(new Vector4(0.1f, 0.1f, 0.1f, 1.0f)),
+                4.0f
+            );
+
+            if (currentProgress > 0)
+            {
+                // Actual progress with gradient
+                float width = progressWidth * Math.Clamp(currentProgress, 0, 1);
+                drawList.AddRectFilledMultiColor(
+                    pos,
+                    new Vector2(pos.X + width, pos.Y + 20),
+                    ImGui.GetColorU32(new Vector4(0.0f, 0.4f, 0.8f, 1.0f)),
+                    ImGui.GetColorU32(new Vector4(0.2f, 0.5f, 0.9f, 1.0f)),
+                    ImGui.GetColorU32(new Vector4(0.2f, 0.5f, 0.9f, 1.0f)),
+                    ImGui.GetColorU32(new Vector4(0.0f, 0.4f, 0.8f, 1.0f))
+                );
+
+                // Percentage text
+                string percentText = $"{(int)(currentProgress * 100)}%";
+                var textSize = ImGui.CalcTextSize(percentText);
+                drawList.AddText(
+                    new Vector2(
+                        pos.X + (progressWidth - textSize.X) * 0.5f,
+                        pos.Y + (20 - textSize.Y) * 0.5f
+                    ),
+                    ImGui.GetColorU32(new Vector4(1, 1, 1, 1)),
+                    percentText
+                );
+            }
+
+            // Advance cursor
+            ImGui.Dummy(new Vector2(progressWidth, 25));
+
+            // Add a nicer looking spinner
             ImGui.SetCursorPosX((ImGui.GetWindowWidth() - 20) * 0.5f);
-            ImGui.SetCursorPosY(centerY + 80);
-            UiTheme.LoadingSpinner("", 15.0f, 2.0f, UiTheme.Primary);
+            ImGui.SetCursorPosY(centerY + 90);
+            DrawSpinningLoader(UiTheme.Primary);
+        }
+
+        private void DrawSpinningLoader(Vector4 color, float radius = 15.0f)
+        {
+            ImDrawListPtr drawList = ImGui.GetWindowDrawList();
+            Vector2 pos = ImGui.GetCursorScreenPos();
+            Vector2 center = new Vector2(pos.X + radius, pos.Y + radius);
+            float time = (float)ImGui.GetTime() * 1.8f;
+
+            // Glowing background
+            drawList.AddCircleFilled(
+                center,
+                radius * 0.6f,
+                ImGui.GetColorU32(new Vector4(color.X, color.Y, color.Z, 0.1f))
+            );
+
+            // Spinning dots
+            int numDots = 8;
+            for (int i = 0; i < numDots; i++)
+            {
+                float rads = time + i * 2 * MathF.PI / numDots;
+                float x = center.X + MathF.Cos(rads) * radius;
+                float y = center.Y + MathF.Sin(rads) * radius;
+
+                // Size and opacity vary with position
+                float dotSize = 2.0f + 2.0f * ((i + (int)(time * 1.5f)) % numDots) / (float)numDots;
+                float alpha = 0.2f + 0.8f * ((i + (int)(time * 1.5f)) % numDots) / (float)numDots;
+
+                drawList.AddCircleFilled(
+                    new Vector2(x, y),
+                    dotSize,
+                    ImGui.GetColorU32(new Vector4(color.X, color.Y, color.Z, alpha))
+                );
+            }
+
+            // Dummy to advance cursor
+            ImGui.Dummy(new Vector2(radius * 2, radius * 2));
         }
 
         private void DrawTopToolbar()
         {
-            // First row: Main controls
-            if (ImGui.Button("Refresh Data"))
+            // Apply professional button styling
+            ImGui.PushStyleVar(ImGuiStyleVar.FramePadding, new Vector2(8, 4));
+            ImGui.PushStyleVar(ImGuiStyleVar.FrameRounding, 4.0f);
+
+            // Refresh button with icon
+            ImGui.PushStyleColor(ImGuiCol.Button, new Vector4(0.18f, 0.35f, 0.58f, 1.0f));
+            ImGui.PushStyleColor(ImGuiCol.ButtonHovered, new Vector4(0.25f, 0.45f, 0.68f, 1.0f));
+            ImGui.PushStyleColor(ImGuiCol.ButtonActive, new Vector4(0.15f, 0.30f, 0.50f, 1.0f));
+
+            if (ImGui.Button("↻ Refresh Data"))
             {
                 RefreshData();
+                ShowNotification("Refreshing data...", MessageType.Info);
             }
+            ImGui.PopStyleColor(3);
+
+            if (ImGui.IsItemHovered())
+            {
+                ImGui.PushStyleColor(ImGuiCol.PopupBg, new Vector4(0.18f, 0.18f, 0.22f, 0.95f));
+                ImGui.BeginTooltip();
+                ImGui.Text("Refresh puzzle data from source");
+                ImGui.EndTooltip();
+                ImGui.PopStyleColor();
+            }
+
             ImGui.SameLine();
             ImGui.Text($"Last Updated: {lastRefreshDate.ToString("yyyy-MM-dd HH:mm")}");
 
@@ -297,30 +440,31 @@ namespace WahJumps.Windows
             // Use a better looking Timer button with a matching icon
             ImGui.PushStyleColor(ImGuiCol.Button, new Vector4(0.2f, 0.4f, 0.6f, 1.0f));
             ImGui.PushStyleColor(ImGuiCol.ButtonHovered, new Vector4(0.3f, 0.5f, 0.7f, 1.0f));
+            ImGui.PushStyleColor(ImGuiCol.ButtonActive, new Vector4(0.15f, 0.35f, 0.55f, 1.0f));
 
-            if (ImGui.Button("Timer"))
+            if (ImGui.Button("⏱ Timer"))
             {
                 // Open the timer window
                 plugin.TimerWindow.ShowTimer();
             }
+            ImGui.PopStyleColor(3);
+
             if (ImGui.IsItemHovered())
             {
-                ImGui.SetTooltip("Open the timer window for speedruns");
+                ImGui.PushStyleColor(ImGuiCol.PopupBg, new Vector4(0.18f, 0.18f, 0.22f, 0.95f));
+                ImGui.BeginTooltip();
+                ImGui.Text("Open the timer window for speedruns");
+                ImGui.EndTooltip();
+                ImGui.PopStyleColor();
             }
 
-            ImGui.PopStyleColor(2);
-
-            // We've removed the view mode dropdown as requested
+            ImGui.PopStyleVar(2);
         }
 
         private void DrawTabMode()
         {
-            // Add improved tab styling
-            ImGui.PushStyleVar(ImGuiStyleVar.FramePadding, new Vector2(10, 6));
-            ImGui.PushStyleColor(ImGuiCol.Tab, new Vector4(0.12f, 0.15f, 0.2f, 1.0f));
-            ImGui.PushStyleColor(ImGuiCol.TabActive, new Vector4(0.2f, 0.4f, 0.6f, 1.0f));
-            ImGui.PushStyleColor(ImGuiCol.TabHovered, new Vector4(0.3f, 0.5f, 0.7f, 1.0f));
-            ImGui.PushStyleVar(ImGuiStyleVar.TabRounding, 4.0f);
+            // Apply professional tab styling
+            ApplyProfessionalTabStyling();
 
             using var tabBar = new ImRaii.TabBar("MainTabBar", ImGuiTabBarFlags.FittingPolicyScroll);
 
@@ -351,8 +495,27 @@ namespace WahJumps.Windows
                 DrawRegionTabs();
             }
 
-            ImGui.PopStyleVar(2);
-            ImGui.PopStyleColor(3);
+            EndProfessionalTabStyling();
+        }
+
+        private void ApplyProfessionalTabStyling()
+        {
+            ImGui.PushStyleVar(ImGuiStyleVar.FramePadding, new Vector2(12, 8));
+            ImGui.PushStyleVar(ImGuiStyleVar.ItemInnerSpacing, new Vector2(8, 6));
+            ImGui.PushStyleVar(ImGuiStyleVar.TabRounding, 4.0f);
+
+            // Better tab colors for more professional look
+            ImGui.PushStyleColor(ImGuiCol.Tab, new Vector4(0.14f, 0.16f, 0.22f, 1.0f));
+            ImGui.PushStyleColor(ImGuiCol.TabHovered, new Vector4(0.22f, 0.24f, 0.32f, 1.0f));
+            ImGui.PushStyleColor(ImGuiCol.TabActive, new Vector4(0.18f, 0.30f, 0.45f, 1.0f));
+            ImGui.PushStyleColor(ImGuiCol.TabUnfocused, new Vector4(0.13f, 0.15f, 0.18f, 1.0f));
+            ImGui.PushStyleColor(ImGuiCol.TabUnfocusedActive, new Vector4(0.16f, 0.22f, 0.30f, 1.0f));
+        }
+
+        private void EndProfessionalTabStyling()
+        {
+            ImGui.PopStyleColor(5);
+            ImGui.PopStyleVar(3);
         }
 
         // Method for region-based data center tabs
@@ -438,9 +601,18 @@ namespace WahJumps.Windows
             }
             else
             {
-                UiTheme.CenteredText("No favorites added yet.");
+                // No favorites message with a nice icon
+                float centerY = ImGui.GetContentRegionAvail().Y * 0.4f;
+                ImGui.SetCursorPosY(centerY);
+
+                ImGui.PushStyleColor(ImGuiCol.Text, new Vector4(0.6f, 0.6f, 0.6f, 1.0f));
+                UiTheme.CenteredText("♡");
+                ImGui.SetWindowFontScale(1.5f);
+                UiTheme.CenteredText("No favorites added yet");
+                ImGui.SetWindowFontScale(1.0f);
                 ImGui.Spacing();
-                UiTheme.CenteredText("Browse puzzles and click 'Add' to favorite them.");
+                UiTheme.CenteredText("Browse puzzles and click 'Add' to favorite them");
+                ImGui.PopStyleColor();
             }
         }
 
@@ -488,12 +660,8 @@ namespace WahJumps.Windows
                 return;
             }
 
-            // Apply consistent table styling
-            UiTheme.StyleTable();
-
-            // Style for row highlighting
-            ImGui.PushStyleColor(ImGuiCol.Header, new Vector4(0.3f, 0.4f, 0.5f, 0.3f));
-            ImGui.PushStyleColor(ImGuiCol.HeaderHovered, new Vector4(0.3f, 0.5f, 0.6f, 0.5f));
+            // Apply professional table styling
+            ApplyProfessionalTableStyling();
 
             ImGuiTableFlags flags = ImGuiTableFlags.RowBg |
                                    ImGuiTableFlags.Borders |
@@ -568,6 +736,7 @@ namespace WahJumps.Windows
                     if (ImGui.Button($"Remove##{puzzle.Id}"))
                     {
                         RemoveFromFavorites(puzzle);
+                        ShowNotification("Puzzle removed from favorites", MessageType.Info);
                     }
                     ImGui.PopStyleColor(2);
 
@@ -588,14 +757,41 @@ namespace WahJumps.Windows
                 ImGui.EndTable();
             }
 
-            // Pop style colors
-            ImGui.PopStyleColor(2);
-
-            // End table styling
-            UiTheme.EndTableStyle();
+            // End professional table styling
+            EndProfessionalTableStyling();
         }
 
-        // Updated table drawing method with row highlighting that works with any ImGui version
+        private void ApplyProfessionalTableStyling()
+        {
+            // Create a scoped ID to prevent style leakage
+            ImGui.PushID("WahJumpsTableStyling");
+
+            // More refined table styling
+            ImGui.PushStyleVar(ImGuiStyleVar.CellPadding, new Vector2(8, 6));
+            ImGui.PushStyleVar(ImGuiStyleVar.ItemSpacing, new Vector2(8, 4));
+
+            // More professional header with subtle gradient feel
+            ImGui.PushStyleColor(ImGuiCol.TableHeaderBg, new Vector4(0.12f, 0.25f, 0.4f, 1.0f));
+            ImGui.PushStyleColor(ImGuiCol.TableBorderStrong, new Vector4(0.3f, 0.3f, 0.35f, 1.0f));
+            ImGui.PushStyleColor(ImGuiCol.TableBorderLight, new Vector4(0.2f, 0.2f, 0.25f, 1.0f));
+
+            // More subtle alternating row colors
+            ImGui.PushStyleColor(ImGuiCol.TableRowBg, new Vector4(0.16f, 0.16f, 0.18f, 1.0f));
+            ImGui.PushStyleColor(ImGuiCol.TableRowBgAlt, new Vector4(0.20f, 0.20f, 0.22f, 1.0f));
+
+            // Better hover effects
+            ImGui.PushStyleColor(ImGuiCol.HeaderHovered, new Vector4(0.25f, 0.35f, 0.5f, 0.5f));
+            ImGui.PushStyleColor(ImGuiCol.Header, new Vector4(0.2f, 0.3f, 0.45f, 0.35f));
+        }
+
+        private void EndProfessionalTableStyling()
+        {
+            ImGui.PopStyleColor(7);
+            ImGui.PopStyleVar(2);
+            ImGui.PopID();
+        }
+
+        // Updated table drawing method with professional styling
         private void DrawPuzzleTable(List<JumpPuzzleData> puzzles, bool includeAddToFavorites = true)
         {
             if (puzzles.Count == 0)
@@ -604,12 +800,8 @@ namespace WahJumps.Windows
                 return;
             }
 
-            // Apply consistent table styling
-            UiTheme.StyleTable();
-
-            // Style for row highlighting - using Header color which is supported in all ImGui versions
-            ImGui.PushStyleColor(ImGuiCol.Header, new Vector4(0.3f, 0.4f, 0.5f, 0.3f));
-            ImGui.PushStyleColor(ImGuiCol.HeaderHovered, new Vector4(0.3f, 0.5f, 0.6f, 0.5f));
+            // Apply professional table styling
+            ApplyProfessionalTableStyling();
 
             ImGuiTableFlags flags = ImGuiTableFlags.RowBg |
                                    ImGuiTableFlags.Borders |
@@ -706,6 +898,7 @@ namespace WahJumps.Windows
                             if (ImGui.Button($"♥##{puzzle.Id}"))
                             {
                                 RemoveFromFavorites(puzzle);
+                                ShowNotification("Puzzle removed from favorites", MessageType.Info);
                             }
                             if (ImGui.IsItemHovered()) ImGui.SetTooltip("Remove from favorites");
                             ImGui.PopStyleColor();
@@ -716,6 +909,7 @@ namespace WahJumps.Windows
                             if (ImGui.Button($"♡##{puzzle.Id}"))
                             {
                                 AddToFavorites(puzzle);
+                                ShowNotification("Puzzle added to favorites", MessageType.Success);
                             }
                             if (ImGui.IsItemHovered()) ImGui.SetTooltip("Add to favorites");
                             ImGui.PopStyleColor();
@@ -736,11 +930,8 @@ namespace WahJumps.Windows
                 ImGui.EndTable();
             }
 
-            // Pop style colors
-            ImGui.PopStyleColor(2);
-
-            // End table styling
-            UiTheme.EndTableStyle();
+            // End professional table styling
+            EndProfessionalTableStyling();
         }
 
         private void RenderRatingWithColor(string rating)
@@ -763,6 +954,7 @@ namespace WahJumps.Windows
 
             if (ImGui.IsItemHovered())
             {
+                ImGui.PushStyleColor(ImGuiCol.PopupBg, new Vector4(0.18f, 0.18f, 0.22f, 0.95f));
                 ImGui.BeginTooltip();
                 ImGui.Text("Puzzle Type Codes:");
                 ImGui.Separator();
@@ -795,6 +987,7 @@ namespace WahJumps.Windows
                 }
 
                 ImGui.EndTooltip();
+                ImGui.PopStyleColor();
             }
         }
 
@@ -820,6 +1013,76 @@ namespace WahJumps.Windows
                     return new Vector4(0.5f, 1.0f, 0.5f, 1.0f); // Light green
                 default:
                     return new Vector4(0.8f, 0.8f, 0.8f, 1.0f); // Gray
+            }
+        }
+
+        private void ShowNotification(string message, MessageType type, float duration = 3.0f)
+        {
+            notificationMessage = message;
+            notificationType = type;
+            notificationTimer = duration;
+        }
+
+        private void DrawNotifications()
+        {
+            if (notificationTimer > 0)
+            {
+                notificationTimer -= ImGui.GetIO().DeltaTime;
+
+                // Calculate fade in/out
+                float alpha = 1.0f;
+                if (notificationTimer < 0.5f)
+                {
+                    alpha = notificationTimer / 0.5f;
+                }
+
+                // Draw notification
+                Vector2 windowSize = ImGui.GetWindowSize();
+                Vector2 notificationSize = new Vector2(300, 40);
+                Vector2 position = new Vector2(
+                    (windowSize.X - notificationSize.X) * 0.5f,
+                    windowSize.Y - notificationSize.Y - 10
+                );
+
+                ImDrawListPtr drawList = ImGui.GetWindowDrawList();
+                Vector2 windowPos = ImGui.GetWindowPos();
+
+                // Notification background
+                Vector4 bgColor;
+                switch (notificationType)
+                {
+                    case MessageType.Success:
+                        bgColor = new Vector4(0.0f, 0.5f, 0.0f, 0.8f * alpha);
+                        break;
+                    case MessageType.Warning:
+                        bgColor = new Vector4(0.9f, 0.6f, 0.0f, 0.8f * alpha);
+                        break;
+                    case MessageType.Error:
+                        bgColor = new Vector4(0.8f, 0.0f, 0.0f, 0.8f * alpha);
+                        break;
+                    default: // Info
+                        bgColor = new Vector4(0.1f, 0.4f, 0.7f, 0.8f * alpha);
+                        break;
+                }
+
+                // Draw background with rounded corners
+                drawList.AddRectFilled(
+                    new Vector2(windowPos.X + position.X, windowPos.Y + position.Y),
+                    new Vector2(windowPos.X + position.X + notificationSize.X, windowPos.Y + position.Y + notificationSize.Y),
+                    ImGui.GetColorU32(bgColor),
+                    8.0f
+                );
+
+                // Draw message text
+                Vector2 textSize = ImGui.CalcTextSize(notificationMessage);
+                drawList.AddText(
+                    new Vector2(
+                        windowPos.X + position.X + (notificationSize.X - textSize.X) * 0.5f,
+                        windowPos.Y + position.Y + (notificationSize.Y - textSize.Y) * 0.5f
+                    ),
+                    ImGui.GetColorU32(new Vector4(1, 1, 1, alpha)),
+                    notificationMessage
+                );
             }
         }
 
@@ -869,6 +1132,7 @@ namespace WahJumps.Windows
         {
             DisplayTravelMessage(travelCommand);
             lifestreamIpcHandler.ExecuteLiCommand(travelCommand);
+            ShowNotification("Travel command executed", MessageType.Success);
         }
 
         private string FormatTravelCommand(JumpPuzzleData puzzle)
@@ -953,6 +1217,7 @@ namespace WahJumps.Windows
             catch (Exception ex)
             {
                 CustomLogger.Log($"Error saving favorites: {ex.Message}");
+                ShowNotification("Error saving favorites", MessageType.Error);
             }
         }
 
@@ -1012,6 +1277,7 @@ namespace WahJumps.Windows
             catch (Exception ex)
             {
                 CustomLogger.Log($"Error loading CSV file: {filePath}, Exception: {ex.Message}");
+                ShowNotification($"Error loading data: {ex.Message}", MessageType.Error);
                 return new List<JumpPuzzleData>();
             }
         }

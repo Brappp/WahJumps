@@ -243,13 +243,12 @@ namespace WahJumps.Windows
             {
                 System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
                 {
-                    FileName = "https://github.com/yourname/wahjumps",
+                    FileName = "https://github.com/Brappp/WahJumps",
                     UseShellExecute = true
                 });
             }
 
             ImGui.Spacing();
-            ImGui.Text("Version: 1.0.0");
 
             // Save configuration if changed
             if (configChanged)
