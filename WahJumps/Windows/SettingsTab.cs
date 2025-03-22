@@ -1,13 +1,10 @@
 // File: WahJumps/Windows/SettingsTab.cs
-// Status: COMPLETE - Fixed tabs
-
 using ImGuiNET;
 using System;
 using System.Numerics;
 using WahJumps.Configuration;
 using WahJumps.Logging;
 using WahJumps.Utilities;
-using System.IO;
 
 namespace WahJumps.Windows
 {
@@ -16,13 +13,9 @@ namespace WahJumps.Windows
         private readonly SettingsManager settingsManager;
         private readonly Action onSettingsChanged;
 
-        private bool clearCacheConfirmation = false;
-        private readonly string configDirectory;
-
         public SettingsTab(SettingsManager settingsManager, string configDirectory, Action onSettingsChanged)
         {
             this.settingsManager = settingsManager;
-            this.configDirectory = configDirectory;
             this.onSettingsChanged = onSettingsChanged;
         }
 
@@ -44,29 +37,6 @@ namespace WahJumps.Windows
             }
             ImGui.Separator();
 
-            // Data Center Color Settings
-            bool showDataCenterColors = config.ShowDataCenterColors;
-            if (ImGui.Checkbox("Show Data Center Colors", ref showDataCenterColors))
-            {
-                config.ShowDataCenterColors = showDataCenterColors;
-                configChanged = true;
-            }
-
-            if (ImGui.IsItemHovered())
-            {
-                ImGui.SetTooltip("Color-code data center tabs by region (NA, EU, JP, etc.)");
-            }
-
-            // Default View Mode
-            int defaultViewMode = config.DefaultViewMode;
-            string[] viewModes = new[] { "Tab View", "Unified Search" };
-            ImGui.SetNextItemWidth(200);
-            if (ImGui.Combo("Default View Mode", ref defaultViewMode, viewModes, viewModes.Length))
-            {
-                config.DefaultViewMode = defaultViewMode;
-                configChanged = true;
-            }
-
             // Remember Window Size
             bool rememberWindowSize = config.RememberWindowSize;
             if (ImGui.Checkbox("Remember Window Size", ref rememberWindowSize))
@@ -78,18 +48,6 @@ namespace WahJumps.Windows
             if (ImGui.IsItemHovered())
             {
                 ImGui.SetTooltip("Save and restore window size between sessions");
-            }
-
-            // Reset UI to defaults button
-            if (ImGui.Button("Reset UI to Defaults"))
-            {
-                config.ShowDataCenterColors = true;
-                config.DefaultViewMode = 0;
-                config.DefaultTab = 0;
-                config.WindowSizeX = 1200;
-                config.WindowSizeY = 900;
-                config.RememberWindowSize = true;
-                configChanged = true;
             }
 
             ImGui.Spacing();
@@ -155,79 +113,10 @@ namespace WahJumps.Windows
                 ImGui.SetTooltip("Show a confirmation dialog before traveling to a location");
             }
 
-            // Speedrun Settings
             ImGui.Spacing();
             ImGui.Spacing();
-
-            using (var header = new ImRaii.StyleColor(ImGuiCol.Text, UiTheme.Primary))
-            {
-                ImGui.Text("Speedrun Settings");
-            }
-            ImGui.Separator();
-
-            bool showSpeedrunOptions = config.ShowSpeedrunOptions;
-            if (ImGui.Checkbox("Show Speedrun Options", ref showSpeedrunOptions))
-            {
-                config.ShowSpeedrunOptions = showSpeedrunOptions;
-                configChanged = true;
-            }
-
-            if (ImGui.IsItemHovered())
-            {
-                ImGui.SetTooltip("Display speedrun related options in the interface");
-            }
-
-            // Data Cache Section
-            ImGui.Spacing();
-            ImGui.Spacing();
-
-            using (var header = new ImRaii.StyleColor(ImGuiCol.Text, UiTheme.Primary))
-            {
-                ImGui.Text("Data Cache");
-            }
-            ImGui.Separator();
-
-            long cacheSize = GetCacheSize();
-            ImGui.Text($"Cache Size: {FormatFileSize(cacheSize)}");
-
-            // Clear Cache Button
-            if (!clearCacheConfirmation)
-            {
-                if (ImGui.Button("Clear Cache"))
-                {
-                    clearCacheConfirmation = true;
-                }
-
-                if (ImGui.IsItemHovered())
-                {
-                    ImGui.SetTooltip("Delete all cached puzzle data and favorites");
-                }
-            }
-            else
-            {
-                using var colors = new ImRaii.StyleColor(
-                    (ImGuiCol.Button, UiTheme.Error),
-                    (ImGuiCol.ButtonHovered, new Vector4(1.0f, 0.3f, 0.3f, 1.0f))
-                );
-
-                if (ImGui.Button("Confirm Clear Cache"))
-                {
-                    ClearCache();
-                    clearCacheConfirmation = false;
-                }
-
-                ImGui.SameLine();
-
-                if (ImGui.Button("Cancel"))
-                {
-                    clearCacheConfirmation = false;
-                }
-            }
 
             // About Section
-            ImGui.Spacing();
-            ImGui.Spacing();
-
             using (var header = new ImRaii.StyleColor(ImGuiCol.Text, UiTheme.Primary))
             {
                 ImGui.Text("About WahJumps");
@@ -255,76 +144,6 @@ namespace WahJumps.Windows
             {
                 settingsManager.SaveConfiguration();
                 onSettingsChanged?.Invoke();
-            }
-        }
-
-        private long GetCacheSize()
-        {
-            long size = 0;
-
-            try
-            {
-                string[] files = Directory.GetFiles(configDirectory, "*.*");
-
-                foreach (string file in files)
-                {
-                    var fileInfo = new FileInfo(file);
-                    size += fileInfo.Length;
-                }
-            }
-            catch (Exception ex)
-            {
-                Plugin.PluginLog.Error($"Error calculating cache size: {ex.Message}");
-            }
-
-            return size;
-        }
-
-        private string FormatFileSize(long bytes)
-        {
-            string[] suffixes = { "B", "KB", "MB", "GB" };
-            int suffixIndex = 0;
-            double size = bytes;
-
-            while (size >= 1024 && suffixIndex < suffixes.Length - 1)
-            {
-                size /= 1024;
-                suffixIndex++;
-            }
-
-            return $"{size:0.##} {suffixes[suffixIndex]}";
-        }
-
-        private void ClearCache()
-        {
-            try
-            {
-                // Delete all CSV files
-                string[] csvFiles = Directory.GetFiles(configDirectory, "*.csv");
-                foreach (string file in csvFiles)
-                {
-                    File.Delete(file);
-                }
-
-                // Delete favorites.json
-                string favoritesPath = Path.Combine(configDirectory, "favorites.json");
-                if (File.Exists(favoritesPath))
-                {
-                    File.Delete(favoritesPath);
-                }
-
-                // Delete log file
-                string logPath = Path.Combine(configDirectory, "plugin.log");
-                if (File.Exists(logPath))
-                {
-                    File.Delete(logPath);
-                }
-
-                Plugin.PluginLog.Information("Cache cleared successfully");
-            }
-            catch (Exception ex)
-            {
-                Plugin.PluginLog.Error($"Error clearing cache: {ex.Message}");
             }
         }
     }

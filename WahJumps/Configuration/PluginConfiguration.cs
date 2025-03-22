@@ -1,6 +1,4 @@
 // File: WahJumps/Configuration/PluginConfiguration.cs
-// Status: UPDATED - Removed compact mode option
-
 using Dalamud.Configuration;
 using Dalamud.Plugin;
 using System;
@@ -15,8 +13,9 @@ namespace WahJumps.Configuration
         public int Version { get; set; } = 1;
 
         // UI Settings
+        // ShowDataCenterColors is now hardcoded to true but kept for compatibility
         public bool ShowDataCenterColors { get; set; } = true;
-        public int DefaultViewMode { get; set; } = 0; // 0=Tabs, 1=Unified Search
+        public int DefaultViewMode { get; set; } = 0; // 0=Tabs, kept for compatibility
         public int DefaultTab { get; set; } = 0;
 
         // Feature Settings
@@ -24,7 +23,7 @@ namespace WahJumps.Configuration
         public bool AutoRefreshOnStartup { get; set; } = true;
         public int RefreshIntervalDays { get; set; } = 7;
         public bool ShowTravelConfirmation { get; set; } = true;
-        public bool ShowSpeedrunOptions { get; set; } = true;
+        public bool ShowSpeedrunOptions { get; set; } = true; // Kept for compatibility
 
         // Filter Settings
         public string DefaultDataCenter { get; set; } = "All";
@@ -63,12 +62,20 @@ namespace WahJumps.Configuration
             // Load or create configuration
             configuration = pluginInterface.GetPluginConfig() as PluginConfiguration ?? new PluginConfiguration();
             configuration.Initialize(pluginInterface);
+
+            // Force data center colors to always be on
+            configuration.ShowDataCenterColors = true;
+            // Force tab view mode
+            configuration.DefaultViewMode = 0;
         }
 
         public PluginConfiguration Configuration => configuration;
 
         public void SaveConfiguration()
         {
+            // Ensure settings are enforced before saving
+            configuration.ShowDataCenterColors = true;
+            configuration.DefaultViewMode = 0;
             configuration.Save();
         }
 

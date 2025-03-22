@@ -284,7 +284,7 @@ namespace WahJumps.Windows
             );
 
             // Version text
-            string version = "v1.0.1";
+            string version = "v1.0.2.0";
             Vector2 versionSize = ImGui.CalcTextSize(version);
             drawList.AddText(
                 new Vector2(pos.X + width - versionSize.X - 15, pos.Y + 15),
