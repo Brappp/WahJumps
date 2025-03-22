@@ -21,12 +21,12 @@ namespace WahJumps.Windows
         private Vector4 timeColor = new Vector4(0.0f, 0.8f, 0.2f, 1.0f);
         private int countdownSeconds = 3; // Default countdown seconds
 
-        // Window dimensions
-        private float windowWidth = 250;
-        private float windowHeight = 100;
+        // Fixed window dimensions to prevent auto-shrinking
+        private readonly Vector2 windowSize = new Vector2(300, 200);
 
         public TimerWindow(SpeedrunManager speedrunManager, Plugin plugin)
-            : base("Jump Timer", ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.AlwaysAutoResize)
+            // Keep it simple: only use NoScrollbar, avoiding AutoResize which causes shrinking
+            : base("Jump Timer", ImGuiWindowFlags.NoScrollbar)
         {
             this.speedrunManager = speedrunManager;
             this.plugin = plugin;
@@ -36,12 +36,12 @@ namespace WahJumps.Windows
             speedrunManager.StateChanged += OnStateChanged;
             speedrunManager.CountdownTick += OnCountdownTick;
 
-            // Set initial position and size
-            Position = new Vector2(10, 10);
+            // Set initial position and fixed size constraints
+            Position = new Vector2(100, 100);
             SizeConstraints = new WindowSizeConstraints
             {
-                MinimumSize = new Vector2(windowWidth, windowHeight),
-                MaximumSize = new Vector2(windowWidth * 2, windowHeight * 2)
+                MinimumSize = windowSize,
+                MaximumSize = windowSize
             };
 
             // Start with window closed
@@ -74,6 +74,9 @@ namespace WahJumps.Windows
 
         public override void Draw()
         {
+            // Set window size explicitly each frame to prevent auto-shrinking
+            ImGui.SetWindowSize(windowSize);
+
             // Get current state from speedrun manager
             var state = speedrunManager.GetState();
 
@@ -92,15 +95,20 @@ namespace WahJumps.Windows
             // Add a pulsing effect based on time
             float pulseFactor = 0.2f * (float)Math.Sin(ImGui.GetTime() * 3.0) + 1.0f;
 
-            // Background gradient for countdown
-            ImDrawListPtr drawList = ImGui.GetWindowDrawList();
-            Vector2 windowPos = ImGui.GetWindowPos();
-            Vector2 windowSize = ImGui.GetWindowSize();
+            // Important: Get content region dimensions AFTER SetWindowSize
+            Vector2 contentSize = ImGui.GetContentRegionAvail();
+            float windowWidth = contentSize.X;
+            float windowHeight = contentSize.Y;
 
-            // Top to bottom gradient
+            // Get window position for background - but don't draw directly in title bar area
+            float titleBarHeight = ImGui.GetFrameHeight();
+            Vector2 startPos = ImGui.GetCursorScreenPos();
+
+            // Draw Background - explicitly avoid title bar area
+            ImDrawListPtr drawList = ImGui.GetWindowDrawList();
             drawList.AddRectFilledMultiColor(
-                windowPos,
-                new Vector2(windowPos.X + windowSize.X, windowPos.Y + windowSize.Y),
+                startPos,
+                new Vector2(startPos.X + windowWidth, startPos.Y + windowHeight),
                 ImGui.GetColorU32(new Vector4(0.1f, 0.1f, 0.2f, 1.0f)),
                 ImGui.GetColorU32(new Vector4(0.1f, 0.1f, 0.2f, 1.0f)),
                 ImGui.GetColorU32(new Vector4(0.15f, 0.15f, 0.3f, 1.0f)),
@@ -112,8 +120,8 @@ namespace WahJumps.Windows
             string countText = countdownRemaining.ToString();
 
             var textSize = ImGui.CalcTextSize(countText) * fontSize;
-            float centerX = (ImGui.GetWindowWidth() - textSize.X) * 0.5f;
-            float centerY = (ImGui.GetWindowHeight() - textSize.Y) * 0.5f - 20;
+            float centerX = (windowWidth - textSize.X) * 0.5f;
+            float centerY = (windowHeight - textSize.Y) * 0.5f - 20;
 
             ImGui.SetCursorPos(new Vector2(centerX, centerY));
             ImGui.PushStyleColor(ImGuiCol.Text, new Vector4(1.0f, 0.6f, 0.0f, 1.0f));
@@ -125,7 +133,7 @@ namespace WahJumps.Windows
             // Get Ready text with glow effect
             string readyText = "Get Ready!";
             textSize = ImGui.CalcTextSize(readyText);
-            centerX = (ImGui.GetWindowWidth() - textSize.X) * 0.5f;
+            centerX = (windowWidth - textSize.X) * 0.5f;
 
             // Shadowed text effect
             Vector2 shadowPos = new Vector2(centerX + 1, centerY + 61);
@@ -136,9 +144,8 @@ namespace WahJumps.Windows
             ImGui.TextColored(UiTheme.Primary, readyText);
 
             // Skip button
-            string skipText = "Skip";
             float skipButtonWidth = 120;
-            centerX = (ImGui.GetWindowWidth() - skipButtonWidth) * 0.5f;
+            centerX = (windowWidth - skipButtonWidth) * 0.5f;
 
             ImGui.SetCursorPos(new Vector2(centerX, centerY + 100));
 
@@ -159,26 +166,27 @@ namespace WahJumps.Windows
 
         private void DrawTimerContent(SpeedrunManager.SpeedrunState state)
         {
+            // Get content region dimensions
             float contentWidth = ImGui.GetContentRegionAvail().X;
 
             // Draw puzzle name in a more prominent way if available
             var puzzle = speedrunManager.GetCurrentPuzzle();
             if (puzzle != null)
             {
-                // Use a subtle background for the puzzle title
-                ImGui.PushStyleColor(ImGuiCol.ChildBg, new Vector4(0.1f, 0.1f, 0.15f, 0.5f));
-                using var titleChild = new ImRaii.Child("PuzzleTitle", new Vector2(-1, 30), true);
+                // Simple title display - avoid child windows
+                ImGui.PushStyleColor(ImGuiCol.Text, UiTheme.Primary);
 
-                // Center the title text
                 string title = puzzle.PuzzleName;
                 float textWidth = ImGui.CalcTextSize(title).X;
                 ImGui.SetCursorPosX((contentWidth - textWidth) * 0.5f);
-                ImGui.SetCursorPosY(ImGui.GetCursorPosY() + 5); // Vertical centering
-                ImGui.TextColored(UiTheme.Primary, title);
+                ImGui.Text(title);
 
                 ImGui.PopStyleColor();
+
+                ImGui.Separator();
             }
 
+            ImGui.Spacing();
             ImGui.Spacing();
 
             // Format time
@@ -247,9 +255,7 @@ namespace WahJumps.Windows
             DrawControls(state);
 
             // Simplified footer with just countdown value and close
-            ImGui.PushStyleColor(ImGuiCol.Separator, new Vector4(0.3f, 0.3f, 0.3f, 0.7f));
             ImGui.Separator();
-            ImGui.PopStyleColor();
 
             // Align countdown text to left and close button to right
             ImGui.Text($"Countdown: {countdownSeconds}s");
