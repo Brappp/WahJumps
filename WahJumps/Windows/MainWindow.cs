@@ -43,6 +43,7 @@ namespace WahJumps.Windows
         private string favoritesFilePath;
         private int viewMode = 0; // 0=Tabs, 1=Unified Search
         private float currentProgress = 0f; // Track progress for loading bar
+        private bool clearFavoritesConfirmOpen = false;
 
         // Tab names for TabBar
         private readonly string[] mainTabs = new[] { "Strange Housing", "Information", "Favorites", "Search", "Settings" };
@@ -199,6 +200,12 @@ namespace WahJumps.Windows
 
                 // Draw travel dialog (if active)
                 travelDialog.Draw();
+
+                // Draw confirmation popup if active
+                if (clearFavoritesConfirmOpen)
+                {
+                    DrawClearFavoritesConfirm();
+                }
             }
             finally
             {
@@ -208,6 +215,54 @@ namespace WahJumps.Windows
                 // Always pop the ID scope to ensure styles don't leak
                 ImGui.PopID();
             }
+        }
+
+        private void DrawClearFavoritesConfirm()
+        {
+            // Center the popup
+            Vector2 center = ImGui.GetMainViewport().GetCenter();
+            ImGui.SetNextWindowPos(center, ImGuiCond.Appearing, new Vector2(0.5f, 0.5f));
+
+            if (ImGui.BeginPopupModal("Clear Favorites", ref clearFavoritesConfirmOpen, ImGuiWindowFlags.AlwaysAutoResize))
+            {
+                ImGui.TextWrapped("Are you sure you want to remove all favorites?");
+                ImGui.TextWrapped("This action cannot be undone.");
+                ImGui.Separator();
+
+                float buttonWidth = 120f;
+                float spacing = 10f;
+                float windowWidth = ImGui.GetWindowWidth();
+                float totalWidth = buttonWidth * 2 + spacing;
+                ImGui.SetCursorPosX((windowWidth - totalWidth) * 0.5f);
+
+                if (ImGui.Button("Cancel", new Vector2(buttonWidth, 0)))
+                {
+                    clearFavoritesConfirmOpen = false;
+                    ImGui.CloseCurrentPopup();
+                }
+
+                ImGui.SameLine(0, spacing);
+
+                ImGui.PushStyleColor(ImGuiCol.Button, new Vector4(0.7f, 0.1f, 0.1f, 1.0f));
+                ImGui.PushStyleColor(ImGuiCol.ButtonHovered, new Vector4(0.8f, 0.2f, 0.2f, 1.0f));
+
+                if (ImGui.Button("Yes, Clear All", new Vector2(buttonWidth, 0)))
+                {
+                    clearFavoritesConfirmOpen = false;
+                    ClearAllFavorites();
+                    ImGui.CloseCurrentPopup();
+                }
+
+                ImGui.PopStyleColor(2);
+                ImGui.EndPopup();
+            }
+        }
+
+        private void ClearAllFavorites()
+        {
+            favoritePuzzles.Clear();
+            SaveFavorites();
+            CustomLogger.Log("All favorites cleared");
         }
 
         private void DrawLoadingState()
@@ -228,6 +283,11 @@ namespace WahJumps.Windows
 
             // Use actual progress value instead of animated value
             ImGui.ProgressBar(currentProgress, new Vector2(progressWidth, 20), "");
+
+            // Add a loading spinner
+            ImGui.SetCursorPosX((ImGui.GetWindowWidth() - 20) * 0.5f);
+            ImGui.SetCursorPosY(centerY + 80);
+            UiTheme.LoadingSpinner("", 15.0f, 2.0f, UiTheme.Primary);
         }
 
         private void DrawTopToolbar()
@@ -240,17 +300,24 @@ namespace WahJumps.Windows
             ImGui.SameLine();
             ImGui.Text($"Last Updated: {lastRefreshDate.ToString("yyyy-MM-dd HH:mm")}");
 
-            // Add Run button (renamed from "Jump Timing")
+            // Add Timer button (renamed from "Run")
             ImGui.SameLine(ImGui.GetWindowWidth() - 300);
-            if (ImGui.Button("Run"))
+
+            // Use a better looking Timer button with a matching icon
+            ImGui.PushStyleColor(ImGuiCol.Button, new Vector4(0.2f, 0.4f, 0.6f, 1.0f));
+            ImGui.PushStyleColor(ImGuiCol.ButtonHovered, new Vector4(0.3f, 0.5f, 0.7f, 1.0f));
+
+            if (ImGui.Button("Timer"))
             {
                 // Open the timer window
                 plugin.TimerWindow.ShowTimer();
             }
             if (ImGui.IsItemHovered())
             {
-                ImGui.SetTooltip("Open the timer window");
+                ImGui.SetTooltip("Open the timer window for speedruns");
             }
+
+            ImGui.PopStyleColor(2);
 
             ImGui.SameLine(ImGui.GetWindowWidth() - 170);
             string[] modes = new[] { "Tabbed View", "Search View" };
@@ -385,8 +452,28 @@ namespace WahJumps.Windows
 
         private void DrawFavoritesTab()
         {
+            // Add a clear favorites button at the top
             if (favoritePuzzles.Count > 0)
             {
+                float buttonWidth = 130;
+                float windowWidth = ImGui.GetContentRegionAvail().X;
+
+                // Right-align the button
+                ImGui.SetCursorPosX(windowWidth - buttonWidth - 10);
+
+                // Use a red button for warning
+                ImGui.PushStyleColor(ImGuiCol.Button, new Vector4(0.7f, 0.1f, 0.1f, 1.0f));
+                ImGui.PushStyleColor(ImGuiCol.ButtonHovered, new Vector4(0.8f, 0.2f, 0.2f, 1.0f));
+
+                if (ImGui.Button("Clear All Favorites", new Vector2(buttonWidth, 0)))
+                {
+                    // Show confirmation popup
+                    clearFavoritesConfirmOpen = true;
+                    ImGui.OpenPopup("Clear Favorites");
+                }
+
+                ImGui.PopStyleColor(2);
+
                 using var child = new ImRaii.Child("FavoritesView", new Vector2(0, 0), true);
 
                 DrawPuzzleTable(favoritePuzzles, false);
@@ -456,28 +543,26 @@ namespace WahJumps.Windows
                                    ImGuiTableFlags.ScrollY |
                                    ImGuiTableFlags.SizingStretchProp;
 
-            int columnCount = includeAddToFavorites ? 10 : 9;
+            // Reduced column count (removed Timer column)
+            int columnCount = includeAddToFavorites ? 9 : 8;
 
             if (ImGui.BeginTable("PuzzlesTable", columnCount, flags))
             {
-                // Configure columns, now more condensed
+                // Configure columns with improved widths
                 ImGui.TableSetupColumn("Rating", ImGuiTableColumnFlags.WidthFixed, 45);
-                ImGui.TableSetupColumn("Name", ImGuiTableColumnFlags.WidthStretch, 180);
-                ImGui.TableSetupColumn("Builder", ImGuiTableColumnFlags.WidthStretch, 120);
+                ImGui.TableSetupColumn("Name", ImGuiTableColumnFlags.WidthStretch, 200); // Increased width
+                ImGui.TableSetupColumn("Builder", ImGuiTableColumnFlags.WidthStretch, 130);
                 ImGui.TableSetupColumn("World", ImGuiTableColumnFlags.WidthFixed, 70);
-                ImGui.TableSetupColumn("Address", ImGuiTableColumnFlags.WidthStretch, 160);
-                ImGui.TableSetupColumn("Type", ImGuiTableColumnFlags.WidthFixed, 50);
-                ImGui.TableSetupColumn("Rules", ImGuiTableColumnFlags.WidthStretch, 150);
+                ImGui.TableSetupColumn("Address", ImGuiTableColumnFlags.WidthStretch, 180);
+                ImGui.TableSetupColumn("Type", ImGuiTableColumnFlags.WidthFixed, 60);
+                ImGui.TableSetupColumn("Rules", ImGuiTableColumnFlags.WidthStretch, 170);
 
                 if (includeAddToFavorites)
                 {
-                    ImGui.TableSetupColumn("Fav", ImGuiTableColumnFlags.WidthFixed, 35);
+                    ImGui.TableSetupColumn("Fav", ImGuiTableColumnFlags.WidthFixed, 40);
                 }
 
-                ImGui.TableSetupColumn("Go", ImGuiTableColumnFlags.WidthFixed, 35);
-
-                // Timer button column
-                ImGui.TableSetupColumn("Timer", ImGuiTableColumnFlags.WidthFixed, 35);
+                ImGui.TableSetupColumn("Go", ImGuiTableColumnFlags.WidthFixed, 40);
 
                 ImGui.TableSetupScrollFreeze(0, 1);
                 ImGui.TableHeadersRow();
@@ -497,7 +582,17 @@ namespace WahJumps.Windows
                     // Reset cursor to start of row for the actual content
                     ImGui.TableSetColumnIndex(0);
 
-                    // Rating 
+                    // Vertically centered rating with aligned text
+                    float cellHeight = ImGui.GetTextLineHeightWithSpacing();
+                    float cellY = ImGui.GetCursorPosY();
+                    float textWidth = ImGui.CalcTextSize(puzzle.Rating).X;
+                    float columnWidth = ImGui.GetColumnWidth();
+                    float columnX = ImGui.GetCursorPosX();
+
+                    // Center horizontally
+                    ImGui.SetCursorPosX(columnX + (columnWidth - textWidth) * 0.5f);
+
+                    // Now render with color
                     RenderRatingWithColor(puzzle.Rating);
 
                     // Puzzle Name
@@ -561,23 +656,6 @@ namespace WahJumps.Windows
                         OnTravelRequest(puzzle);
                     }
                     if (ImGui.IsItemHovered()) ImGui.SetTooltip($"Travel to {puzzle.World} {puzzle.Address}");
-                    ImGui.PopStyleColor();
-
-                    // Timer Button with timer icon
-                    ImGui.TableNextColumn();
-                    ImGui.PushStyleColor(ImGuiCol.Text, new Vector4(0.0f, 0.6f, 0.9f, 1.0f));
-                    if (ImGui.Button($"⏱##{puzzle.Id}"))
-                    {
-                        // Set the puzzle in the speedrun manager
-                        plugin.SpeedrunManager.SetPuzzle(puzzle);
-
-                        // Open the timer window
-                        plugin.TimerWindow.ShowTimer();
-                    }
-                    if (ImGui.IsItemHovered())
-                    {
-                        ImGui.SetTooltip("Time this puzzle");
-                    }
                     ImGui.PopStyleColor();
                 }
 

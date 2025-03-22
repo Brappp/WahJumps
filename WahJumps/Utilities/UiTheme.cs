@@ -1,9 +1,8 @@
 // File: WahJumps/Utilities/UiTheme.cs
-// Status: UPDATED - Removed compact mode
-
 using System.Numerics;
 using ImGuiNET;
 using System.Collections.Generic;
+using System;
 
 namespace WahJumps.Utilities
 {
@@ -118,42 +117,284 @@ namespace WahJumps.Utilities
             ImGui.PopStyleColor();
         }
 
-        // Apply consistent table styling
+        // Improved table styling with more whitespace and better colors
         public static void StyleTable()
         {
-            ImGui.PushStyleVar(ImGuiStyleVar.CellPadding, new Vector2(4, 2));
-            ImGui.PushStyleVar(ImGuiStyleVar.ItemSpacing, new Vector2(8, 4));
-            ImGui.PushStyleColor(ImGuiCol.TableHeaderBg, new Vector4(0.13f, 0.33f, 0.46f, 1.0f));
-            ImGui.PushStyleColor(ImGuiCol.TableBorderStrong, new Vector4(0.4f, 0.4f, 0.4f, 1.0f));
+            ImGui.PushStyleVar(ImGuiStyleVar.CellPadding, new Vector2(8, 4)); // More padding
+            ImGui.PushStyleVar(ImGuiStyleVar.ItemSpacing, new Vector2(8, 6)); // More space between rows
+
+            // Better header colors for contrast
+            ImGui.PushStyleColor(ImGuiCol.TableHeaderBg, new Vector4(0.15f, 0.35f, 0.5f, 1.0f));
+            ImGui.PushStyleColor(ImGuiCol.TableBorderStrong, new Vector4(0.5f, 0.5f, 0.5f, 1.0f));
             ImGui.PushStyleColor(ImGuiCol.TableBorderLight, new Vector4(0.3f, 0.3f, 0.3f, 1.0f));
+
+            // Better row colors for readability
+            ImGui.PushStyleColor(ImGuiCol.TableRowBg, new Vector4(0.18f, 0.18f, 0.2f, 1.0f));
+            ImGui.PushStyleColor(ImGuiCol.TableRowBgAlt, new Vector4(0.25f, 0.25f, 0.28f, 1.0f));
         }
 
-        // End table styling
+        // End table styling - updated to match the number of pushed styles
         public static void EndTableStyle()
         {
-            ImGui.PopStyleColor(3);
-            ImGui.PopStyleVar(2);
+            ImGui.PopStyleColor(5); // Match the number of PushStyleColor calls
+            ImGui.PopStyleVar(2);   // Match the number of PushStyleVar calls
         }
 
         // Apply default styling for consistent look
         public static void ApplyGlobalStyle()
         {
-            // Set some reasonable default styling
-            ImGui.PushStyleVar(ImGuiStyleVar.FramePadding, new Vector2(6, 3));
-            ImGui.PushStyleVar(ImGuiStyleVar.ItemSpacing, new Vector2(6, 3));
-            ImGui.PushStyleVar(ImGuiStyleVar.WindowPadding, new Vector2(10, 10));
-            ImGui.PushStyleVar(ImGuiStyleVar.FrameRounding, 3.0f);
-            ImGui.PushStyleVar(ImGuiStyleVar.TabRounding, 4.0f);
+            // Enhanced spacing and padding
+            ImGui.PushStyleVar(ImGuiStyleVar.FramePadding, new Vector2(6, 4));
+            ImGui.PushStyleVar(ImGuiStyleVar.ItemSpacing, new Vector2(8, 6));
+            ImGui.PushStyleVar(ImGuiStyleVar.WindowPadding, new Vector2(12, 12));
 
-            // Ensure table rows are easier to read
-            ImGui.PushStyleColor(ImGuiCol.TableRowBgAlt, new Vector4(0.22f, 0.22f, 0.22f, 1.0f));
+            // Better rounding for visual appeal
+            ImGui.PushStyleVar(ImGuiStyleVar.FrameRounding, 4.0f);
+            ImGui.PushStyleVar(ImGuiStyleVar.TabRounding, 6.0f);
+            ImGui.PushStyleVar(ImGuiStyleVar.GrabRounding, 3.0f);
+
+            // Improved colors
+            ImGui.PushStyleColor(ImGuiCol.TableRowBgAlt, new Vector4(0.25f, 0.25f, 0.27f, 1.0f));
+            ImGui.PushStyleColor(ImGuiCol.FrameBg, new Vector4(0.18f, 0.18f, 0.22f, 1.0f));
+            ImGui.PushStyleColor(ImGuiCol.PopupBg, new Vector4(0.12f, 0.12f, 0.15f, 0.98f));
+            ImGui.PushStyleColor(ImGuiCol.TitleBg, new Vector4(0.1f, 0.2f, 0.3f, 1.0f));
+            ImGui.PushStyleColor(ImGuiCol.TitleBgActive, new Vector4(0.15f, 0.3f, 0.5f, 1.0f));
         }
 
-        // End global styling
+        // End global styling - updated to match the pushed styles
         public static void EndGlobalStyle()
         {
+            ImGui.PopStyleColor(5); // Match number of PushStyleColor calls
+            ImGui.PopStyleVar(6);   // Match number of PushStyleVar calls 
+        }
+
+        // Create a tooltip with standardized styling
+        public static void Tooltip(string text)
+        {
+            if (ImGui.IsItemHovered())
+            {
+                ImGui.PushStyleColor(ImGuiCol.PopupBg, new Vector4(0.15f, 0.15f, 0.18f, 1.0f));
+                ImGui.BeginTooltip();
+                ImGui.PushTextWrapPos(ImGui.GetFontSize() * 20.0f);
+                ImGui.TextUnformatted(text);
+                ImGui.PopTextWrapPos();
+                ImGui.EndTooltip();
+                ImGui.PopStyleColor();
+            }
+        }
+
+        // Create a button with standardized styling
+        public static bool StandardButton(string label, Vector2? size = null)
+        {
+            Vector2 buttonSize = size ?? new Vector2(0, 0);
+
+            ImGui.PushStyleColor(ImGuiCol.Button, new Vector4(0.2f, 0.4f, 0.6f, 1.0f));
+            ImGui.PushStyleColor(ImGuiCol.ButtonHovered, new Vector4(0.3f, 0.5f, 0.7f, 1.0f));
+            ImGui.PushStyleColor(ImGuiCol.ButtonActive, new Vector4(0.15f, 0.35f, 0.55f, 1.0f));
+
+            bool clicked = ImGui.Button(label, buttonSize);
+
+            ImGui.PopStyleColor(3);
+
+            return clicked;
+        }
+
+        // Enhanced section header with optional help tooltip
+        public static void SectionHeader(string text, string tooltipText = null)
+        {
+            ImGui.PushStyleColor(ImGuiCol.Text, Primary);
+            ImGui.TextUnformatted(text);
             ImGui.PopStyleColor();
-            ImGui.PopStyleVar(5);
+
+            if (!string.IsNullOrEmpty(tooltipText) && ImGui.IsItemHovered())
+            {
+                Tooltip(tooltipText);
+            }
+
+            ImGui.Separator();
+            ImGui.Spacing();
+        }
+
+        // Draw a stylish header with gradient background
+        public static void GradientHeader(string text, Vector4 startColor, Vector4 endColor)
+        {
+            var drawList = ImGui.GetWindowDrawList();
+            var pos = ImGui.GetCursorScreenPos();
+            var size = new Vector2(ImGui.GetWindowWidth() - ImGui.GetStyle().WindowPadding.X * 2, 40);
+
+            // Draw gradient background
+            drawList.AddRectFilledMultiColor(
+                pos,
+                new Vector2(pos.X + size.X, pos.Y + size.Y),
+                ImGui.GetColorU32(startColor),
+                ImGui.GetColorU32(endColor),
+                ImGui.GetColorU32(endColor),
+                ImGui.GetColorU32(startColor)
+            );
+
+            // Draw text centered
+            var textSize = ImGui.CalcTextSize(text);
+            var textPos = new Vector2(
+                pos.X + (size.X - textSize.X) * 0.5f,
+                pos.Y + (size.Y - textSize.Y) * 0.5f
+            );
+
+            drawList.AddText(textPos, ImGui.GetColorU32(new Vector4(1, 1, 1, 1)), text);
+
+            // Advance cursor
+            ImGui.Dummy(size);
+            ImGui.Spacing();
+        }
+
+        // Loading spinner with improved visuals
+        public static void LoadingSpinner(string label, float radius = 10.0f, float thickness = 2.0f, Vector4? color = null)
+        {
+            Vector4 spinnerColor = color ?? Primary;
+
+            ImDrawListPtr drawList = ImGui.GetWindowDrawList();
+            Vector2 pos = ImGui.GetCursorScreenPos();
+            Vector2 center = new Vector2(pos.X + radius, pos.Y + radius);
+            float time = (float)ImGui.GetTime() * 1.5f; // Slightly faster animation
+
+            // Draw a subtle background circle
+            drawList.AddCircleFilled(
+                center,
+                radius * 0.8f,
+                ImGui.GetColorU32(new Vector4(spinnerColor.X * 0.2f, spinnerColor.Y * 0.2f, spinnerColor.Z * 0.2f, 0.2f)),
+                12
+            );
+
+            // Draw spinning segments
+            for (int i = 0; i < 6; i++) // Reduced number of segments for cleaner look
+            {
+                float a1 = time + i * MathF.PI / 3.0f;
+                float a2 = a1 + MathF.PI / 6.0f;
+
+                // Calculate alpha based on position (fade effect)
+                float alpha = 0.1f + 0.9f * ((i + time * 0.954f) % 6) / 6.0f;
+
+                drawList.PathArcTo(
+                    center,
+                    radius,
+                    a1,
+                    a2,
+                    12
+                );
+
+                drawList.PathStroke(
+                    ImGui.GetColorU32(new Vector4(spinnerColor.X, spinnerColor.Y, spinnerColor.Z, alpha)),
+                    ImDrawFlags.None,
+                    thickness
+                );
+            }
+
+            // Advance cursor
+            ImGui.Dummy(new Vector2(radius * 2 + 4, radius * 2));
+
+            // Add label if provided
+            if (!string.IsNullOrEmpty(label))
+            {
+                ImGui.SameLine();
+                ImGui.Text(label);
+            }
+        }
+
+        // Create a progress bar with gradient
+        public static void GradientProgressBar(float fraction, Vector2 size, Vector4 startColor, Vector4 endColor, string overlay = null)
+        {
+            ImDrawListPtr drawList = ImGui.GetWindowDrawList();
+            Vector2 pos = ImGui.GetCursorScreenPos();
+
+            // Background
+            drawList.AddRectFilled(
+                pos,
+                new Vector2(pos.X + size.X, pos.Y + size.Y),
+                ImGui.GetColorU32(new Vector4(0.1f, 0.1f, 0.1f, 1.0f)),
+                4.0f
+            );
+
+            // Progress gradient
+            if (fraction > 0)
+            {
+                float width = size.X * Math.Clamp(fraction, 0, 1);
+                drawList.AddRectFilledMultiColor(
+                    pos,
+                    new Vector2(pos.X + width, pos.Y + size.Y),
+                    ImGui.GetColorU32(startColor),
+                    ImGui.GetColorU32(endColor),
+                    ImGui.GetColorU32(endColor),
+                    ImGui.GetColorU32(startColor)
+                );
+
+                // Add rounded corners with small overlaid circles
+                float radius = Math.Min(4.0f, size.Y / 2);
+                drawList.AddCircleFilled(
+                    new Vector2(pos.X + width - radius, pos.Y + radius),
+                    radius,
+                    ImGui.GetColorU32(endColor)
+                );
+                drawList.AddCircleFilled(
+                    new Vector2(pos.X + width - radius, pos.Y + size.Y - radius),
+                    radius,
+                    ImGui.GetColorU32(endColor)
+                );
+            }
+
+            // Overlay text
+            if (!string.IsNullOrEmpty(overlay))
+            {
+                var textSize = ImGui.CalcTextSize(overlay);
+                drawList.AddText(
+                    new Vector2(
+                        pos.X + (size.X - textSize.X) * 0.5f,
+                        pos.Y + (size.Y - textSize.Y) * 0.5f
+                    ),
+                    ImGui.GetColorU32(new Vector4(1, 1, 1, 1)),
+                    overlay
+                );
+            }
+
+            // Advance cursor
+            ImGui.Dummy(size);
+        }
+
+        // Create a button with an icon
+        public static bool IconButton(string icon, string label, Vector4 color, float width = 0)
+        {
+            float buttonWidth = width > 0 ? width : ImGui.CalcTextSize(label).X + 30;
+
+            ImGui.PushStyleColor(ImGuiCol.Button, new Vector4(0.15f, 0.15f, 0.18f, 1.0f));
+            ImGui.PushStyleColor(ImGuiCol.ButtonHovered, new Vector4(0.25f, 0.25f, 0.28f, 1.0f));
+            ImGui.PushStyleColor(ImGuiCol.Text, color);
+
+            bool clicked = ImGui.Button($"{icon} {label}", new Vector2(buttonWidth, 0));
+
+            ImGui.PopStyleColor(3);
+
+            return clicked;
+        }
+
+        // Draw a card with title and content
+        public static void Card(string title, string content, Vector4 titleColor, float width = 0)
+        {
+            float cardWidth = width > 0 ? width : ImGui.GetContentRegionAvail().X;
+
+            ImGui.PushStyleColor(ImGuiCol.ChildBg, new Vector4(0.15f, 0.15f, 0.18f, 1.0f));
+            ImGui.BeginChild($"##card_{title}", new Vector2(cardWidth, 0), true);
+
+            // Title
+            ImGui.PushStyleColor(ImGuiCol.Text, titleColor);
+            ImGui.Text(title);
+            ImGui.PopStyleColor();
+
+            ImGui.Separator();
+            ImGui.Spacing();
+
+            // Content
+            ImGui.TextWrapped(content);
+
+            ImGui.EndChild();
+            ImGui.PopStyleColor();
         }
     }
 }
