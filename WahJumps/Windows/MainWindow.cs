@@ -1,4 +1,3 @@
-// File: WahJumps/Windows/MainWindow.cs
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -55,25 +54,42 @@ namespace WahJumps.Windows
         // Region grouping for data centers with their representative colors
         private readonly Dictionary<string, (List<string> DataCenters, Vector4 TabColor, Vector4 HoverColor, Vector4 ActiveColor)> regionGroups = new Dictionary<string, (List<string>, Vector4, Vector4, Vector4)>
         {
-            { "NA", (new List<string> { "Aether", "Crystal", "Dynamis", "Primal" },
+            {
+                "NA",
+                (
+                    new List<string> { "Aether", "Crystal", "Dynamis", "Primal" },
                     new Vector4(0.098f, 0.4f, 0.6f, 1.0f),      // NA Dark Blue
                     new Vector4(0.2f, 0.5f, 0.7f, 1.0f),        // NA Hover Blue
-                    new Vector4(0.3f, 0.6f, 0.8f, 1.0f)) },     // NA Active Blue
-                    
-            { "EU", (new List<string> { "Chaos", "Light" },
+                    new Vector4(0.3f, 0.6f, 0.8f, 1.0f)         // NA Active Blue
+                )
+            },
+            {
+                "EU",
+                (
+                    new List<string> { "Chaos", "Light" },
                     new Vector4(0.4f, 0.3f, 0.5f, 1.0f),        // EU Dark Purple
                     new Vector4(0.5f, 0.4f, 0.6f, 1.0f),        // EU Hover Purple
-                    new Vector4(0.6f, 0.5f, 0.7f, 1.0f)) },     // EU Active Purple
-                    
-            { "OCE", (new List<string> { "Materia" },
+                    new Vector4(0.6f, 0.5f, 0.7f, 1.0f)         // EU Active Purple
+                )
+            },
+            {
+                "OCE",
+                (
+                    new List<string> { "Materia" },
                     new Vector4(0.7f, 0.5f, 0.2f, 1.0f),        // OCE Dark Gold
                     new Vector4(0.8f, 0.6f, 0.3f, 1.0f),        // OCE Hover Gold
-                    new Vector4(0.9f, 0.7f, 0.4f, 1.0f)) },     // OCE Active Gold
-                    
-            { "JP", (new List<string> { "Elemental", "Gaia", "Mana", "Meteor" },
+                    new Vector4(0.9f, 0.7f, 0.4f, 1.0f)         // OCE Active Gold
+                )
+            },
+            {
+                "JP",
+                (
+                    new List<string> { "Elemental", "Gaia", "Mana", "Meteor" },
                     new Vector4(0.6f, 0.2f, 0.2f, 1.0f),        // JP Dark Red
                     new Vector4(0.7f, 0.3f, 0.3f, 1.0f),        // JP Hover Red
-                    new Vector4(0.8f, 0.4f, 0.4f, 1.0f)) }      // JP Active Red
+                    new Vector4(0.8f, 0.4f, 0.4f, 1.0f)         // JP Active Red
+                )
+            }
         };
 
         public enum MessageType { Info, Success, Warning, Error }
@@ -186,15 +202,15 @@ namespace WahJumps.Windows
                     isFirstRender = false;
                 }
 
-                // Loading state
+                // If not ready, show loading
                 if (!isReady)
                 {
                     DrawAnimatedLoadingState();
                     return;
                 }
 
-                // Draw header banner
-                DrawHeaderBanner();
+                // Draw the top gradient behind everything at the top
+                DrawTopGradientArea();
 
                 // Draw top toolbar with search and options
                 DrawTopToolbar();
@@ -227,7 +243,7 @@ namespace WahJumps.Windows
             Vector2 windowPos = ImGui.GetWindowPos();
             Vector2 windowSize = ImGui.GetWindowSize();
 
-            // Subtle gradient header
+            // Subtle gradient header (just a few pixels at the very top border)
             drawList.AddRectFilledMultiColor(
                 windowPos,
                 new Vector2(windowPos.X + windowSize.X, windowPos.Y + 4),
@@ -248,52 +264,32 @@ namespace WahJumps.Windows
             );
         }
 
-        private void DrawHeaderBanner()
+        /// <summary>
+        /// This method draws the gradient at the top of the window.
+        /// We have removed the "WahJumps" text and the version text, 
+        /// so it's just a slim gradient bar.
+        /// </summary>
+        private void DrawTopGradientArea()
         {
             ImDrawListPtr drawList = ImGui.GetWindowDrawList();
             Vector2 pos = ImGui.GetCursorScreenPos();
             float width = ImGui.GetWindowWidth();
 
+            // Adjust how tall you want the top gradient to be:
+            float topHeight = 20f;
+
             // Subtle gradient background
             drawList.AddRectFilledMultiColor(
                 new Vector2(pos.X, pos.Y),
-                new Vector2(pos.X + width, pos.Y + 40),
+                new Vector2(pos.X + width, pos.Y + topHeight),
                 ImGui.GetColorU32(new Vector4(0.1f, 0.1f, 0.15f, 1.0f)),
                 ImGui.GetColorU32(new Vector4(0.15f, 0.2f, 0.25f, 1.0f)),
                 ImGui.GetColorU32(new Vector4(0.15f, 0.2f, 0.25f, 1.0f)),
                 ImGui.GetColorU32(new Vector4(0.1f, 0.1f, 0.15f, 1.0f))
             );
 
-            // Add logo text with slight glow
-            string appName = "WahJumps";
-            float textWidth = ImGui.CalcTextSize(appName).X;
-            Vector2 textPos = new Vector2(pos.X + 15, pos.Y + 10);
-
-            // Text shadow/glow
-            drawList.AddText(
-                new Vector2(textPos.X + 1, textPos.Y + 1),
-                ImGui.GetColorU32(new Vector4(0.0f, 0.0f, 0.0f, 0.5f)),
-                appName
-            );
-
-            // Main text
-            drawList.AddText(
-                textPos,
-                ImGui.GetColorU32(UiTheme.Primary),
-                appName
-            );
-
-            // Version text
-            string version = "v1.0.2.0";
-            Vector2 versionSize = ImGui.CalcTextSize(version);
-            drawList.AddText(
-                new Vector2(pos.X + width - versionSize.X - 15, pos.Y + 15),
-                ImGui.GetColorU32(new Vector4(0.6f, 0.6f, 0.6f, 1.0f)),
-                version
-            );
-
-            // Advance cursor past the header
-            ImGui.Dummy(new Vector2(0, 40));
+            // Advance cursor past the gradient
+            ImGui.Dummy(new Vector2(0, topHeight));
         }
 
         private void DrawAnimatedLoadingState()
