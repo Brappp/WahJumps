@@ -68,7 +68,7 @@ namespace WahJumps
             // Register commands
             CommandManager.AddHandler(CommandName, new CommandInfo(OnCommand)
             {
-                HelpMessage = "Opens the WahJumps UI for finding jump puzzles"
+                HelpMessage = "Opens the WahJumps UI for finding jump puzzles. Use '/wahjumps debug' to toggle debug logging."
             });
 
             CommandManager.AddHandler(TimerCommandName, new CommandInfo(OnTimerCommand)
@@ -145,7 +145,30 @@ namespace WahJumps
             CommandManager.RemoveHandler(RecordsCommandName);
         }
 
-        private void OnCommand(string command, string args) => MainWindow.ToggleVisibility();
+        private void OnCommand(string command, string args)
+        {
+            // Handle subcommands
+            if (!string.IsNullOrEmpty(args))
+            {
+                string lowerArgs = args.ToLower().Trim();
+                
+                if (lowerArgs == "debug")
+                {
+                    // Toggle debug logging
+                    var config = MainWindow.GetConfiguration();
+                    config.EnableLogging = !config.EnableLogging;
+                    CustomLogger.IsLoggingEnabled = config.EnableLogging;
+                    config.Save();
+                    
+                    string status = config.EnableLogging ? "enabled" : "disabled";
+                    ChatGui.Print($"[WahJumps] Debug logging {status}");
+                    return;
+                }
+            }
+            
+            // Default behavior - toggle main window
+            MainWindow.ToggleVisibility();
+        }
 
         private void OnTimerCommand(string command, string args)
         {

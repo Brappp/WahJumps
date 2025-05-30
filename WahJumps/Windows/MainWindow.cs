@@ -26,7 +26,6 @@ namespace WahJumps.Windows
         // UI Tabs
         private readonly StrangeHousingTab strangeHousingTab;
         private readonly InformationTab informationTab;
-        private readonly SettingsTab settingsTab;
         private readonly SearchFilterComponent searchFilter;
         private readonly TravelDialog travelDialog;
 
@@ -47,9 +46,6 @@ namespace WahJumps.Windows
         private float notificationTimer = 0;
         private string notificationMessage = "";
         private MessageType notificationType = MessageType.Info;
-
-        // Tab names for TabBar
-        private readonly string[] mainTabs = new[] { "Strange Housing", "Information", "Favorites", "Search", "Settings" };
 
         // Region grouping for data centers with their representative colors
         private readonly Dictionary<string, (List<string> DataCenters, Vector4 TabColor, Vector4 HoverColor, Vector4 ActiveColor)> regionGroups = new Dictionary<string, (List<string>, Vector4, Vector4, Vector4)>
@@ -111,7 +107,6 @@ namespace WahJumps.Windows
             // Initialize UI components
             strangeHousingTab = new StrangeHousingTab();
             informationTab = new InformationTab();
-            settingsTab = new SettingsTab(settingsManager, csvManager.CsvDirectoryPath, OnSettingsChanged);
 
             // Initialize data
             csvDataByDataCenter = new Dictionary<string, List<JumpPuzzleData>>();
@@ -146,12 +141,6 @@ namespace WahJumps.Windows
 
             // Load data
             RefreshData();
-        }
-
-        private void OnSettingsChanged()
-        {
-            var config = settingsManager.Configuration;
-            CustomLogger.IsLoggingEnabled = config.EnableLogging;
         }
 
         public void ToggleVisibility()
@@ -209,9 +198,6 @@ namespace WahJumps.Windows
                     return;
                 }
 
-                // Draw the top gradient behind everything at the top
-                DrawTopGradientArea();
-
                 // Draw top toolbar with search and options
                 DrawTopToolbar();
 
@@ -262,34 +248,6 @@ namespace WahJumps.Windows
                 ImDrawFlags.None,
                 1.0f
             );
-        }
-
-        /// <summary>
-        /// This method draws the gradient at the top of the window.
-        /// We have removed the "WahJumps" text and the version text, 
-        /// so it's just a slim gradient bar.
-        /// </summary>
-        private void DrawTopGradientArea()
-        {
-            ImDrawListPtr drawList = ImGui.GetWindowDrawList();
-            Vector2 pos = ImGui.GetCursorScreenPos();
-            float width = ImGui.GetWindowWidth();
-
-            // Adjust how tall you want the top gradient to be:
-            float topHeight = 20f;
-
-            // Subtle gradient background
-            drawList.AddRectFilledMultiColor(
-                new Vector2(pos.X, pos.Y),
-                new Vector2(pos.X + width, pos.Y + topHeight),
-                ImGui.GetColorU32(new Vector4(0.1f, 0.1f, 0.15f, 1.0f)),
-                ImGui.GetColorU32(new Vector4(0.15f, 0.2f, 0.25f, 1.0f)),
-                ImGui.GetColorU32(new Vector4(0.15f, 0.2f, 0.25f, 1.0f)),
-                ImGui.GetColorU32(new Vector4(0.1f, 0.1f, 0.15f, 1.0f))
-            );
-
-            // Advance cursor past the gradient
-            ImGui.Dummy(new Vector2(0, topHeight));
         }
 
         private void DrawAnimatedLoadingState()
@@ -428,6 +386,65 @@ namespace WahJumps.Windows
             }
 
             ImGui.SameLine();
+
+            // Travel confirmation toggle
+            var config = settingsManager.Configuration;
+            bool showTravelConfirmation = config.ShowTravelConfirmation;
+            
+            Vector4 toggleColor = showTravelConfirmation 
+                ? new Vector4(0.3f, 0.3f, 0.3f, 1.0f)  // Dark gray when enabled
+                : new Vector4(0.2f, 0.2f, 0.2f, 1.0f); // Darker gray when disabled
+            
+            ImGui.PushStyleColor(ImGuiCol.Button, toggleColor);
+            ImGui.PushStyleColor(ImGuiCol.ButtonHovered, new Vector4(toggleColor.X + 0.1f, toggleColor.Y + 0.1f, toggleColor.Z + 0.1f, 1.0f));
+            ImGui.PushStyleColor(ImGuiCol.ButtonActive, new Vector4(toggleColor.X - 0.1f, toggleColor.Y - 0.1f, toggleColor.Z - 0.1f, 1.0f));
+
+            string confirmText = showTravelConfirmation ? "Confirm: ON" : "Confirm: OFF";
+            if (ImGui.Button(confirmText))
+            {
+                config.ShowTravelConfirmation = !config.ShowTravelConfirmation;
+                settingsManager.SaveConfiguration();
+                string status = config.ShowTravelConfirmation ? "enabled" : "disabled";
+                ShowNotification($"Travel confirmation {status}", MessageType.Info);
+            }
+            ImGui.PopStyleColor(3);
+
+            if (ImGui.IsItemHovered())
+            {
+                ImGui.PushStyleColor(ImGuiCol.PopupBg, new Vector4(0.18f, 0.18f, 0.22f, 0.95f));
+                ImGui.BeginTooltip();
+                ImGui.Text("Toggle travel confirmation dialog");
+                ImGui.EndTooltip();
+                ImGui.PopStyleColor();
+            }
+
+            ImGui.SameLine();
+
+            // GitHub link button
+            ImGui.PushStyleColor(ImGuiCol.Button, new Vector4(0.15f, 0.15f, 0.15f, 1.0f));
+            ImGui.PushStyleColor(ImGuiCol.ButtonHovered, new Vector4(0.25f, 0.25f, 0.25f, 1.0f));
+            ImGui.PushStyleColor(ImGuiCol.ButtonActive, new Vector4(0.35f, 0.35f, 0.35f, 1.0f));
+
+            if (ImGui.Button("GitHub"))
+            {
+                System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+                {
+                    FileName = "https://github.com/Brappp/WahJumps",
+                    UseShellExecute = true
+                });
+            }
+            ImGui.PopStyleColor(3);
+
+            if (ImGui.IsItemHovered())
+            {
+                ImGui.PushStyleColor(ImGuiCol.PopupBg, new Vector4(0.18f, 0.18f, 0.22f, 0.95f));
+                ImGui.BeginTooltip();
+                ImGui.Text("Open WahJumps on GitHub");
+                ImGui.EndTooltip();
+                ImGui.PopStyleColor();
+            }
+
+            ImGui.SameLine();
             ImGui.Text($"Last Updated: {lastRefreshDate.ToString("yyyy-MM-dd HH:mm")}");
 
             // Add Timer button (right-aligned)
@@ -484,8 +501,12 @@ namespace WahJumps.Windows
                     ImGui.EndTabItem();
                 }
 
-                // Settings Tab
-                settingsTab.Draw();
+                // Data Center Comparison Tab - new addition
+                if (ImGui.BeginTabItem("DC Overview"))
+                {
+                    DrawDataCenterComparison();
+                    ImGui.EndTabItem();
+                }
 
                 // Region tabs with nested data center tabs
                 DrawRegionTabs();
@@ -555,6 +576,18 @@ namespace WahJumps.Windows
 
         private void DrawDataCenterTab(string dataCenterName, List<JumpPuzzleData> puzzles)
         {
+            // Create tab name with puzzle count
+            string tabName = $"{dataCenterName} ({puzzles.Count})";
+            
+            // Color coding based on data center size
+            Vector4 sizeIndicatorColor = puzzles.Count switch
+            {
+                < 10 => new Vector4(0.6f, 0.6f, 0.6f, 1.0f),    // Gray for small (< 10)
+                < 50 => new Vector4(0.7f, 0.6f, 0.5f, 1.0f),    // Soft brown for medium (10-49)
+                < 100 => new Vector4(0.4f, 0.8f, 0.8f, 1.0f),   // Cyan for large (50-99)
+                _ => new Vector4(0.4f, 0.8f, 0.4f, 1.0f)         // Green for very large (100+)
+            };
+
             // Apply data center color theming if enabled
             var config = settingsManager.Configuration;
 
@@ -564,25 +597,63 @@ namespace WahJumps.Windows
                 using var tabColors = new ImRaii.StyleColor(
                     (ImGuiCol.Tab, colors.Dark),
                     (ImGuiCol.TabHovered, colors.Medium),
-                    (ImGuiCol.TabActive, colors.Light)
+                    (ImGuiCol.TabActive, colors.Light),
+                    (ImGuiCol.Text, sizeIndicatorColor) // Add size indicator color
                 );
 
                 // No boolean reference = no close button
-                if (ImGui.BeginTabItem(dataCenterName))
+                if (ImGui.BeginTabItem(tabName))
                 {
+                    // Show data center info at the top
+                    DrawDataCenterInfo(dataCenterName, puzzles);
                     DrawRatingTabs(puzzles);
                     ImGui.EndTabItem();
                 }
             }
             else
             {
+                using var textColor = new ImRaii.StyleColor(ImGuiCol.Text, sizeIndicatorColor);
+                
                 // No boolean reference = no close button
-                if (ImGui.BeginTabItem(dataCenterName))
+                if (ImGui.BeginTabItem(tabName))
                 {
+                    // Show data center info at the top
+                    DrawDataCenterInfo(dataCenterName, puzzles);
                     DrawRatingTabs(puzzles);
                     ImGui.EndTabItem();
                 }
             }
+        }
+
+        private void DrawDataCenterInfo(string dataCenterName, List<JumpPuzzleData> puzzles)
+        {
+            // Quick stats for this data center
+            var ratingCounts = puzzles.GroupBy(p => p.Rating)
+                .ToDictionary(g => g.Key, g => g.Count());
+            
+            var worldCounts = puzzles.GroupBy(p => p.World)
+                .ToDictionary(g => g.Key, g => g.Count());
+
+            ImGui.Text($"Data Center Overview: {puzzles.Count} total puzzles");
+            ImGui.SameLine();
+            
+            // Show rating distribution with white text
+            var ratings = new[] { "★★★★★", "★★★★", "★★★", "★★", "★" };
+            bool first = true;
+            foreach (var rating in ratings)
+            {
+                if (ratingCounts.ContainsKey(rating) && ratingCounts[rating] > 0)
+                {
+                    if (!first) ImGui.SameLine();
+                    
+                    // Use white text instead of colored text
+                    ImGui.Text($"{rating}: {ratingCounts[rating]}");
+                    
+                    first = false;
+                }
+            }
+            
+            ImGui.Separator();
         }
 
         private void DrawFavoritesTab()
@@ -621,25 +692,20 @@ namespace WahJumps.Windows
             using var tabBar = new ImRaii.TabBar("RatingTabs");
             if (!tabBar.Success) return;
 
-            // Add an "All" tab first - no boolean reference = no close button
-            if (ImGui.BeginTabItem("All"))
+            // Add an "All" tab first with total count
+            if (ImGui.BeginTabItem($"All ({puzzles.Count})"))
             {
                 DrawPuzzleTable(puzzles);
                 ImGui.EndTabItem();
             }
 
-            // Then rating-specific tabs
+            // Then rating-specific tabs with counts (no special coloring)
             foreach (var ratingGroup in puzzlesByRating)
             {
-                // Color the tab based on rating
-                Vector4 tabColor = GetRatingColor(ratingGroup.Key);
-
-                using var colors = new ImRaii.StyleColor(
-                    (ImGuiCol.TabActive, tabColor)
-                );
+                string tabName = $"{ratingGroup.Key} ({ratingGroup.Count()})";
 
                 // No boolean reference = no close button
-                if (ImGui.BeginTabItem(ratingGroup.Key))
+                if (ImGui.BeginTabItem(tabName))
                 {
                     DrawPuzzleTable(ratingGroup.ToList());
                     ImGui.EndTabItem();
@@ -663,7 +729,8 @@ namespace WahJumps.Windows
                                    ImGuiTableFlags.Borders |
                                    ImGuiTableFlags.Resizable |
                                    ImGuiTableFlags.ScrollY |
-                                   ImGuiTableFlags.SizingStretchProp;
+                                   ImGuiTableFlags.SizingFixedFit |
+                                   ImGuiTableFlags.Sortable;
 
             if (ImGui.BeginTable("FavoritesTable", 9, flags))
             {
@@ -775,7 +842,7 @@ namespace WahJumps.Windows
             ImGui.PushStyleColor(ImGuiCol.TableRowBg, new Vector4(0.16f, 0.16f, 0.18f, 1.0f));
             ImGui.PushStyleColor(ImGuiCol.TableRowBgAlt, new Vector4(0.20f, 0.20f, 0.22f, 1.0f));
 
-            // Better hover effects
+            // Better hover effects - but DON'T override text colors
             ImGui.PushStyleColor(ImGuiCol.HeaderHovered, new Vector4(0.25f, 0.35f, 0.5f, 0.5f));
             ImGui.PushStyleColor(ImGuiCol.Header, new Vector4(0.2f, 0.3f, 0.45f, 0.35f));
         }
@@ -803,7 +870,8 @@ namespace WahJumps.Windows
                                    ImGuiTableFlags.Borders |
                                    ImGuiTableFlags.Resizable |
                                    ImGuiTableFlags.ScrollY |
-                                   ImGuiTableFlags.SizingStretchProp;
+                                   ImGuiTableFlags.SizingFixedFit |
+                                   ImGuiTableFlags.Sortable;
 
             // Reduced column count (removed Timer column)
             int columnCount = includeAddToFavorites ? 9 : 8;
@@ -989,27 +1057,8 @@ namespace WahJumps.Windows
 
         private Vector4 GetRatingColor(string rating)
         {
-            switch (rating)
-            {
-                case "1★":
-                    return new Vector4(0.0f, 0.8f, 0.0f, 1.0f); // Green
-                case "2★":
-                    return new Vector4(0.0f, 0.6f, 0.9f, 1.0f); // Blue
-                case "3★":
-                    return new Vector4(0.9f, 0.8f, 0.0f, 1.0f); // Yellow
-                case "4★":
-                    return new Vector4(1.0f, 0.5f, 0.0f, 1.0f); // Orange
-                case "5★":
-                    return new Vector4(0.9f, 0.0f, 0.0f, 1.0f); // Red
-                case "E":
-                    return new Vector4(0.5f, 0.5f, 1.0f, 1.0f); // Light blue
-                case "T":
-                    return new Vector4(1.0f, 0.5f, 1.0f, 1.0f); // Light purple
-                case "F":
-                    return new Vector4(0.5f, 1.0f, 0.5f, 1.0f); // Light green
-                default:
-                    return new Vector4(0.8f, 0.8f, 0.8f, 1.0f); // Gray
-            }
+            // Return white/default text color for all ratings
+            return new Vector4(1.0f, 1.0f, 1.0f, 1.0f); // White text for all ratings
         }
 
         private void ShowNotification(string message, MessageType type, float duration = 3.0f)
@@ -1309,6 +1358,258 @@ namespace WahJumps.Windows
         public Dictionary<string, List<JumpPuzzleData>> GetCsvDataByDataCenter()
         {
             return csvDataByDataCenter;
+        }
+
+        // Add a method to access the configuration for debug command
+        public PluginConfiguration GetConfiguration()
+        {
+            return settingsManager.Configuration;
+        }
+
+        private void DrawDataCenterComparison()
+        {
+            ImGui.Text("Data Center Statistics & Distribution");
+            ImGui.Separator();
+            
+            if (csvDataByDataCenter.Count == 0)
+            {
+                UiTheme.CenteredText("No data loaded yet. Please wait for data to load or refresh.");
+                return;
+            }
+            
+            // Sort by puzzle count (descending)
+            var sortedDCs = csvDataByDataCenter
+                .OrderByDescending(dc => dc.Value.Count)
+                .ToList();
+            
+            // Calculate totals for percentages
+            var totalPuzzles = csvDataByDataCenter.Values.Sum(v => v.Count);
+            
+            // Apply professional table styling
+            ApplyProfessionalTableStyling();
+            
+            ImGuiTableFlags flags = ImGuiTableFlags.RowBg |
+                                   ImGuiTableFlags.Borders |
+                                   ImGuiTableFlags.Resizable |
+                                   ImGuiTableFlags.ScrollY |
+                                   ImGuiTableFlags.SizingFixedFit |
+                                   ImGuiTableFlags.Sortable;
+
+            if (ImGui.BeginTable("DCComparison", 10, flags))
+            {
+                ImGui.TableSetupColumn("Region");
+                ImGui.TableSetupColumn("Data Center");
+                ImGui.TableSetupColumn("Total");
+                ImGui.TableSetupColumn("★★★★★");
+                ImGui.TableSetupColumn("★★★★");
+                ImGui.TableSetupColumn("★★★");
+                ImGui.TableSetupColumn("★★");
+                ImGui.TableSetupColumn("★");
+                ImGui.TableSetupColumn("% of Total");
+                ImGui.TableSetupColumn("Distribution", ImGuiTableColumnFlags.WidthStretch);
+                
+                ImGui.TableHeadersRow();
+                
+                foreach (var dc in sortedDCs)
+                {
+                    var ratings = dc.Value.GroupBy(p => p.Rating)
+                        .ToDictionary(g => g.Key, g => g.Count());
+                    
+                    var percentage = (float)dc.Value.Count / totalPuzzles * 100f;
+                    
+                    ImGui.TableNextRow();
+                    
+                    // Region - use white text instead of colored
+                    ImGui.TableNextColumn();
+                    var region = GetRegionForDataCenter(dc.Key);
+                    ImGui.Text(region);
+                    
+                    // Data Center name
+                    ImGui.TableNextColumn();
+                    ImGui.Text(dc.Key);
+                    
+                    // Total count
+                    ImGui.TableNextColumn();
+                    ImGui.Text(dc.Value.Count.ToString());
+                    
+                    // Rating columns - use white text instead of colored
+                    ImGui.TableNextColumn();
+                    var fiveStarCount = ratings.GetValueOrDefault("★★★★★", 0);
+                    if (fiveStarCount > 0)
+                    {
+                        ImGui.Text(fiveStarCount.ToString());
+                    }
+                    else
+                    {
+                        ImGui.Text("-");
+                    }
+                    
+                    ImGui.TableNextColumn();
+                    var fourStarCount = ratings.GetValueOrDefault("★★★★", 0);
+                    if (fourStarCount > 0)
+                    {
+                        ImGui.Text(fourStarCount.ToString());
+                    }
+                    else
+                    {
+                        ImGui.Text("-");
+                    }
+                    
+                    ImGui.TableNextColumn();
+                    var threeStarCount = ratings.GetValueOrDefault("★★★", 0);
+                    if (threeStarCount > 0)
+                    {
+                        ImGui.Text(threeStarCount.ToString());
+                    }
+                    else
+                    {
+                        ImGui.Text("-");
+                    }
+                    
+                    ImGui.TableNextColumn();
+                    var twoStarCount = ratings.GetValueOrDefault("★★", 0);
+                    if (twoStarCount > 0)
+                    {
+                        ImGui.Text(twoStarCount.ToString());
+                    }
+                    else
+                    {
+                        ImGui.Text("-");
+                    }
+                    
+                    ImGui.TableNextColumn();
+                    var oneStarCount = ratings.GetValueOrDefault("★", 0);
+                    if (oneStarCount > 0)
+                    {
+                        ImGui.Text(oneStarCount.ToString());
+                    }
+                    else
+                    {
+                        ImGui.Text("-");
+                    }
+                    
+                    // Percentage
+                    ImGui.TableNextColumn();
+                    ImGui.Text($"{percentage:F1}%");
+                    
+                    // Mini bar chart
+                    ImGui.TableNextColumn();
+                    DrawMiniBarChart(ratings, dc.Value.Count, totalPuzzles);
+                }
+                
+                ImGui.EndTable();
+            }
+            
+            EndProfessionalTableStyling();
+            
+            // Summary statistics
+            ImGui.Spacing();
+            ImGui.Separator();
+            ImGui.Text($"Summary: {totalPuzzles:N0} total puzzles across {csvDataByDataCenter.Count} data centers");
+            
+            // Show region breakdown
+            var regionTotals = new Dictionary<string, int>();
+            foreach (var dc in csvDataByDataCenter)
+            {
+                var region = GetRegionForDataCenter(dc.Key);
+                regionTotals[region] = regionTotals.GetValueOrDefault(region, 0) + dc.Value.Count;
+            }
+            
+            ImGui.Text("By Region: ");
+            ImGui.SameLine();
+            bool first = true;
+            foreach (var region in regionTotals.OrderByDescending(r => r.Value))
+            {
+                if (!first) 
+                {
+                    ImGui.SameLine();
+                    ImGui.Text(" | ");
+                    ImGui.SameLine();
+                }
+                
+                // Use white text instead of colored text
+                ImGui.Text($"{region.Key}: {region.Value}");
+                
+                first = false;
+            }
+        }
+
+        private void DrawMiniBarChart(Dictionary<string, int> ratings, int totalForDC, int grandTotal)
+        {
+            ImDrawListPtr drawList = ImGui.GetWindowDrawList();
+            Vector2 pos = ImGui.GetCursorScreenPos();
+            float barWidth = ImGui.GetColumnWidth() - 10;
+            float barHeight = 20;
+            
+            // Background
+            drawList.AddRectFilled(
+                pos,
+                new Vector2(pos.X + barWidth, pos.Y + barHeight),
+                ImGui.GetColorU32(new Vector4(0.1f, 0.1f, 0.1f, 1.0f)),
+                2.0f
+            );
+            
+            // Filled portion based on percentage of total
+            float fillWidth = barWidth * ((float)totalForDC / grandTotal);
+            if (fillWidth > 0)
+            {
+                // Color based on data center size
+                Vector4 fillColor = totalForDC switch
+                {
+                    < 10 => new Vector4(0.6f, 0.6f, 0.6f, 0.8f),    // Gray
+                    < 50 => new Vector4(0.7f, 0.6f, 0.5f, 0.8f),    // Soft brown for medium (10-49)
+                    < 100 => new Vector4(0.4f, 0.8f, 0.8f, 0.8f),   // Cyan for large (50-99)
+                    _ => new Vector4(0.4f, 0.8f, 0.4f, 0.8f)         // Green for very large (100+)
+                };
+                
+                drawList.AddRectFilled(
+                    pos,
+                    new Vector2(pos.X + fillWidth, pos.Y + barHeight),
+                    ImGui.GetColorU32(fillColor),
+                    2.0f
+                );
+            }
+            
+            // Text overlay
+            string text = totalForDC.ToString();
+            var textSize = ImGui.CalcTextSize(text);
+            if (textSize.X < barWidth)
+            {
+                drawList.AddText(
+                    new Vector2(
+                        pos.X + (barWidth - textSize.X) * 0.5f,
+                        pos.Y + (barHeight - textSize.Y) * 0.5f
+                    ),
+                    ImGui.GetColorU32(new Vector4(1, 1, 1, 1)),
+                    text
+                );
+            }
+            
+            ImGui.Dummy(new Vector2(barWidth, barHeight));
+        }
+
+        private string GetRegionForDataCenter(string dataCenterName)
+        {
+            foreach (var region in regionGroups)
+            {
+                if (region.Value.DataCenters.Contains(dataCenterName))
+                {
+                    return region.Key;
+                }
+            }
+            return "Unknown";
+        }
+
+        private Vector4 GetRegionColorForDC(string dataCenterName)
+        {
+            foreach (var region in regionGroups)
+            {
+                if (region.Value.DataCenters.Contains(dataCenterName))
+                {
+                    return region.Value.TabColor;
+                }
+            }
+            return new Vector4(0.8f, 0.8f, 0.8f, 1.0f); // Default gray
         }
     }
 }

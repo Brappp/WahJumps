@@ -15,7 +15,7 @@ namespace WahJumps.Windows
     public class SearchFilterComponent
     {
         // Available rating options
-        private static readonly string[] RatingOptions = { "All", "1★", "2★", "3★", "4★", "5★", "E", "T", "F" };
+        private static readonly string[] RatingOptions = { "All", "★★★★★", "★★★★", "★★★", "★★", "★", "Training ☆", "Event ☆", "In Flux ☆", "Temp ☆" };
 
         // Filter state
         private string searchQuery = string.Empty;
@@ -424,29 +424,8 @@ namespace WahJumps.Windows
         // Helper to render rating with appropriate color
         private void RenderRatingWithColor(string rating)
         {
-            Vector4 color;
-
-            switch (rating)
-            {
-                case "1★":
-                    color = new Vector4(0.0f, 0.8f, 0.0f, 1.0f); // Green
-                    break;
-                case "2★":
-                    color = new Vector4(0.0f, 0.6f, 0.9f, 1.0f); // Blue
-                    break;
-                case "3★":
-                    color = new Vector4(0.9f, 0.8f, 0.0f, 1.0f); // Yellow
-                    break;
-                case "4★":
-                    color = new Vector4(1.0f, 0.5f, 0.0f, 1.0f); // Orange
-                    break;
-                case "5★":
-                    color = new Vector4(0.9f, 0.0f, 0.0f, 1.0f); // Red
-                    break;
-                default:
-                    color = new Vector4(0.8f, 0.8f, 0.8f, 1.0f); // Gray
-                    break;
-            }
+            // Use default white text color for all ratings
+            Vector4 color = new Vector4(1.0f, 1.0f, 1.0f, 1.0f); // White text
 
             using var textColor = new ImRaii.StyleColor(ImGuiCol.Text, color);
             ImGui.Text(rating);
@@ -572,9 +551,10 @@ namespace WahJumps.Windows
             // Special ratings
             switch (rating)
             {
-                case "E": return 1;
-                case "T": return 0;
-                case "F": return 0;
+                case "Training ☆": return 1;
+                case "Event ☆": return 0;
+                case "In Flux ☆": return 0;
+                case "Temp ☆": return 0;
                 default: return 0;
             }
         }

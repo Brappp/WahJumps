@@ -63,19 +63,22 @@ namespace WahJumps.Configuration
             configuration = pluginInterface.GetPluginConfig() as PluginConfiguration ?? new PluginConfiguration();
             configuration.Initialize(pluginInterface);
 
-            // Force data center colors to always be on
+            // Force optimal settings to always be on
             configuration.ShowDataCenterColors = true;
-            // Force tab view mode
             configuration.DefaultViewMode = 0;
+            configuration.AutoRefreshOnStartup = true;
+            configuration.RememberWindowSize = true;
         }
 
         public PluginConfiguration Configuration => configuration;
 
         public void SaveConfiguration()
         {
-            // Ensure settings are enforced before saving
+            // Ensure optimal settings are enforced before saving
             configuration.ShowDataCenterColors = true;
             configuration.DefaultViewMode = 0;
+            configuration.AutoRefreshOnStartup = true;
+            configuration.RememberWindowSize = true;
             configuration.Save();
         }
 
