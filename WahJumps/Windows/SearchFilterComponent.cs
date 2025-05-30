@@ -424,8 +424,29 @@ namespace WahJumps.Windows
         // Helper to render rating with appropriate color
         private void RenderRatingWithColor(string rating)
         {
-            // Use default white text color for all ratings
-            Vector4 color = new Vector4(1.0f, 1.0f, 1.0f, 1.0f); // White text
+            Vector4 color;
+
+            switch (rating)
+            {
+                case "★★★★★":
+                    color = new Vector4(0.9f, 0.0f, 0.0f, 1.0f); // Red
+                    break;
+                case "★★★★":
+                    color = new Vector4(1.0f, 0.5f, 0.0f, 1.0f); // Orange
+                    break;
+                case "★★★":
+                    color = new Vector4(0.9f, 0.8f, 0.0f, 1.0f); // Yellow
+                    break;
+                case "★★":
+                    color = new Vector4(0.0f, 0.6f, 0.9f, 1.0f); // Blue
+                    break;
+                case "★":
+                    color = new Vector4(0.0f, 0.8f, 0.0f, 1.0f); // Green
+                    break;
+                default:
+                    color = new Vector4(0.8f, 0.8f, 0.8f, 1.0f); // Gray
+                    break;
+            }
 
             using var textColor = new ImRaii.StyleColor(ImGuiCol.Text, color);
             ImGui.Text(rating);

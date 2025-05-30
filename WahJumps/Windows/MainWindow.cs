@@ -392,8 +392,8 @@ namespace WahJumps.Windows
             bool showTravelConfirmation = config.ShowTravelConfirmation;
             
             Vector4 toggleColor = showTravelConfirmation 
-                ? new Vector4(0.3f, 0.3f, 0.3f, 1.0f)  // Dark gray when enabled
-                : new Vector4(0.2f, 0.2f, 0.2f, 1.0f); // Darker gray when disabled
+                ? new Vector4(0.2f, 0.6f, 0.2f, 1.0f)  // Green when enabled
+                : new Vector4(0.6f, 0.3f, 0.3f, 1.0f); // Red when disabled
             
             ImGui.PushStyleColor(ImGuiCol.Button, toggleColor);
             ImGui.PushStyleColor(ImGuiCol.ButtonHovered, new Vector4(toggleColor.X + 0.1f, toggleColor.Y + 0.1f, toggleColor.Z + 0.1f, 1.0f));
@@ -583,7 +583,7 @@ namespace WahJumps.Windows
             Vector4 sizeIndicatorColor = puzzles.Count switch
             {
                 < 10 => new Vector4(0.6f, 0.6f, 0.6f, 1.0f),    // Gray for small (< 10)
-                < 50 => new Vector4(0.7f, 0.6f, 0.5f, 1.0f),    // Soft brown for medium (10-49)
+                < 50 => new Vector4(0.8f, 0.8f, 0.4f, 1.0f),    // Yellow for medium (10-49)
                 < 100 => new Vector4(0.4f, 0.8f, 0.8f, 1.0f),   // Cyan for large (50-99)
                 _ => new Vector4(0.4f, 0.8f, 0.4f, 1.0f)         // Green for very large (100+)
             };
@@ -637,7 +637,7 @@ namespace WahJumps.Windows
             ImGui.Text($"Data Center Overview: {puzzles.Count} total puzzles");
             ImGui.SameLine();
             
-            // Show rating distribution with white text
+            // Show rating distribution
             var ratings = new[] { "★★★★★", "★★★★", "★★★", "★★", "★" };
             bool first = true;
             foreach (var rating in ratings)
@@ -646,8 +646,10 @@ namespace WahJumps.Windows
                 {
                     if (!first) ImGui.SameLine();
                     
-                    // Use white text instead of colored text
+                    Vector4 ratingColor = GetRatingColor(rating);
+                    ImGui.PushStyleColor(ImGuiCol.Text, ratingColor);
                     ImGui.Text($"{rating}: {ratingCounts[rating]}");
+                    ImGui.PopStyleColor();
                     
                     first = false;
                 }
@@ -699,10 +701,16 @@ namespace WahJumps.Windows
                 ImGui.EndTabItem();
             }
 
-            // Then rating-specific tabs with counts (no special coloring)
+            // Then rating-specific tabs with counts
             foreach (var ratingGroup in puzzlesByRating)
             {
+                // Color the tab based on rating
+                Vector4 tabColor = GetRatingColor(ratingGroup.Key);
                 string tabName = $"{ratingGroup.Key} ({ratingGroup.Count()})";
+
+                using var colors = new ImRaii.StyleColor(
+                    (ImGuiCol.TabActive, tabColor)
+                );
 
                 // No boolean reference = no close button
                 if (ImGui.BeginTabItem(tabName))
@@ -842,7 +850,7 @@ namespace WahJumps.Windows
             ImGui.PushStyleColor(ImGuiCol.TableRowBg, new Vector4(0.16f, 0.16f, 0.18f, 1.0f));
             ImGui.PushStyleColor(ImGuiCol.TableRowBgAlt, new Vector4(0.20f, 0.20f, 0.22f, 1.0f));
 
-            // Better hover effects - but DON'T override text colors
+            // Better hover effects
             ImGui.PushStyleColor(ImGuiCol.HeaderHovered, new Vector4(0.25f, 0.35f, 0.5f, 0.5f));
             ImGui.PushStyleColor(ImGuiCol.Header, new Vector4(0.2f, 0.3f, 0.45f, 0.35f));
         }
@@ -1057,8 +1065,31 @@ namespace WahJumps.Windows
 
         private Vector4 GetRatingColor(string rating)
         {
-            // Return white/default text color for all ratings
-            return new Vector4(1.0f, 1.0f, 1.0f, 1.0f); // White text for all ratings
+            switch (rating)
+            {
+                case "★":
+                    return new Vector4(0.0f, 0.8f, 0.0f, 1.0f); // Green - 1 star (easiest)
+                case "★★":
+                    return new Vector4(0.0f, 0.6f, 0.9f, 1.0f); // Blue - 2 stars
+                case "★★★":
+                    return new Vector4(0.9f, 0.8f, 0.0f, 1.0f); // Yellow - 3 stars
+                case "★★★★":
+                    return new Vector4(1.0f, 0.5f, 0.0f, 1.0f); // Orange - 4 stars
+                case "★★★★★":
+                    return new Vector4(0.9f, 0.0f, 0.0f, 1.0f); // Red - 5 stars (hardest)
+                case "Training ☆":
+                case "E":
+                    return new Vector4(0.5f, 0.5f, 1.0f, 1.0f); // Light blue
+                case "Event ☆":
+                case "T":
+                    return new Vector4(1.0f, 0.5f, 1.0f, 1.0f); // Light purple
+                case "In Flux ☆":
+                case "Temp ☆":
+                case "F":
+                    return new Vector4(0.5f, 1.0f, 0.5f, 1.0f); // Light green
+                default:
+                    return new Vector4(0.8f, 0.8f, 0.8f, 1.0f); // Gray
+            }
         }
 
         private void ShowNotification(string message, MessageType type, float duration = 3.0f)
@@ -1419,10 +1450,11 @@ namespace WahJumps.Windows
                     
                     ImGui.TableNextRow();
                     
-                    // Region - use white text instead of colored
+                    // Region
                     ImGui.TableNextColumn();
                     var region = GetRegionForDataCenter(dc.Key);
-                    ImGui.Text(region);
+                    var regionColor = GetRegionColorForDC(dc.Key);
+                    ImGui.TextColored(regionColor, region);
                     
                     // Data Center name
                     ImGui.TableNextColumn();
@@ -1432,12 +1464,12 @@ namespace WahJumps.Windows
                     ImGui.TableNextColumn();
                     ImGui.Text(dc.Value.Count.ToString());
                     
-                    // Rating columns - use white text instead of colored
+                    // Rating columns
                     ImGui.TableNextColumn();
                     var fiveStarCount = ratings.GetValueOrDefault("★★★★★", 0);
                     if (fiveStarCount > 0)
                     {
-                        ImGui.Text(fiveStarCount.ToString());
+                        ImGui.TextColored(GetRatingColor("★★★★★"), fiveStarCount.ToString());
                     }
                     else
                     {
@@ -1448,7 +1480,7 @@ namespace WahJumps.Windows
                     var fourStarCount = ratings.GetValueOrDefault("★★★★", 0);
                     if (fourStarCount > 0)
                     {
-                        ImGui.Text(fourStarCount.ToString());
+                        ImGui.TextColored(GetRatingColor("★★★★"), fourStarCount.ToString());
                     }
                     else
                     {
@@ -1459,7 +1491,7 @@ namespace WahJumps.Windows
                     var threeStarCount = ratings.GetValueOrDefault("★★★", 0);
                     if (threeStarCount > 0)
                     {
-                        ImGui.Text(threeStarCount.ToString());
+                        ImGui.TextColored(GetRatingColor("★★★"), threeStarCount.ToString());
                     }
                     else
                     {
@@ -1470,7 +1502,7 @@ namespace WahJumps.Windows
                     var twoStarCount = ratings.GetValueOrDefault("★★", 0);
                     if (twoStarCount > 0)
                     {
-                        ImGui.Text(twoStarCount.ToString());
+                        ImGui.TextColored(GetRatingColor("★★"), twoStarCount.ToString());
                     }
                     else
                     {
@@ -1481,7 +1513,7 @@ namespace WahJumps.Windows
                     var oneStarCount = ratings.GetValueOrDefault("★", 0);
                     if (oneStarCount > 0)
                     {
-                        ImGui.Text(oneStarCount.ToString());
+                        ImGui.TextColored(GetRatingColor("★"), oneStarCount.ToString());
                     }
                     else
                     {
@@ -1527,8 +1559,8 @@ namespace WahJumps.Windows
                     ImGui.SameLine();
                 }
                 
-                // Use white text instead of colored text
-                ImGui.Text($"{region.Key}: {region.Value}");
+                var regionColor = GetRegionColorForDC(csvDataByDataCenter.First(dc => GetRegionForDataCenter(dc.Key) == region.Key).Key);
+                ImGui.TextColored(regionColor, $"{region.Key}: {region.Value}");
                 
                 first = false;
             }
@@ -1557,9 +1589,9 @@ namespace WahJumps.Windows
                 Vector4 fillColor = totalForDC switch
                 {
                     < 10 => new Vector4(0.6f, 0.6f, 0.6f, 0.8f),    // Gray
-                    < 50 => new Vector4(0.7f, 0.6f, 0.5f, 0.8f),    // Soft brown for medium (10-49)
-                    < 100 => new Vector4(0.4f, 0.8f, 0.8f, 0.8f),   // Cyan for large (50-99)
-                    _ => new Vector4(0.4f, 0.8f, 0.4f, 0.8f)         // Green for very large (100+)
+                    < 50 => new Vector4(0.8f, 0.8f, 0.4f, 0.8f),    // Yellow
+                    < 100 => new Vector4(0.4f, 0.8f, 0.8f, 0.8f),   // Cyan
+                    _ => new Vector4(0.4f, 0.8f, 0.4f, 0.8f)         // Green
                 };
                 
                 drawList.AddRectFilled(
