@@ -39,12 +39,10 @@ namespace WahJumps.Windows
             this.speedrunManager = speedrunManager;
             this.plugin = plugin;
 
-            // Subscribe to events
             speedrunManager.TimeUpdated += OnTimeUpdated;
             speedrunManager.StateChanged += OnStateChanged;
             speedrunManager.CountdownTick += OnCountdownTick;
 
-            // Set initial size and position
             Size = windowSize;
             SizeConstraints = new WindowSizeConstraints
             {
@@ -52,15 +50,11 @@ namespace WahJumps.Windows
                 MaximumSize = windowSize
             };
 
-            // Set initial position to prevent jumping
             Position = new Vector2(100, 100);
             PositionCondition = ImGuiCond.FirstUseEver;
-
-            // Start with window closed
             IsOpen = false;
         }
 
-        // Event handlers
         private void OnTimeUpdated(TimeSpan time)
         {
             currentTime = time;
@@ -70,13 +64,11 @@ namespace WahJumps.Windows
         {
             lastStateChange = DateTime.Now;
             
-            // Only auto-show window when timer starts (not on every state change)
             if (state == SpeedrunManager.SpeedrunState.Countdown && !IsOpen)
             {
                 IsOpen = true;
             }
 
-            // Reset animations on state change
             pulseAnimation = 0f;
             glowIntensity = 0f;
         }
@@ -84,23 +76,17 @@ namespace WahJumps.Windows
         private void OnCountdownTick(int remaining)
         {
             countdownRemaining = remaining;
-            // Remove shake effect to prevent window jumping
-            // shakeOffset = 2.0f;
         }
 
         public override void Draw()
         {
-            // Update animations
             UpdateAnimations();
-
-            // Apply modern window styling
             ApplyWindowStyling();
 
             try
             {
                 var state = speedrunManager.GetState();
 
-                // Handle countdown overlay
                 if (state == SpeedrunManager.SpeedrunState.Countdown)
                 {
                     DrawModernCountdown();
@@ -111,28 +97,24 @@ namespace WahJumps.Windows
             }
             finally
             {
-                // Clean up styling
                 CleanupWindowStyling();
             }
         }
 
         private void UpdateAnimations()
         {
-            // Remove all animations for crisp, clean rendering
             pulseAnimation = 0f;
             glowIntensity = 0f;
         }
 
         private void ApplyWindowStyling()
         {
-            // HD window styling with higher precision
             ImGui.PushStyleVar(ImGuiStyleVar.WindowRounding, 12.0f);
             ImGui.PushStyleVar(ImGuiStyleVar.WindowPadding, new Vector2(20, 16));
             ImGui.PushStyleVar(ImGuiStyleVar.ItemSpacing, new Vector2(10, 10));
             ImGui.PushStyleVar(ImGuiStyleVar.FrameRounding, 8.0f);
             ImGui.PushStyleVar(ImGuiStyleVar.ButtonTextAlign, new Vector2(0.5f, 0.5f));
 
-            // HD dynamic window background with better gradients
             var state = speedrunManager.GetState();
             Vector4 bgColor = state switch
             {
@@ -147,7 +129,6 @@ namespace WahJumps.Windows
 
         private void CleanupWindowStyling()
         {
-            // Pop in reverse order: 1 color, 5 style vars
             ImGui.PopStyleColor(1);
             ImGui.PopStyleVar(5);
         }
@@ -159,20 +140,11 @@ namespace WahJumps.Windows
             var windowPos = ImGui.GetWindowPos();
             var windowSize = ImGui.GetWindowSize();
 
-            // Remove shake effect to prevent window jumping
-            // if (shakeOffset > 0)
-            // {
-            //     float shakeX = (float)(Math.Sin(ImGui.GetTime() * 30) * shakeOffset);
-            //     float shakeY = (float)(Math.Cos(ImGui.GetTime() * 25) * shakeOffset * 0.5f);
-            //     ImGui.SetWindowPos(new Vector2(windowPos.X + shakeX, windowPos.Y + shakeY));
-            // }
-
-            // Clean static background gradient
             Vector4 gradientTop = new Vector4(0.06f, 0.03f, 0.015f, 1.0f);
             Vector4 gradientBottom = new Vector4(0.03f, 0.015f, 0.006f, 1.0f);
 
             drawList.AddRectFilledMultiColor(
-                windowPos + new Vector2(0, 25), // Account for title bar
+                windowPos + new Vector2(0, 25),
                 windowPos + windowSize,
                 ImGui.GetColorU32(gradientTop),
                 ImGui.GetColorU32(gradientTop),
@@ -180,21 +152,16 @@ namespace WahJumps.Windows
                 ImGui.GetColorU32(gradientBottom)
             );
 
-            // Large countdown number with moderate scaling for crispness
             string countText = countdownRemaining.ToString();
-            
-            // Use moderate font scaling for size without fuzziness
             float fontSize = 2.5f;
             var textSize = ImGui.CalcTextSize(countText) * fontSize;
             float centerX = (contentSize.X - textSize.X) * 0.5f;
             float centerY = (contentSize.Y - textSize.Y) * 0.5f - 30;
 
-            // Main countdown text - large but crisp
             ImGui.SetCursorPos(new Vector2(centerX, centerY));
             ImGui.PushStyleColor(ImGuiCol.Text, countdownOrange);
             try
             {
-                // Use moderate font scaling for good size/crispness balance
                 ImGui.SetWindowFontScale(fontSize);
                 ImGui.Text(countText);
                 ImGui.SetWindowFontScale(1.0f);
@@ -204,7 +171,6 @@ namespace WahJumps.Windows
                 ImGui.PopStyleColor(1);
             }
 
-            // Clean "Get Ready!" text
             string readyText = "Get Ready!";
             textSize = ImGui.CalcTextSize(readyText);
             centerX = (contentSize.X - textSize.X) * 0.5f;
@@ -220,7 +186,6 @@ namespace WahJumps.Windows
                 ImGui.PopStyleColor(1);
             }
 
-            // Modern skip button - centered
             float buttonWidth = 140f;
             float buttonCenterX = (contentSize.X - buttonWidth) * 0.5f;
             ImGui.SetCursorPos(new Vector2(buttonCenterX, centerY + 130));
@@ -234,7 +199,6 @@ namespace WahJumps.Windows
         {
             var contentSize = ImGui.GetContentRegionAvail();
 
-            // Puzzle name header with modern styling
             var puzzle = speedrunManager.GetCurrentPuzzle();
             if (puzzle != null)
             {
@@ -242,17 +206,10 @@ namespace WahJumps.Windows
             }
 
             ImGui.Spacing();
-
-            // Main timer display with enhanced styling
             DrawMainTimer(state, contentSize.X);
-
             ImGui.Spacing();
-
             DrawStatusIndicator(state, contentSize.X);
-
             ImGui.Spacing();
-
-            // Control buttons
             DrawModernControls(state, contentSize.X);
         }
 
@@ -264,11 +221,9 @@ namespace WahJumps.Windows
             var textSize = ImGui.CalcTextSize(title);
             ImGui.SetCursorPosX((contentWidth - textSize.X) * 0.5f);
 
-            // HD header with enhanced background and border
             var drawList = ImGui.GetWindowDrawList();
             var pos = ImGui.GetCursorScreenPos();
             
-            // Background with gradient
             drawList.AddRectFilledMultiColor(
                 new Vector2(pos.X - 12, pos.Y - 4),
                 new Vector2(pos.X + textSize.X + 12, pos.Y + textSize.Y + 4),
@@ -278,7 +233,6 @@ namespace WahJumps.Windows
                 ImGui.GetColorU32(new Vector4(0.15f, 0.15f, 0.25f, 0.2f))
             );
             
-            // Subtle border
             drawList.AddRect(
                 new Vector2(pos.X - 12, pos.Y - 4),
                 new Vector2(pos.X + textSize.X + 12, pos.Y + textSize.Y + 4),
@@ -303,7 +257,6 @@ namespace WahJumps.Windows
         {
             string timeText = FormatTime(currentTime);
 
-            // Dynamic color based on time and state
             timeColor = state switch
             {
                 SpeedrunManager.SpeedrunState.Running when currentTime.TotalMinutes < 2 => primaryGreen,
@@ -313,20 +266,15 @@ namespace WahJumps.Windows
                 _ => new Vector4(0.8f, 0.8f, 0.8f, 1.0f)
             };
 
-            // Large timer display with moderate scaling for crispness
             float fontSize = 2.0f;
             var textSize = ImGui.CalcTextSize(timeText) * fontSize;
             float centerX = (contentWidth - textSize.X) * 0.5f;
-
-            // Store current cursor position for main text
             float currentY = ImGui.GetCursorPosY();
 
-            // Main timer text - large but crisp
             ImGui.SetCursorPos(new Vector2(centerX, currentY));
             ImGui.PushStyleColor(ImGuiCol.Text, timeColor);
             try
             {
-                // Use moderate font scaling for good size/crispness balance
                 ImGui.SetWindowFontScale(fontSize);
                 ImGui.Text(timeText);
                 ImGui.SetWindowFontScale(1.0f);
@@ -405,7 +353,6 @@ namespace WahJumps.Windows
 
         private void DrawModernButton(string text, Vector2 size, Vector4 normalColor, Vector4 hoverColor, Action onClick)
         {
-            // HD button styling with enhanced effects
             ImGui.PushStyleColor(ImGuiCol.Button, normalColor);
             ImGui.PushStyleColor(ImGuiCol.ButtonHovered, hoverColor);
             ImGui.PushStyleColor(ImGuiCol.ButtonActive, new Vector4(hoverColor.X * 1.3f, hoverColor.Y * 1.3f, hoverColor.Z * 1.3f, 1.0f));
@@ -437,7 +384,7 @@ namespace WahJumps.Windows
         }
 
         // Window visibility control
-        public void Toggle()
+        public new void Toggle()
         {
             IsOpen = !IsOpen;
         }
@@ -454,7 +401,6 @@ namespace WahJumps.Windows
 
         public void Dispose()
         {
-            // Unsubscribe from events
             speedrunManager.TimeUpdated -= OnTimeUpdated;
             speedrunManager.StateChanged -= OnStateChanged;
             speedrunManager.CountdownTick -= OnCountdownTick;

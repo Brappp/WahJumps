@@ -1554,7 +1554,7 @@ namespace WahJumps.Windows
                     ImGui.TableSetColumnIndex(0);
                     
                     // Rating with color
-                    RenderRatingWithColor(puzzle.Rating);
+                    UiHelpers.RenderRatingWithColor(puzzle.Rating);
                     
                     // Puzzle Name
                     ImGui.TableNextColumn();
@@ -1575,7 +1575,7 @@ namespace WahJumps.Windows
                     // Codes (compacted)
                     ImGui.TableNextColumn();
                     string combinedCodes = UiComponents.CombineCodes(puzzle.M, puzzle.E, puzzle.S, puzzle.P, puzzle.V, puzzle.J, puzzle.G, puzzle.L, puzzle.X);
-                    RenderCodesWithTooltips(combinedCodes);
+                    UiHelpers.RenderCodesWithTooltips(combinedCodes);
 
                     // Goals/Rules
                     ImGui.TableNextColumn();
@@ -1687,7 +1687,7 @@ namespace WahJumps.Windows
                     ImGui.SetCursorPosY(cellY + (rowHeight - textHeight) * 0.1f);
 
                     // Now render with color
-                    RenderRatingWithColor(puzzle.Rating);
+                    UiHelpers.RenderRatingWithColor(puzzle.Rating);
 
                     // Puzzle Name
                     ImGui.TableNextColumn();
@@ -1708,7 +1708,7 @@ namespace WahJumps.Windows
                     // Codes (compacted)
                     ImGui.TableNextColumn();
                     string combinedCodes = UiComponents.CombineCodes(puzzle.M, puzzle.E, puzzle.S, puzzle.P, puzzle.V, puzzle.J, puzzle.G, puzzle.L, puzzle.X);
-                    RenderCodesWithTooltips(combinedCodes);
+                    UiHelpers.RenderCodesWithTooltips(combinedCodes);
 
                     // Goals/Rules
                     ImGui.TableNextColumn();
@@ -1762,79 +1762,6 @@ namespace WahJumps.Windows
             UiTheme.EndTableStyle();
         }
 
-        private void RenderRatingWithColor(string rating)
-        {
-            Vector4 color = GetRatingColor(rating);
 
-            using var textColor = new ImRaii.StyleColor(ImGuiCol.Text, color);
-            ImGui.Text(rating);
-        }
-
-        private void RenderCodesWithTooltips(string codes)
-        {
-            if (string.IsNullOrEmpty(codes))
-            {
-                ImGui.Text("-");
-                return;
-            }
-
-            ImGui.Text(codes);
-
-            if (ImGui.IsItemHovered())
-            {
-                ImGui.PushStyleColor(ImGuiCol.PopupBg, new Vector4(0.18f, 0.18f, 0.22f, 0.95f));
-                ImGui.BeginTooltip();
-                ImGui.Text("Puzzle Type Codes:");
-                ImGui.Separator();
-                
-                Dictionary<string, string> codeDescriptions = new Dictionary<string, string>
-                {
-                    { "M", "Mystery - Hard-to-find or maze-like paths" },
-                    { "E", "Emote - Requires emote interaction" },
-                    { "S", "Speed - Sprinting and time-based actions" },
-                    { "P", "Phasing - Furniture interactions that phase you" },
-                    { "V", "Void Jump - Requires jumping into void" },
-                    { "J", "Job Gate - Requires specific jobs" },
-                    { "G", "Ghost - Disappearances of furnishings" },
-                    { "L", "Logic - Logic-based puzzle solving" },
-                    { "X", "No Media - No streaming/recording allowed" }
-                };
-
-                string[] codeParts = codes.Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries);
-                foreach (string code in codeParts)
-                {
-                    string trimmedCode = code.Trim();
-                    if (codeDescriptions.TryGetValue(trimmedCode, out string description))
-                    {
-                        ImGui.BulletText($"{trimmedCode}: {description}");
-                    }
-                    else
-                    {
-                        ImGui.BulletText(trimmedCode);
-                    }
-                }
-
-                ImGui.EndTooltip();
-                ImGui.PopStyleColor();
-            }
-        }
-
-        private Vector4 GetRatingColor(string rating)
-        {
-            return rating switch
-            {
-                "1★" => new Vector4(0.0f, 0.8f, 0.0f, 1.0f),      // Green
-                "2★" => new Vector4(0.0f, 0.6f, 0.9f, 1.0f),      // Blue
-                "3★" => new Vector4(0.9f, 0.8f, 0.0f, 1.0f),      // Yellow
-                "4★" => new Vector4(1.0f, 0.5f, 0.0f, 1.0f),      // Orange
-                "5★" => new Vector4(0.9f, 0.0f, 0.0f, 1.0f),      // Red
-                _ when rating.Contains("★★★★★") => new Vector4(0.9f, 0.0f, 0.0f, 1.0f),      // Red for 5★
-                _ when rating.Contains("★★★★") => new Vector4(1.0f, 0.5f, 0.0f, 1.0f),       // Orange for 4★
-                _ when rating.Contains("★★★") => new Vector4(0.9f, 0.8f, 0.0f, 1.0f),        // Yellow for 3★
-                _ when rating.Contains("★★") => new Vector4(0.0f, 0.6f, 0.9f, 1.0f),         // Blue for 2★
-                _ when rating.Contains("★") => new Vector4(0.0f, 0.8f, 0.0f, 1.0f),          // Green for 1★
-                _ => new Vector4(0.8f, 0.8f, 0.8f, 1.0f)          // Gray for special ratings
-            };
-        }
     }
 }

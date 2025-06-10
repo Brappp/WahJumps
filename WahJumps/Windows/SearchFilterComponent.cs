@@ -294,193 +294,19 @@ namespace WahJumps.Windows
             DrawPuzzleTable();
         }
 
-        // Improved table layout that fits the existing UI better
         private void DrawPuzzleTable()
         {
-            // Apply consistent table styling
-            UiTheme.StyleTable();
-
-            ImGuiTableFlags flags = ImGuiTableFlags.RowBg |
-                                   ImGuiTableFlags.Borders |
-                                   ImGuiTableFlags.Resizable |
-                                   ImGuiTableFlags.ScrollY |
-                                   ImGuiTableFlags.SizingStretchProp;
-
-            if (ImGui.BeginTable("SearchResultsTable", 8, flags))
+            if (UiHelpers.BeginPuzzleTable("SearchResultsTable"))
             {
-                // Configure columns with better proportions
-                ImGui.TableSetupColumn("Rating", ImGuiTableColumnFlags.WidthFixed, 60);
-                ImGui.TableSetupColumn("Name", ImGuiTableColumnFlags.WidthStretch, 200);
-                ImGui.TableSetupColumn("Builder", ImGuiTableColumnFlags.WidthStretch, 120);
-                ImGui.TableSetupColumn("World", ImGuiTableColumnFlags.WidthFixed, 80);
-                ImGui.TableSetupColumn("Address", ImGuiTableColumnFlags.WidthStretch, 180);
-                ImGui.TableSetupColumn("Type", ImGuiTableColumnFlags.WidthFixed, 60);
-                ImGui.TableSetupColumn("Fav", ImGuiTableColumnFlags.WidthFixed, 40);
-                ImGui.TableSetupColumn("Go", ImGuiTableColumnFlags.WidthFixed, 60);
-
-                ImGui.TableSetupScrollFreeze(0, 1);
-                ImGui.TableHeadersRow();
-
-                // Draw each row with improved styling
                 for (int i = 0; i < searchResults.Count; i++)
                 {
-                    var puzzle = searchResults[i];
-                    ImGui.TableNextRow();
-                    ImGui.TableNextColumn();
-
-                    // Add row selection for better UX
-                    ImGui.PushID(i);
-                    ImGui.Selectable($"##row_{i}", false, ImGuiSelectableFlags.SpanAllColumns | ImGuiSelectableFlags.AllowItemOverlap);
-                    ImGui.PopID();
-
-                    // Reset cursor to start of row for the actual content
-                    ImGui.TableSetColumnIndex(0);
-
-                    // Rating column with color
-                    RenderRatingWithColor(puzzle.Rating);
-
-                    // Puzzle Name
-                    ImGui.TableNextColumn();
-                    ImGui.TextWrapped(puzzle.PuzzleName);
-
-                    // Builder
-                    ImGui.TableNextColumn();
-                    ImGui.Text(puzzle.Builder);
-
-                    // World
-                    ImGui.TableNextColumn();
-                    ImGui.Text(puzzle.World);
-
-                    // Address
-                    ImGui.TableNextColumn();
-                    ImGui.TextWrapped(puzzle.Address);
-
-                    // Codes (compacted)
-                    ImGui.TableNextColumn();
-                    string combinedCodes = UiComponents.CombineCodes(puzzle.M, puzzle.E, puzzle.S, puzzle.P, puzzle.V, puzzle.J, puzzle.G, puzzle.L, puzzle.X);
-                    RenderCodesWithTooltips(combinedCodes);
-
-                    // Favorite Button
-                    ImGui.TableNextColumn();
-                    bool isFav = isFavorite(puzzle);
-
-                    if (isFav)
-                    {
-                        ImGui.PushStyleColor(ImGuiCol.Text, UiTheme.Error);
-                        if (ImGui.Button($"♥##{puzzle.Id}"))
-                        {
-                            removeFromFavorites(puzzle);
-                        }
-                        if (ImGui.IsItemHovered()) ImGui.SetTooltip("Remove from favorites");
-                        ImGui.PopStyleColor();
-                    }
-                    else
-                    {
-                        ImGui.PushStyleColor(ImGuiCol.Text, UiTheme.Success);
-                        if (ImGui.Button($"♡##{puzzle.Id}"))
-                        {
-                            addToFavorites(puzzle);
-                        }
-                        if (ImGui.IsItemHovered()) ImGui.SetTooltip("Add to favorites");
-                        ImGui.PopStyleColor();
-                    }
-
-                    // Travel Button
-                    ImGui.TableNextColumn();
-                    ImGui.PushStyleColor(ImGuiCol.Button, UiTheme.Primary);
-                    ImGui.PushStyleColor(ImGuiCol.ButtonHovered, UiTheme.PrimaryLight);
-                    if (ImGui.Button($"Travel##{puzzle.Id}"))
-                    {
-                        onTravel(puzzle);
-                    }
-                    if (ImGui.IsItemHovered()) ImGui.SetTooltip($"Travel to {puzzle.World} {puzzle.Address}");
-                    ImGui.PopStyleColor(2);
+                    UiHelpers.DrawPuzzleTableRow(searchResults[i], i, isFavorite, addToFavorites, removeFromFavorites, onTravel);
                 }
-
-                ImGui.EndTable();
-            }
-
-            // End table styling
-            UiTheme.EndTableStyle();
-        }
-
-        // Helper to render rating with appropriate color
-        private void RenderRatingWithColor(string rating)
-        {
-            Vector4 color = GetRatingColor(rating);
-            ImGui.PushStyleColor(ImGuiCol.Text, color);
-            ImGui.Text(rating);
-            ImGui.PopStyleColor();
-        }
-
-        // Get color for rating display
-        private Vector4 GetRatingColor(string rating)
-        {
-            return rating switch
-            {
-                "1★" => new Vector4(0.0f, 0.8f, 0.0f, 1.0f),      // Green
-                "2★" => new Vector4(0.0f, 0.6f, 0.9f, 1.0f),      // Blue
-                "3★" => new Vector4(0.9f, 0.8f, 0.0f, 1.0f),      // Yellow
-                "4★" => new Vector4(1.0f, 0.5f, 0.0f, 1.0f),      // Orange
-                "5★" => new Vector4(0.9f, 0.0f, 0.0f, 1.0f),      // Red
-                _ when rating.Contains("★★★★★") => new Vector4(0.9f, 0.0f, 0.0f, 1.0f),      // Red for 5★
-                _ when rating.Contains("★★★★") => new Vector4(1.0f, 0.5f, 0.0f, 1.0f),       // Orange for 4★
-                _ when rating.Contains("★★★") => new Vector4(0.9f, 0.8f, 0.0f, 1.0f),        // Yellow for 3★
-                _ when rating.Contains("★★") => new Vector4(0.0f, 0.6f, 0.9f, 1.0f),         // Blue for 2★
-                _ when rating.Contains("★") => new Vector4(0.0f, 0.8f, 0.0f, 1.0f),          // Green for 1★
-                _ => new Vector4(0.8f, 0.8f, 0.8f, 1.0f)          // Gray for special ratings
-            };
-        }
-
-        // Helper to render codes with tooltips
-        private void RenderCodesWithTooltips(string codes)
-        {
-            if (string.IsNullOrEmpty(codes))
-            {
-                ImGui.Text("-");
-                return;
-            }
-
-            ImGui.Text(codes);
-
-            if (ImGui.IsItemHovered())
-            {
-                ShowCodesTooltip(codes);
+                UiHelpers.EndPuzzleTable();
             }
         }
 
-        // Show tooltip for puzzle type codes
-        private void ShowCodesTooltip(string codes)
-        {
-            ImGui.BeginTooltip();
-            ImGui.Text("Puzzle Types:");
-            ImGui.Separator();
 
-            Dictionary<string, string> codeDescriptions = new Dictionary<string, string>
-            {
-                { "M", "Mystery - Hard-to-find or maze-like paths" },
-                { "E", "Emote - Requires emote interaction" },
-                { "S", "Speed - Sprinting and time-based actions" },
-                { "P", "Phasing - Furniture interactions that phase you" },
-                { "V", "Void Jump - Requires jumping into void" },
-                { "J", "Job Gate - Requires specific jobs" },
-                { "G", "Ghost - Disappearances of furnishings" },
-                { "L", "Logic - Logic-based puzzle solving" },
-                { "X", "No Media - No streaming/recording allowed" }
-            };
-
-            string[] codeParts = codes.Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries);
-            foreach (string code in codeParts)
-            {
-                string trimmedCode = code.Trim();
-                if (codeDescriptions.TryGetValue(trimmedCode, out string description))
-                {
-                    ImGui.BulletText($"{trimmedCode}: {description}");
-                }
-            }
-
-            ImGui.EndTooltip();
-        }
 
         // Perform search based on current filters
         private void PerformSearch(Dictionary<string, List<JumpPuzzleData>> allData)
