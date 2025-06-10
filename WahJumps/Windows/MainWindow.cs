@@ -718,8 +718,8 @@ namespace WahJumps.Windows
                 return;
             }
 
-            // Apply professional table styling
-            ApplyProfessionalTableStyling();
+            // Apply consistent table styling
+            UiTheme.StyleTable();
 
             ImGuiTableFlags flags = ImGuiTableFlags.RowBg |
                                    ImGuiTableFlags.Borders |
@@ -816,39 +816,11 @@ namespace WahJumps.Windows
                 ImGui.EndTable();
             }
 
-            // End professional table styling
-            EndProfessionalTableStyling();
+            // End table styling
+            UiTheme.EndTableStyle();
         }
 
-        private void ApplyProfessionalTableStyling()
-        {
-            // Create a scoped ID to prevent style leakage
-            ImGui.PushID("WahJumpsTableStyling");
 
-            // More refined table styling
-            ImGui.PushStyleVar(ImGuiStyleVar.CellPadding, new Vector2(8, 6));
-            ImGui.PushStyleVar(ImGuiStyleVar.ItemSpacing, new Vector2(8, 4));
-
-            // More professional header with subtle gradient feel
-            ImGui.PushStyleColor(ImGuiCol.TableHeaderBg, new Vector4(0.12f, 0.25f, 0.4f, 1.0f));
-            ImGui.PushStyleColor(ImGuiCol.TableBorderStrong, new Vector4(0.3f, 0.3f, 0.35f, 1.0f));
-            ImGui.PushStyleColor(ImGuiCol.TableBorderLight, new Vector4(0.2f, 0.2f, 0.25f, 1.0f));
-
-            // More subtle alternating row colors
-            ImGui.PushStyleColor(ImGuiCol.TableRowBg, new Vector4(0.16f, 0.16f, 0.18f, 1.0f));
-            ImGui.PushStyleColor(ImGuiCol.TableRowBgAlt, new Vector4(0.20f, 0.20f, 0.22f, 1.0f));
-
-            // Better hover effects - but DON'T override text colors
-            ImGui.PushStyleColor(ImGuiCol.HeaderHovered, new Vector4(0.25f, 0.35f, 0.5f, 0.5f));
-            ImGui.PushStyleColor(ImGuiCol.Header, new Vector4(0.2f, 0.3f, 0.45f, 0.35f));
-        }
-
-        private void EndProfessionalTableStyling()
-        {
-            ImGui.PopStyleColor(7);
-            ImGui.PopStyleVar(2);
-            ImGui.PopID();
-        }
 
         // Updated table drawing method with professional styling
         private void DrawPuzzleTable(List<JumpPuzzleData> puzzles, bool includeAddToFavorites = true)
@@ -859,8 +831,8 @@ namespace WahJumps.Windows
                 return;
             }
 
-            // Apply professional table styling
-            ApplyProfessionalTableStyling();
+            // Apply consistent table styling
+            UiTheme.StyleTable();
 
             ImGuiTableFlags flags = ImGuiTableFlags.RowBg |
                                    ImGuiTableFlags.Borders |
@@ -908,8 +880,9 @@ namespace WahJumps.Windows
                     // Reset cursor to start of row for the actual content
                     ImGui.TableSetColumnIndex(0);
 
-                    // Vertically centered rating with aligned text
-                    float cellHeight = ImGui.GetTextLineHeightWithSpacing();
+                    // Vertically and horizontally centered rating
+                    float rowHeight = ImGui.GetTextLineHeightWithSpacing();
+                    float textHeight = ImGui.GetTextLineHeight();
                     float cellY = ImGui.GetCursorPosY();
                     float textWidth = ImGui.CalcTextSize(puzzle.Rating).X;
                     float columnWidth = ImGui.GetColumnWidth();
@@ -917,6 +890,9 @@ namespace WahJumps.Windows
 
                     // Center horizontally
                     ImGui.SetCursorPosX(columnX + (columnWidth - textWidth) * 0.5f);
+                    
+                    // Center vertically - move cursor up to align to top of cell
+                    ImGui.SetCursorPosY(cellY + (rowHeight - textHeight) * 0.1f);
 
                     // Now render with color
                     RenderRatingWithColor(puzzle.Rating);
@@ -990,8 +966,8 @@ namespace WahJumps.Windows
                 ImGui.EndTable();
             }
 
-            // End professional table styling
-            EndProfessionalTableStyling();
+            // End table styling
+            UiTheme.EndTableStyle();
         }
 
         private void RenderRatingWithColor(string rating)
@@ -1053,8 +1029,20 @@ namespace WahJumps.Windows
 
         private Vector4 GetRatingColor(string rating)
         {
-            // Return white/default text color for all ratings
-            return new Vector4(1.0f, 1.0f, 1.0f, 1.0f); // White text for all ratings
+            return rating switch
+            {
+                "1★" => new Vector4(0.0f, 0.8f, 0.0f, 1.0f),      // Green
+                "2★" => new Vector4(0.0f, 0.6f, 0.9f, 1.0f),      // Blue
+                "3★" => new Vector4(0.9f, 0.8f, 0.0f, 1.0f),      // Yellow
+                "4★" => new Vector4(1.0f, 0.5f, 0.0f, 1.0f),      // Orange
+                "5★" => new Vector4(0.9f, 0.0f, 0.0f, 1.0f),      // Red
+                _ when rating.Contains("★★★★★") => new Vector4(0.9f, 0.0f, 0.0f, 1.0f),      // Red for 5★
+                _ when rating.Contains("★★★★") => new Vector4(1.0f, 0.5f, 0.0f, 1.0f),       // Orange for 4★
+                _ when rating.Contains("★★★") => new Vector4(0.9f, 0.8f, 0.0f, 1.0f),        // Yellow for 3★
+                _ when rating.Contains("★★") => new Vector4(0.0f, 0.6f, 0.9f, 1.0f),         // Blue for 2★
+                _ when rating.Contains("★") => new Vector4(0.0f, 0.8f, 0.0f, 1.0f),          // Green for 1★
+                _ => new Vector4(0.8f, 0.8f, 0.8f, 1.0f)          // Gray for special ratings
+            };
         }
 
         private void ShowNotification(string message, MessageType type, float duration = 3.0f)
@@ -1381,8 +1369,8 @@ namespace WahJumps.Windows
             // Calculate totals for percentages
             var totalPuzzles = csvDataByDataCenter.Values.Sum(v => v.Count);
             
-            // Apply professional table styling
-            ApplyProfessionalTableStyling();
+            // Apply consistent table styling
+            UiTheme.StyleTable();
             
             ImGuiTableFlags flags = ImGuiTableFlags.RowBg |
                                    ImGuiTableFlags.Borders |
@@ -1493,10 +1481,10 @@ namespace WahJumps.Windows
                     DrawMiniBarChart(ratings, dc.Value.Count, totalPuzzles);
                 }
                 
-                ImGui.EndTable();
+                                ImGui.EndTable();
             }
-            
-            EndProfessionalTableStyling();
+
+            UiTheme.EndTableStyle();
             
             // Summary statistics
             ImGui.Spacing();

@@ -1,13 +1,10 @@
 using System.Collections.Generic;
-using System.Globalization;
-using System.IO;
 using System.Linq;
 using System.Numerics;
-using CsvHelper;
-using CsvHelper.Configuration;
 using ImGuiNET;
 using WahJumps.Models;
 using WahJumps.Utilities;
+using WahJumps.Data;
 
 namespace WahJumps.Windows
 {
@@ -15,7 +12,6 @@ namespace WahJumps.Windows
     {
         private List<InfoData> infoData = new List<InfoData>();
         private bool dataLoaded = false;
-        private string csvFilePath = "";
 
         public InformationTab()
         {
@@ -26,27 +22,14 @@ namespace WahJumps.Windows
         {
             try
             {
-                // Try to find the CSV file in the plugin directory
-                var pluginDir = Plugin.PluginInterface.AssemblyLocation.Directory?.FullName;
-                if (pluginDir != null)
-                {
-                    csvFilePath = Path.Combine(pluginDir, "Strange Housing FFXIV Jump Puzzle Listings v2025.05.01 - info.csv");
-                    
-                    if (File.Exists(csvFilePath))
-                    {
-                        using var reader = new StreamReader(csvFilePath);
-                        using var csv = new CsvReader(reader, new CsvConfiguration(CultureInfo.InvariantCulture));
-                        
-                        csv.Context.RegisterClassMap<InfoDataMap>();
-                        infoData = csv.GetRecords<InfoData>().ToList();
-                        dataLoaded = true;
-                    }
-                }
+                // Load data from static embedded data instead of CSV file
+                infoData = StaticInfoData.GetInfoData();
+                dataLoaded = true;
             }
             catch (System.Exception ex)
             {
                 // Log error but continue with empty data
-                Plugin.PluginLog.Error($"Failed to load info CSV: {ex.Message}");
+                Plugin.PluginLog.Error($"Failed to load static info data: {ex.Message}");
                 infoData = new List<InfoData>();
                 dataLoaded = false;
             }
@@ -61,9 +44,7 @@ namespace WahJumps.Windows
 
             if (!dataLoaded || infoData.Count == 0)
             {
-                ImGui.Text("Unable to load information data from CSV file.");
-                ImGui.Text($"Expected file path: {csvFilePath}");
-                ImGui.Text($"File exists: {(!string.IsNullOrEmpty(csvFilePath) && File.Exists(csvFilePath) ? "Yes" : "No")}");
+                ImGui.Text("Unable to load information data.");
                 ImGui.Text($"Data loaded: {dataLoaded}");
                 ImGui.Text($"Data count: {infoData.Count}");
                 

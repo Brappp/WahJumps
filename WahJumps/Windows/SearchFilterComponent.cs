@@ -27,7 +27,6 @@ namespace WahJumps.Windows
         // Search results and display
         private List<JumpPuzzleData> searchResults = new List<JumpPuzzleData>();
         private List<JumpPuzzleData> allPuzzles = new List<JumpPuzzleData>();
-        private bool showAdvancedFilters = false;
 
         // Available data centers, worlds and districts
         private List<string> dataCenters = new List<string>();
@@ -104,20 +103,12 @@ namespace WahJumps.Windows
             selectedDataCenter = "All Data Centers";
             selectedWorld = "All Worlds";
             selectedDistrict = "All Districts";
-            showAdvancedFilters = false;
         }
 
         // Main draw method with improved layout
         public void Draw(Dictionary<string, List<JumpPuzzleData>> allData)
         {
-            DrawSearchHeader();
-            DrawSearchInput();
-            DrawQuickFilters();
-            
-            if (showAdvancedFilters)
-            {
-                DrawAdvancedFilters();
-            }
+            DrawCompactFilterSection();
 
             ImGui.Separator();
 
@@ -126,105 +117,50 @@ namespace WahJumps.Windows
             DrawResults();
         }
 
-        // Compact search header
-        private void DrawSearchHeader()
+        // Compact and organized filter section
+        private void DrawCompactFilterSection()
         {
-            // Header with search icon and title
-            ImGui.PushStyleColor(ImGuiCol.Text, UiTheme.Primary);
-            ImGui.Text("🔍 Search Jump Puzzles");
-            ImGui.PopStyleColor();
-
-            ImGui.SameLine();
-            
-            // Stats display
+            // Show results count if we have data
             if (allPuzzles.Count > 0)
             {
                 ImGui.PushStyleColor(ImGuiCol.Text, UiTheme.Gray);
-                ImGui.Text($"({searchResults.Count} of {allPuzzles.Count} puzzles)");
+                ImGui.Text($"Showing {searchResults.Count} of {allPuzzles.Count} puzzles");
                 ImGui.PopStyleColor();
+                ImGui.Spacing();
             }
 
-            ImGui.Spacing();
-        }
+            // Row 1: Search box and rating filter
+            float searchWidth = ImGui.GetContentRegionAvail().X * 0.6f;
+            float ratingWidth = ImGui.GetContentRegionAvail().X * 0.35f;
 
-        // Improved search input
-        private void DrawSearchInput()
-        {
-            // Search box with consistent styling
-            ImGui.PushItemWidth(-80);
-            bool searchChanged = ImGui.InputTextWithHint("##search", "🔍 Search by name, builder, world, or description...", ref searchQuery, 256);
-            ImGui.PopItemWidth();
-
-            // Clear button if there's text
-            if (!string.IsNullOrEmpty(searchQuery))
-            {
-                ImGui.SameLine();
-                if (ImGui.Button("Clear"))
-                {
-                    searchQuery = string.Empty;
-                }
-            }
-
-            ImGui.Spacing();
-        }
-
-        // Quick filter buttons that match existing UI
-        private void DrawQuickFilters()
-        {
-            ImGui.Text("Quick Filters:");
-            ImGui.SameLine();
-
-            // Rating buttons with consistent styling
-            string[] quickRatings = { "★★★★★", "★★★★", "★★★", "★★", "★" };
-            foreach (var rating in quickRatings)
-            {
-                ImGui.SameLine();
-                
-                bool isSelected = selectedRating == rating;
-                if (isSelected)
-                {
-                    ImGui.PushStyleColor(ImGuiCol.Button, UiTheme.Primary);
-                    ImGui.PushStyleColor(ImGuiCol.ButtonHovered, UiTheme.Primary);
-                }
-
-                if (ImGui.SmallButton(rating))
-                {
-                    selectedRating = isSelected ? "All Ratings" : rating;
-                }
-
-                if (isSelected)
-                {
-                    ImGui.PopStyleColor(2);
-                }
-            }
-
-            // Advanced filters toggle
-            ImGui.SameLine();
-            ImGui.Dummy(new Vector2(20, 0));
+            // Search input
+            ImGui.SetNextItemWidth(searchWidth);
+            ImGui.InputTextWithHint("##search", "🔍 Search by name, builder, world, or description...", ref searchQuery, 256);
+            
             ImGui.SameLine();
             
-            if (ImGui.Button(showAdvancedFilters ? "▼ Hide Filters" : "▶ More Filters"))
+            // Rating dropdown
+            ImGui.SetNextItemWidth(ratingWidth);
+            if (ImGui.BeginCombo("##rating", selectedRating))
             {
-                showAdvancedFilters = !showAdvancedFilters;
+                string[] allRatings = { "All Ratings", "★★★★★", "★★★★", "★★★", "★★", "★", "Training ☆", "Event ☆", "In Flux ☆", "Temp ☆" };
+                foreach (var rating in allRatings)
+                {
+                    bool isSelected = selectedRating == rating;
+                    if (ImGui.Selectable(rating, isSelected))
+                    {
+                        selectedRating = rating;
+                    }
+                    if (isSelected) ImGui.SetItemDefaultFocus();
+                }
+                ImGui.EndCombo();
             }
 
-            // Reset button
-            ImGui.SameLine();
-            if (ImGui.Button("Reset All"))
-            {
-                ResetFilters();
-            }
-
-            ImGui.Spacing();
-        }
-
-        // Advanced filter options with consistent styling
-        private void DrawAdvancedFilters()
-        {
-            float itemWidth = (ImGui.GetContentRegionAvail().X - 40) / 3;
+            // Row 2: Location filters (Data Center, World, District)
+            float filterWidth = (ImGui.GetContentRegionAvail().X - 20) / 3;
 
             // Data Center filter
-            ImGui.SetNextItemWidth(itemWidth);
+            ImGui.SetNextItemWidth(filterWidth);
             if (ImGui.BeginCombo("##datacenter", selectedDataCenter))
             {
                 foreach (var dc in dataCenters)
@@ -251,7 +187,7 @@ namespace WahJumps.Windows
             ImGui.SameLine();
 
             // World filter
-            ImGui.SetNextItemWidth(itemWidth);
+            ImGui.SetNextItemWidth(filterWidth);
             if (ImGui.BeginCombo("##world", selectedWorld))
             {
                 bool isAllSelected = selectedWorld == "All Worlds";
@@ -280,7 +216,7 @@ namespace WahJumps.Windows
             ImGui.SameLine();
 
             // District filter
-            ImGui.SetNextItemWidth(itemWidth);
+            ImGui.SetNextItemWidth(filterWidth);
             if (ImGui.BeginCombo("##district", selectedDistrict))
             {
                 foreach (var district in districts)
@@ -295,12 +231,39 @@ namespace WahJumps.Windows
                 ImGui.EndCombo();
             }
 
-            // Labels for the combos
-            ImGui.Text("Data Center");
-            ImGui.SameLine(itemWidth + 20);
-            ImGui.Text("World");
-            ImGui.SameLine((itemWidth * 2) + 40);
-            ImGui.Text("District");
+            // Row 3: Quick rating buttons for easy access
+            ImGui.Text("Quick Rating:");
+            ImGui.SameLine();
+
+            string[] quickRatings = { "★★★★★", "★★★★", "★★★", "★★", "★" };
+            foreach (var rating in quickRatings)
+            {
+                ImGui.SameLine();
+                
+                bool isSelected = selectedRating == rating;
+                if (isSelected)
+                {
+                    ImGui.PushStyleColor(ImGuiCol.Button, UiTheme.Primary);
+                    ImGui.PushStyleColor(ImGuiCol.ButtonHovered, UiTheme.Primary);
+                }
+
+                if (ImGui.SmallButton(rating))
+                {
+                    selectedRating = isSelected ? "All Ratings" : rating;
+                }
+
+                if (isSelected)
+                {
+                    ImGui.PopStyleColor(2);
+                }
+            }
+
+            // Reset button at the bottom
+            ImGui.Spacing();
+            if (ImGui.Button("Reset All Filters"))
+            {
+                ResetFilters();
+            }
 
             ImGui.Spacing();
         }
@@ -381,9 +344,7 @@ namespace WahJumps.Windows
 
                     // Puzzle Name
                     ImGui.TableNextColumn();
-                    ImGui.PushStyleColor(ImGuiCol.Text, UiTheme.Primary);
                     ImGui.TextWrapped(puzzle.PuzzleName);
-                    ImGui.PopStyleColor();
 
                     // Builder
                     ImGui.TableNextColumn();
@@ -458,12 +419,20 @@ namespace WahJumps.Windows
         // Get color for rating display
         private Vector4 GetRatingColor(string rating)
         {
-            if (rating.Contains("★★★★★")) return new Vector4(1.0f, 0.8f, 0.2f, 1.0f); // Gold
-            if (rating.Contains("★★★★")) return new Vector4(0.8f, 0.4f, 1.0f, 1.0f);   // Purple
-            if (rating.Contains("★★★")) return new Vector4(0.2f, 0.8f, 1.0f, 1.0f);    // Blue
-            if (rating.Contains("★★")) return new Vector4(0.2f, 1.0f, 0.4f, 1.0f);     // Green
-            if (rating.Contains("★")) return new Vector4(1.0f, 1.0f, 1.0f, 1.0f);      // White
-            return new Vector4(0.7f, 0.7f, 0.7f, 1.0f); // Gray for special ratings
+            return rating switch
+            {
+                "1★" => new Vector4(0.0f, 0.8f, 0.0f, 1.0f),      // Green
+                "2★" => new Vector4(0.0f, 0.6f, 0.9f, 1.0f),      // Blue
+                "3★" => new Vector4(0.9f, 0.8f, 0.0f, 1.0f),      // Yellow
+                "4★" => new Vector4(1.0f, 0.5f, 0.0f, 1.0f),      // Orange
+                "5★" => new Vector4(0.9f, 0.0f, 0.0f, 1.0f),      // Red
+                _ when rating.Contains("★★★★★") => new Vector4(0.9f, 0.0f, 0.0f, 1.0f),      // Red for 5★
+                _ when rating.Contains("★★★★") => new Vector4(1.0f, 0.5f, 0.0f, 1.0f),       // Orange for 4★
+                _ when rating.Contains("★★★") => new Vector4(0.9f, 0.8f, 0.0f, 1.0f),        // Yellow for 3★
+                _ when rating.Contains("★★") => new Vector4(0.0f, 0.6f, 0.9f, 1.0f),         // Blue for 2★
+                _ when rating.Contains("★") => new Vector4(0.0f, 0.8f, 0.0f, 1.0f),          // Green for 1★
+                _ => new Vector4(0.8f, 0.8f, 0.8f, 1.0f)          // Gray for special ratings
+            };
         }
 
         // Helper to render codes with tooltips
@@ -475,9 +444,7 @@ namespace WahJumps.Windows
                 return;
             }
 
-            ImGui.PushStyleColor(ImGuiCol.Text, UiTheme.Accent);
             ImGui.Text(codes);
-            ImGui.PopStyleColor();
 
             if (ImGui.IsItemHovered())
             {
