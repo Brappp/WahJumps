@@ -25,112 +25,86 @@ namespace WahJumps.Windows
 
             // Header
             ImGui.Spacing();
-            ImGui.Spacing();
             UiTheme.CenteredText("Strange Housing Community", UiTheme.Primary);
-            ImGui.Spacing();
             
-            // Description
-            ImGui.PushTextWrapPos(windowWidth - 60);
+            ImGui.PushTextWrapPos(windowWidth - 40);
             UiTheme.CenteredText("Discover and explore creative jump puzzles built by the FFXIV community");
             ImGui.PopTextWrapPos();
             
-            ImGui.Spacing();
             ImGui.Separator();
-            ImGui.Spacing();
 
             // Thank you message
             ImGui.PushStyleColor(ImGuiCol.Text, UiTheme.Accent);
-            ImGui.PushTextWrapPos(windowWidth - 60);
+            ImGui.PushTextWrapPos(windowWidth - 40);
             UiTheme.CenteredText("Thank you to the Strange Housing staff and community for their amazing work!");
             ImGui.PopTextWrapPos();
             ImGui.PopStyleColor();
 
             ImGui.Spacing();
-            ImGui.Spacing();
 
-            // Main buttons
-            float buttonWidth = Math.Min(280, windowWidth - 60);
-            float centerX = (windowWidth - buttonWidth) / 2;
+            // 2x2 button grid
+            float buttonWidth = Math.Min(200, (windowWidth - 60) / 2);
+            float leftButtonX = (windowWidth - (buttonWidth * 2 + 20)) / 2;
+            float rightButtonX = leftButtonX + buttonWidth + 20;
 
-            ImGui.SetCursorPosX(centerX);
+            ImGui.SetCursorPosX(leftButtonX);
             if (DrawCleanButton("Visit ffxiv.ju.mp", buttonWidth, UiTheme.Primary))
             {
                 OpenUrl("https://ffxiv.ju.mp/");
             }
-
-            ImGui.Spacing();
-
-            ImGui.SetCursorPosX(centerX);
+            
+            ImGui.SameLine();
+            ImGui.SetCursorPosX(rightButtonX);
             if (DrawCleanButton("Join Discord Server", buttonWidth, UiTheme.DiscordPrimary))
             {
                 OpenUrl("https://discord.gg/6agVYe6xYk");
             }
 
-            ImGui.Spacing();
-            ImGui.Spacing();
-
-            // Resources section
-            UiTheme.CenteredText("Learning Resources", UiTheme.Secondary);
-            ImGui.Spacing();
-
-            ImGui.SetCursorPosX(centerX);
+            // Second row
+            ImGui.SetCursorPosX(leftButtonX);
             if (DrawCleanButton("Jumping Guide", buttonWidth, UiTheme.Success))
             {
                 OpenUrl("https://docs.google.com/document/d/1CrO9doADJAP1BbYq8uPAyFqzGU1fS4cemXat_YACtJI/edit");
             }
 
-            ImGui.Spacing();
-
-            ImGui.SetCursorPosX(centerX);
+            ImGui.SameLine();
+            ImGui.SetCursorPosX(rightButtonX);
             if (DrawCleanButton("Puzzle Database", buttonWidth, UiTheme.Warning))
             {
                 OpenUrl("https://docs.google.com/spreadsheets/d/1DyOqqECaNuAEntBxwv2NQ7p5rTrC1tDN9hHpcI_PNs4/edit?gid=1921920879#gid=1921920879");
             }
 
             ImGui.Spacing();
-            ImGui.Spacing();
 
             // LifeStream notice
+            float centerX = (windowWidth - Math.Min(250, windowWidth - 40)) / 2;
+            float lifestreamButtonWidth = Math.Min(250, windowWidth - 40);
+
             ImGui.PushStyleColor(ImGuiCol.Text, UiTheme.Warning);
-            ImGui.PushTextWrapPos(windowWidth - 60);
+            ImGui.PushTextWrapPos(windowWidth - 40);
             UiTheme.CenteredText("LifeStream Plugin Required");
             ImGui.PopTextWrapPos();
             ImGui.PopStyleColor();
 
-            ImGui.Spacing();
-
-            ImGui.PushTextWrapPos(windowWidth - 60);
+            ImGui.PushTextWrapPos(windowWidth - 40);
             UiTheme.CenteredText("The LifeStream plugin is required for travel buttons to work properly.");
             ImGui.PopTextWrapPos();
 
-            ImGui.Spacing();
-
             ImGui.SetCursorPosX(centerX);
-            if (DrawCleanButton("Download LifeStream", buttonWidth, UiTheme.Primary))
+            if (DrawCleanButton("Download LifeStream", lifestreamButtonWidth, UiTheme.Primary))
             {
                 OpenUrl("https://github.com/NightmareXIV/Lifestream");
             }
 
-            ImGui.Spacing();
-            ImGui.Spacing();
             ImGui.Spacing();
 
             // Credits
             UiTheme.CenteredText("Made with ♥", UiTheme.Error);
             UiTheme.CenteredText("wah", UiTheme.Accent);
 
-            // Position animation at bottom
-            float remainingHeight = ImGui.GetContentRegionAvail().Y;
-            if (remainingHeight > 140f)
-            {
-                ImGui.Dummy(new Vector2(0, remainingHeight - 130f));
-            }
-            else
-            {
-                ImGui.Spacing();
-                ImGui.Spacing();
-            }
+            ImGui.Spacing();
 
+            // Animation
             DrawAnimatedStickFigure(windowWidth, deltaTime);
         }
 
@@ -375,7 +349,7 @@ namespace WahJumps.Windows
             ImGui.PushStyleColor(ImGuiCol.ButtonActive, new Vector4(color.X * 0.6f, color.Y * 0.6f, color.Z * 0.6f, 1.0f));
             ImGui.PushStyleVar(ImGuiStyleVar.FrameRounding, 4.0f);
 
-            bool clicked = ImGui.Button(label, new Vector2(width, 32));
+            bool clicked = ImGui.Button(label, new Vector2(width, 28));
 
             ImGui.PopStyleVar();
             ImGui.PopStyleColor(3);
