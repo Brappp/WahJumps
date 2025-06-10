@@ -98,14 +98,13 @@ namespace WahJumps.Windows
 
             ImGui.Spacing();
 
-            // Credits
-            UiTheme.CenteredText("Made with ♥", UiTheme.Error);
-            UiTheme.CenteredText("wah", UiTheme.Accent);
-
-            ImGui.Spacing();
-
-            // Animation
+            // Animation with overlaid credits
+            var creditsStartPos = ImGui.GetCursorPos();
             DrawAnimatedStickFigure(windowWidth, deltaTime);
+            
+            ImGui.SetCursorPos(new Vector2(creditsStartPos.X, creditsStartPos.Y + 10));
+            UiTheme.CenteredText("Made with ♥", new Vector4(1.0f, 0.2f, 0.2f, 1.0f));
+            UiTheme.CenteredText("wah", new Vector4(1.0f, 0.2f, 0.2f, 1.0f));
         }
 
         private void DrawAnimatedStickFigure(float windowWidth, float deltaTime)
