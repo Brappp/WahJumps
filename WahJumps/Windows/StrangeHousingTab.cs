@@ -1,5 +1,5 @@
 // File: WahJumps/Windows/StrangeHousingTab.cs
-// Status: COMPLETE - Clean and elegant design
+// Status: COMPLETE - Clean design with animated stick figure
 
 using ImGuiNET;
 using WahJumps.Utilities;
@@ -11,14 +11,22 @@ namespace WahJumps.Windows
 {
     public class StrangeHousingTab
     {
+        private float animationTime = 0f;
+        private float stickFigureX = 0f;
+        private bool isJumping = false;
+        private float jumpStartTime = 0f;
+        private float lastObstacleX = 0f;
+
         public void Draw()
         {
             using var tabItem = new ImRaii.TabItem("Strange Housing");
             if (!tabItem.Success) return;
 
             float windowWidth = ImGui.GetWindowWidth();
+            float deltaTime = ImGui.GetIO().DeltaTime;
+            animationTime += deltaTime;
 
-            // Clean header
+            // Header
             ImGui.Spacing();
             ImGui.Spacing();
             UiTheme.CenteredText("Strange Housing Community", UiTheme.Primary);
@@ -43,11 +51,10 @@ namespace WahJumps.Windows
             ImGui.Spacing();
             ImGui.Spacing();
 
-            // Main buttons section
+            // Main buttons
             float buttonWidth = Math.Min(280, windowWidth - 60);
             float centerX = (windowWidth - buttonWidth) / 2;
 
-            // Website button
             ImGui.SetCursorPosX(centerX);
             if (DrawCleanButton("Visit ffxiv.ju.mp", buttonWidth, UiTheme.Primary))
             {
@@ -56,7 +63,6 @@ namespace WahJumps.Windows
 
             ImGui.Spacing();
 
-            // Discord button
             ImGui.SetCursorPosX(centerX);
             if (DrawCleanButton("Join Discord Server", buttonWidth, UiTheme.DiscordPrimary))
             {
@@ -70,7 +76,6 @@ namespace WahJumps.Windows
             UiTheme.CenteredText("Learning Resources", UiTheme.Secondary);
             ImGui.Spacing();
 
-            // Jumping guide
             ImGui.SetCursorPosX(centerX);
             if (DrawCleanButton("Jumping Guide", buttonWidth, UiTheme.Success))
             {
@@ -79,7 +84,6 @@ namespace WahJumps.Windows
 
             ImGui.Spacing();
 
-            // Puzzle database
             ImGui.SetCursorPosX(centerX);
             if (DrawCleanButton("Puzzle Database", buttonWidth, UiTheme.Warning))
             {
@@ -104,7 +108,6 @@ namespace WahJumps.Windows
 
             ImGui.Spacing();
 
-            // LifeStream download
             ImGui.SetCursorPosX(centerX);
             if (DrawCleanButton("Download LifeStream", buttonWidth, UiTheme.Primary))
             {
@@ -115,14 +118,278 @@ namespace WahJumps.Windows
             ImGui.Spacing();
             ImGui.Spacing();
 
-            // Simple credits
+            // Credits
             UiTheme.CenteredText("Made with ♥", UiTheme.Error);
             UiTheme.CenteredText("wah", UiTheme.Accent);
+
+            // Position animation at bottom
+            float remainingHeight = ImGui.GetContentRegionAvail().Y;
+            if (remainingHeight > 140f)
+            {
+                ImGui.Dummy(new Vector2(0, remainingHeight - 130f));
+            }
+            else
+            {
+                ImGui.Spacing();
+                ImGui.Spacing();
+            }
+
+            DrawAnimatedStickFigure(windowWidth, deltaTime);
+        }
+
+        private void DrawAnimatedStickFigure(float windowWidth, float deltaTime)
+        {
+            var drawList = ImGui.GetWindowDrawList();
+            var windowPos = ImGui.GetWindowPos();
+            var cursorPos = ImGui.GetCursorPos();
+            var sceneHeight = 120f;
+            var groundY = windowPos.Y + cursorPos.Y + sceneHeight - 15f;
+
+            // Update position
+            float speed = 80f;
+            stickFigureX += speed * deltaTime;
+
+            // Reset when off screen
+            if (stickFigureX > windowWidth + 50)
+            {
+                stickFigureX = -50f;
+                lastObstacleX = 0f;
+            }
+
+            // Obstacle positions
+            float[] obstaclePositions = { 
+                windowWidth * 0.15f,
+                windowWidth * 0.3f,
+                windowWidth * 0.45f,
+                windowWidth * 0.6f,
+                windowWidth * 0.75f,
+                windowWidth * 0.9f
+            };
+            
+            // Check for jumps
+            foreach (var obstacleX in obstaclePositions)
+            {
+                if (Math.Abs(stickFigureX - obstacleX) < 35f && !isJumping && obstacleX != lastObstacleX)
+                {
+                    isJumping = true;
+                    jumpStartTime = animationTime;
+                    lastObstacleX = obstacleX;
+                    break;
+                }
+            }
+
+            // Update jump state
+            if (isJumping)
+            {
+                float jumpDuration = 1.0f;
+                if (animationTime - jumpStartTime > jumpDuration)
+                {
+                    isJumping = false;
+                }
+            }
+
+            // Draw ground
+            drawList.AddLine(
+                new Vector2(windowPos.X, groundY),
+                new Vector2(windowPos.X + windowWidth, groundY),
+                ImGui.GetColorU32(new Vector4(0.4f, 0.4f, 0.4f, 1.0f)),
+                3.0f
+            );
+
+            // Draw obstacles
+            for (int i = 0; i < obstaclePositions.Length; i++)
+            {
+                var obstacleX = obstaclePositions[i];
+                
+                if (i % 3 == 0) // Gaps
+                {
+                    drawList.AddRectFilled(
+                        new Vector2(windowPos.X + obstacleX - 45, groundY - 20),
+                        new Vector2(windowPos.X + obstacleX - 15, groundY),
+                        ImGui.GetColorU32(UiTheme.Primary)
+                    );
+
+                    drawList.AddLine(
+                        new Vector2(windowPos.X + obstacleX - 15, groundY),
+                        new Vector2(windowPos.X + obstacleX + 25, groundY),
+                        ImGui.GetColorU32(new Vector4(0.1f, 0.1f, 0.1f, 1.0f)),
+                        6.0f
+                    );
+
+                    drawList.AddRectFilled(
+                        new Vector2(windowPos.X + obstacleX + 25, groundY - 15),
+                        new Vector2(windowPos.X + obstacleX + 55, groundY),
+                        ImGui.GetColorU32(UiTheme.Success)
+                    );
+                }
+                else if (i % 3 == 1) // High platforms
+                {
+                    float platformHeight = 35f;
+                    drawList.AddRectFilled(
+                        new Vector2(windowPos.X + obstacleX - 25, groundY - platformHeight),
+                        new Vector2(windowPos.X + obstacleX + 25, groundY),
+                        ImGui.GetColorU32(UiTheme.Warning)
+                    );
+                    
+                    drawList.AddRectFilled(
+                        new Vector2(windowPos.X + obstacleX - 25, groundY - platformHeight),
+                        new Vector2(windowPos.X + obstacleX + 25, groundY - platformHeight + 3),
+                        ImGui.GetColorU32(new Vector4(1.0f, 1.0f, 0.6f, 1.0f))
+                    );
+                }
+                else // Small obstacles
+                {
+                    drawList.AddRectFilled(
+                        new Vector2(windowPos.X + obstacleX - 15, groundY - 25),
+                        new Vector2(windowPos.X + obstacleX + 15, groundY),
+                        ImGui.GetColorU32(UiTheme.Secondary)
+                    );
+                    
+                    drawList.AddLine(
+                        new Vector2(windowPos.X + obstacleX - 15, groundY - 25),
+                        new Vector2(windowPos.X + obstacleX + 15, groundY - 25),
+                        ImGui.GetColorU32(new Vector4(0.8f, 0.7f, 0.9f, 1.0f)),
+                        2.0f
+                    );
+                }
+            }
+
+            DrawBackgroundElements(drawList, windowPos, windowWidth, groundY, sceneHeight);
+
+            // Calculate stick figure position
+            float figureX = windowPos.X + stickFigureX;
+            float figureY = groundY;
+
+            // Apply jump animation
+            if (isJumping)
+            {
+                float jumpProgress = (animationTime - jumpStartTime) / 1.0f;
+                float jumpHeight = (float)(Math.Sin(jumpProgress * Math.PI) * 50f);
+                figureY -= jumpHeight;
+            }
+
+            DrawStickFigure(drawList, figureX, figureY, isJumping, animationTime);
+            ImGui.Dummy(new Vector2(windowWidth, sceneHeight));
+        }
+
+        private void DrawBackgroundElements(ImDrawListPtr drawList, Vector2 windowPos, float windowWidth, float groundY, float sceneHeight)
+        {
+            var bgColor = ImGui.GetColorU32(new Vector4(0.3f, 0.3f, 0.35f, 0.6f));
+            
+            // Background platforms
+            drawList.AddRectFilled(
+                new Vector2(windowPos.X + windowWidth * 0.1f, groundY - 60),
+                new Vector2(windowPos.X + windowWidth * 0.25f, groundY - 45),
+                bgColor
+            );
+            
+            drawList.AddRectFilled(
+                new Vector2(windowPos.X + windowWidth * 0.7f, groundY - 70),
+                new Vector2(windowPos.X + windowWidth * 0.85f, groundY - 50),
+                bgColor
+            );
+
+            // Floating platforms
+            drawList.AddRectFilled(
+                new Vector2(windowPos.X + windowWidth * 0.4f, groundY - 80),
+                new Vector2(windowPos.X + windowWidth * 0.5f, groundY - 75),
+                ImGui.GetColorU32(new Vector4(0.2f, 0.4f, 0.6f, 0.4f))
+            );
+
+            // Building silhouettes
+            for (int i = 0; i < 4; i++)
+            {
+                float buildingX = windowPos.X + (windowWidth / 4) * i + (windowWidth * 0.05f);
+                float buildingHeight = 40f + (i * 10f);
+                drawList.AddRectFilled(
+                    new Vector2(buildingX, groundY - buildingHeight),
+                    new Vector2(buildingX + 30, groundY - sceneHeight + 20),
+                    ImGui.GetColorU32(new Vector4(0.15f, 0.15f, 0.2f, 0.3f))
+                );
+            }
+        }
+
+        private void DrawStickFigure(ImDrawListPtr drawList, float x, float y, bool jumping, float time)
+        {
+            var color = ImGui.GetColorU32(UiTheme.Accent);
+            float headRadius = 6f;
+            float bodyHeight = 20f;
+            float legLength = 15f;
+            float armLength = 12f;
+
+            // Head
+            drawList.AddCircle(new Vector2(x, y - bodyHeight - headRadius), headRadius, color, 12, 2.0f);
+
+            // Body
+            drawList.AddLine(
+                new Vector2(x, y - bodyHeight),
+                new Vector2(x, y),
+                color, 2.0f
+            );
+
+            // Animation offsets
+            float legOffset = jumping ? 0f : (float)(Math.Sin(time * 8) * 8);
+            float armOffset = jumping ? 0f : (float)(Math.Cos(time * 8) * 6);
+
+            // Legs
+            if (jumping)
+            {
+                drawList.AddLine(
+                    new Vector2(x, y),
+                    new Vector2(x - 8, y + 8),
+                    color, 2.0f
+                );
+                drawList.AddLine(
+                    new Vector2(x, y),
+                    new Vector2(x + 8, y + 8),
+                    color, 2.0f
+                );
+            }
+            else
+            {
+                drawList.AddLine(
+                    new Vector2(x, y),
+                    new Vector2(x - 6 + legOffset, y + legLength),
+                    color, 2.0f
+                );
+                drawList.AddLine(
+                    new Vector2(x, y),
+                    new Vector2(x + 6 - legOffset, y + legLength),
+                    color, 2.0f
+                );
+            }
+
+            // Arms
+            if (jumping)
+            {
+                drawList.AddLine(
+                    new Vector2(x, y - bodyHeight + 5),
+                    new Vector2(x - 10, y - bodyHeight - 5),
+                    color, 2.0f
+                );
+                drawList.AddLine(
+                    new Vector2(x, y - bodyHeight + 5),
+                    new Vector2(x + 10, y - bodyHeight - 5),
+                    color, 2.0f
+                );
+            }
+            else
+            {
+                drawList.AddLine(
+                    new Vector2(x, y - bodyHeight + 5),
+                    new Vector2(x - 8 + armOffset, y - bodyHeight + 5 + armLength),
+                    color, 2.0f
+                );
+                drawList.AddLine(
+                    new Vector2(x, y - bodyHeight + 5),
+                    new Vector2(x + 8 - armOffset, y - bodyHeight + 5 + armLength),
+                    color, 2.0f
+                );
+            }
         }
 
         private bool DrawCleanButton(string label, float width, Vector4 color)
         {
-            // Simple, clean button with subtle styling
             ImGui.PushStyleColor(ImGuiCol.Button, new Vector4(color.X * 0.8f, color.Y * 0.8f, color.Z * 0.8f, 1.0f));
             ImGui.PushStyleColor(ImGuiCol.ButtonHovered, color);
             ImGui.PushStyleColor(ImGuiCol.ButtonActive, new Vector4(color.X * 0.6f, color.Y * 0.6f, color.Z * 0.6f, 1.0f));
