@@ -598,27 +598,23 @@ namespace WahJumps.Windows
                     (ImGuiCol.Tab, colors.Dark),
                     (ImGuiCol.TabHovered, colors.Medium),
                     (ImGuiCol.TabActive, colors.Light),
-                    (ImGuiCol.Text, sizeIndicatorColor) // Add size indicator color
+                    (ImGuiCol.Text, new Vector4(1.0f, 1.0f, 1.0f, 1.0f)) // White text
                 );
 
                 // No boolean reference = no close button
                 if (ImGui.BeginTabItem(tabName))
                 {
-                    // Show data center info at the top
-                    DrawDataCenterInfo(dataCenterName, puzzles);
                     DrawRatingTabs(puzzles);
                     ImGui.EndTabItem();
                 }
             }
             else
             {
-                using var textColor = new ImRaii.StyleColor(ImGuiCol.Text, sizeIndicatorColor);
+                using var textColor = new ImRaii.StyleColor(ImGuiCol.Text, new Vector4(1.0f, 1.0f, 1.0f, 1.0f)); // White text
                 
                 // No boolean reference = no close button
                 if (ImGui.BeginTabItem(tabName))
                 {
-                    // Show data center info at the top
-                    DrawDataCenterInfo(dataCenterName, puzzles);
                     DrawRatingTabs(puzzles);
                     ImGui.EndTabItem();
                 }

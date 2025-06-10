@@ -1,305 +1,498 @@
+using System.Collections.Generic;
+using System.Globalization;
+using System.IO;
+using System.Linq;
 using System.Numerics;
+using CsvHelper;
+using CsvHelper.Configuration;
 using ImGuiNET;
+using WahJumps.Models;
 using WahJumps.Utilities;
 
 namespace WahJumps.Windows
 {
     public class InformationTab
     {
-        // Array to store column widths after auto-adjusting the first table
-        private float[] columnWidths = new float[4];
-        private bool isInitialized = false;
+        private List<InfoData> infoData = new List<InfoData>();
+        private bool dataLoaded = false;
+        private string csvFilePath = "";
+
+        public InformationTab()
+        {
+            LoadInfoData();
+        }
+
+        private void LoadInfoData()
+        {
+            try
+            {
+                // Try to find the CSV file in the plugin directory
+                var pluginDir = Plugin.PluginInterface.AssemblyLocation.Directory?.FullName;
+                if (pluginDir != null)
+                {
+                    csvFilePath = Path.Combine(pluginDir, "Strange Housing FFXIV Jump Puzzle Listings v2025.05.01 - info.csv");
+                    
+                    if (File.Exists(csvFilePath))
+                    {
+                        using var reader = new StreamReader(csvFilePath);
+                        using var csv = new CsvReader(reader, new CsvConfiguration(CultureInfo.InvariantCulture));
+                        
+                        csv.Context.RegisterClassMap<InfoDataMap>();
+                        infoData = csv.GetRecords<InfoData>().ToList();
+                        dataLoaded = true;
+                    }
+                }
+            }
+            catch (System.Exception ex)
+            {
+                // Log error but continue with empty data
+                Plugin.PluginLog.Error($"Failed to load info CSV: {ex.Message}");
+                infoData = new List<InfoData>();
+                dataLoaded = false;
+            }
+        }
 
         public void Draw()
         {
-            // Fixed TabItem usage
             using var tabItem = new ImRaii.TabItem("Information");
             if (!tabItem.Success) return;
 
             using var contentChild = new ImRaii.Child("InformationScrollArea", new Vector2(0, 0), true, ImGuiWindowFlags.HorizontalScrollbar);
 
-            // Difficulty Ratings Table
-            DrawDifficultyRatingsTable();
+            if (!dataLoaded || infoData.Count == 0)
+            {
+                ImGui.Text("Unable to load information data from CSV file.");
+                ImGui.Text($"Expected file path: {csvFilePath}");
+                ImGui.Text($"File exists: {(!string.IsNullOrEmpty(csvFilePath) && File.Exists(csvFilePath) ? "Yes" : "No")}");
+                ImGui.Text($"Data loaded: {dataLoaded}");
+                ImGui.Text($"Data count: {infoData.Count}");
+                
+                if (ImGui.Button("Retry Loading"))
+                {
+                    LoadInfoData();
+                }
+                return;
+            }
 
-            ImGui.Separator();
+            // Group data by sections
+            var sections = GroupDataBySections();
 
-            // Sub-type Keys Table
-            DrawSubTypeKeysTable();
-
-            ImGui.Separator();
-
-            // Other Information Table
-            DrawOtherInfoTable();
-
-            ImGui.Separator();
-
-            // Puzzle Accessibility Table
-            DrawPuzzleAccessibilityTable();
+            // Draw each section
+            foreach (var section in sections)
+            {
+                DrawSection(section.Key, section.Value);
+                ImGui.Separator();
+            }
         }
 
-        private void DrawDifficultyRatingsTable()
+        private Dictionary<string, List<InfoData>> GroupDataBySections()
         {
-            // Improved header styling
-            ImGui.PushStyleColor(ImGuiCol.Text, UiTheme.Primary);
-            bool isOpen = ImGui.CollapsingHeader("Difficulty Ratings: Setting General Expectations", ImGuiTreeNodeFlags.DefaultOpen);
-            ImGui.PopStyleColor();
+            var sections = new Dictionary<string, List<InfoData>>();
+            string currentSection = "";
 
-            if (isOpen)
+            foreach (var row in infoData)
             {
-                ImGui.PushStyleVar(ImGuiStyleVar.CellPadding, new Vector2(6, 6));
-
-                ImGuiTableFlags tableFlags = ImGuiTableFlags.RowBg |
-                                            ImGuiTableFlags.Borders |
-                                            ImGuiTableFlags.SizingStretchProp;
-
-                if (ImGui.BeginTable("DifficultyRatingsTable", 4, tableFlags))
+                // Skip completely empty rows
+                if (string.IsNullOrWhiteSpace(row.Section) && 
+                    string.IsNullOrWhiteSpace(row.Key) && 
+                    string.IsNullOrWhiteSpace(row.Value1) && 
+                    string.IsNullOrWhiteSpace(row.Value2) && 
+                    string.IsNullOrWhiteSpace(row.Value3))
                 {
-                    ImGui.TableSetupColumn("Rating");
-                    ImGui.TableSetupColumn("Original System Rating");
-                    ImGui.TableSetupColumn("Star Diagram and Explanation");
-                    ImGui.TableSetupColumn("Square-Enix Equivalent");
+                    continue;
+                }
 
-                    ImGui.TableHeadersRow();
-
-                    AddDifficultyRatingRow("1★", "Beginner", "★☆☆☆☆ - Designed to be easy", "Cliffhanger GATEs; Fall of Belah'dia");
-                    AddDifficultyRatingRow("2★", "Medium", "★★☆☆☆ - A solid challenge", "Kugane Tower; Sylphstep GATE");
-                    AddDifficultyRatingRow("3★", "Hard", "★★★☆☆ - Challenging for most", "Moonfire Tower (Event)");
-                    AddDifficultyRatingRow("4★", "Satan", "★★★★☆ - Extremely broad difficulty", "Moonfire Tower (Toothpick section)");
-                    AddDifficultyRatingRow("5★", "God", "★★★★★ - For the hardest puzzles", "No Square-Enix equivalent");
-                    AddDifficultyRatingRow("E", "Training", "Training - Teaches or introduces new techniques", "");
-                    AddDifficultyRatingRow("T", "Event", "Event-specific puzzle, only available sometimes", "");
-                    AddDifficultyRatingRow("F", "In Flux", "Puzzle undergoes changes", "");
-
-                    // Store column widths for other tables if not initialized yet
-                    if (!isInitialized)
+                // Check if this is a section header (has content in Key column but empty Section)
+                if (string.IsNullOrWhiteSpace(row.Section) && !string.IsNullOrWhiteSpace(row.Key))
+                {
+                    // This might be a section header
+                    if (row.Key.Contains("Difficulty Ratings") || 
+                        row.Key.Contains("Sub-type Keys") || 
+                        row.Key.Contains("Other Information") || 
+                        row.Key.Contains("Puzzle Accessibility"))
                     {
-                        for (int i = 0; i < 4; i++)
+                        currentSection = row.Key;
+                        if (!sections.ContainsKey(currentSection))
                         {
-                            columnWidths[i] = ImGui.GetColumnWidth(i);
+                            sections[currentSection] = new List<InfoData>();
                         }
-                        isInitialized = true;
+                        continue;
                     }
-
-                    ImGui.EndTable();
                 }
 
-                ImGui.PopStyleVar();
+                // Check if this is a section header in the Section column (for "Having a huge list..." type entries)
+                if (!string.IsNullOrWhiteSpace(row.Section) && string.IsNullOrWhiteSpace(row.Key))
+                {
+                    if (row.Section.Contains("Having a huge list"))
+                    {
+                        // This is part of Puzzle Accessibility section
+                        currentSection = "Puzzle Accessibility";
+                        if (!sections.ContainsKey(currentSection))
+                        {
+                            sections[currentSection] = new List<InfoData>();
+                        }
+                        continue;
+                    }
+                }
+
+                // Add to current section if we have one
+                if (!string.IsNullOrEmpty(currentSection))
+                {
+                    if (!sections.ContainsKey(currentSection))
+                    {
+                        sections[currentSection] = new List<InfoData>();
+                    }
+                    sections[currentSection].Add(row);
+                }
             }
+
+            return sections;
         }
 
-        private void DrawSubTypeKeysTable()
+        private void DrawSection(string sectionName, List<InfoData> sectionData)
         {
+            // Draw section header
             ImGui.PushStyleColor(ImGuiCol.Text, UiTheme.Primary);
-            bool isOpen = ImGui.CollapsingHeader("Sub-type Keys: Know What Skillset to Bring", ImGuiTreeNodeFlags.DefaultOpen);
+            bool isOpen = ImGui.CollapsingHeader(sectionName, ImGuiTreeNodeFlags.DefaultOpen);
             ImGui.PopStyleColor();
 
-            if (isOpen)
+            if (!isOpen) return;
+
+            ImGui.PushStyleVar(ImGuiStyleVar.CellPadding, new Vector2(6, 6));
+
+            // Determine table structure based on section
+            if (sectionName.Contains("Difficulty Ratings"))
             {
-                ImGui.PushStyleVar(ImGuiStyleVar.CellPadding, new Vector2(6, 6));
+                DrawDifficultyRatingsTable(sectionData);
+            }
+            else if (sectionName.Contains("Sub-type Keys"))
+            {
+                DrawSubTypeKeysTable(sectionData);
+            }
+            else if (sectionName.Contains("Other Information"))
+            {
+                DrawOtherInfoTable(sectionData);
+            }
+            else if (sectionName.Contains("Puzzle Accessibility"))
+            {
+                DrawPuzzleAccessibilityTable(sectionData);
+            }
+            else
+            {
+                // Generic table for unknown sections
+                DrawGenericTable(sectionData);
+            }
 
-                ImGuiTableFlags tableFlags = ImGuiTableFlags.RowBg |
-                                            ImGuiTableFlags.Borders |
-                                            ImGuiTableFlags.SizingFixedFit;
+            ImGui.PopStyleVar();
+        }
 
-                if (ImGui.BeginTable("SubTypeKeysTable", 3, tableFlags))
+        private void DrawDifficultyRatingsTable(List<InfoData> data)
+        {
+            ImGuiTableFlags tableFlags = ImGuiTableFlags.RowBg |
+                                        ImGuiTableFlags.Borders |
+                                        ImGuiTableFlags.SizingStretchProp;
+
+            if (ImGui.BeginTable("DifficultyRatingsTable", 3, tableFlags))
+            {
+                ImGui.TableSetupColumn("Rating");
+                ImGui.TableSetupColumn("Explanation");
+                ImGui.TableSetupColumn("Square-Enix Equivalent");
+                ImGui.TableHeadersRow();
+
+                foreach (var row in data)
                 {
-                    // Setup columns with explicit widths
-                    ImGui.TableSetupColumn("Code", ImGuiTableColumnFlags.WidthFixed, 60);
-                    ImGui.TableSetupColumn("Element", ImGuiTableColumnFlags.WidthFixed, 100);
-                    ImGui.TableSetupColumn("More Info", ImGuiTableColumnFlags.WidthStretch);
+                    // Skip description rows and empty rows
+                    if (string.IsNullOrWhiteSpace(row.Key) || 
+                        row.Key.Contains("Ratings are designed") ||
+                        row.Key == "Rating")
+                        continue;
 
-                    ImGui.TableHeadersRow();
+                    ImGui.TableNextRow();
 
-                    // Add rows with proper text wrapping
-                    AddSubTypeKeyRow("M", "Mystery", "Hard-to-find or maze-like paths, tricky");
-                    AddSubTypeKeyRow("E", "Emote", "Requires emote interaction");
-                    AddSubTypeKeyRow("S", "Speed", "Sprinting and time-based actions");
-                    AddSubTypeKeyRow("P", "Phasing", "Furniture interactions that phase you through");
-                    AddSubTypeKeyRow("V", "Void Jump", "Requires jumping into void");
-                    AddSubTypeKeyRow("J", "Job Gate", "Requires specific jobs");
-                    AddSubTypeKeyRow("G", "Ghost", "Disappearances of furnishings");
-                    AddSubTypeKeyRow("L", "Logic", "Logic-based puzzle solving");
-                    AddSubTypeKeyRow("X", "No Media", "No streaming/recording allowed");
+                    // Rating column - show clean star format
+                    ImGui.TableNextColumn();
+                    DrawStarDiagramOnly(row.Key, row.Value2 ?? "");
 
-                    ImGui.EndTable();
+                    // Other columns
+                    ImGui.TableNextColumn();
+                    DrawExplanationOnly(row.Value2 ?? "");
+
+                    ImGui.TableNextColumn();
+                    ImGui.TextWrapped(row.Value3 ?? "");
                 }
 
-                ImGui.PopStyleVar();
+                ImGui.EndTable();
             }
         }
 
-        private void DrawOtherInfoTable()
+        private void DrawSubTypeKeysTable(List<InfoData> data)
         {
-            ImGui.PushStyleColor(ImGuiCol.Text, UiTheme.Primary);
-            bool isOpen = ImGui.CollapsingHeader("Other Information", ImGuiTreeNodeFlags.DefaultOpen);
-            ImGui.PopStyleColor();
+            ImGuiTableFlags tableFlags = ImGuiTableFlags.RowBg |
+                                        ImGuiTableFlags.Borders |
+                                        ImGuiTableFlags.SizingFixedFit;
 
-            if (isOpen)
+            if (ImGui.BeginTable("SubTypeKeysTable", 4, tableFlags))
             {
-                ImGui.PushStyleVar(ImGuiStyleVar.CellPadding, new Vector2(6, 6));
+                ImGui.TableSetupColumn("Code", ImGuiTableColumnFlags.WidthFixed, 60);
+                ImGui.TableSetupColumn("Element", ImGuiTableColumnFlags.WidthFixed, 100);
+                ImGui.TableSetupColumn("Means the puzzle:", ImGuiTableColumnFlags.WidthStretch);
+                ImGui.TableSetupColumn("More Info", ImGuiTableColumnFlags.WidthStretch);
+                ImGui.TableHeadersRow();
 
-                ImGuiTableFlags tableFlags = ImGuiTableFlags.RowBg |
-                                            ImGuiTableFlags.Borders |
-                                            ImGuiTableFlags.SizingFixedFit;
-
-                if (ImGui.BeginTable("OtherInfoTable", 2, tableFlags))
+                foreach (var row in data)
                 {
-                    // Use column widths from first table if available
-                    if (isInitialized)
-                    {
-                        ImGui.TableSetupColumn("Term", ImGuiTableColumnFlags.WidthFixed, columnWidths[0]);
-                        ImGui.TableSetupColumn("Explanation", ImGuiTableColumnFlags.WidthFixed, columnWidths[1]);
-                    }
-                    else
-                    {
-                        ImGui.TableSetupColumn("Term");
-                        ImGui.TableSetupColumn("Explanation");
-                    }
+                    // Skip description rows and headers
+                    if (string.IsNullOrWhiteSpace(row.Key) || 
+                        row.Key.Contains("Sub-types can seem") ||
+                        row.Key == "Code")
+                        continue;
 
-                    ImGui.TableHeadersRow();
+                    ImGui.TableNextRow();
 
-                    AddOtherInfoRow("No media tag", "Some builders prefer no streaming or videos");
-                    AddOtherInfoRow("Goals/Rules", "Conditions or rules to complete the puzzle");
-                    AddOtherInfoRow("Bonus Stages", "Additional areas/conditions for extra rewards");
-                    AddOtherInfoRow("Friend Teleport", "Friends can teleport directly to you");
-                    AddOtherInfoRow("Housing cube", "Invisible walls or floor creating puzzles");
-                    AddOtherInfoRow("The Void", "Jumping through blank space");
-                    AddOtherInfoRow("Slides", "Emote-triggered movements");
-                    AddOtherInfoRow("Ghosting", "Furniture disappearing to solve puzzles");
+                    ImGui.TableNextColumn();
+                    using (var color = new ImRaii.StyleColor(ImGuiCol.Text, UiTheme.Primary))
+                        ImGui.Text(row.Key ?? "");
 
-                    ImGui.EndTable();
+                    ImGui.TableNextColumn();
+                    ImGui.Text(row.Value1 ?? "");
+
+                    ImGui.TableNextColumn();
+                    ImGui.TextWrapped(row.Value2 ?? "");
+
+                    ImGui.TableNextColumn();
+                    ImGui.TextWrapped(row.Value3 ?? "");
                 }
 
-                ImGui.PopStyleVar();
+                ImGui.EndTable();
             }
         }
 
-        private void DrawPuzzleAccessibilityTable()
+        private void DrawOtherInfoTable(List<InfoData> data)
         {
-            ImGui.PushStyleColor(ImGuiCol.Text, UiTheme.Primary);
-            bool isOpen = ImGui.CollapsingHeader("Puzzle Accessibility", ImGuiTreeNodeFlags.DefaultOpen);
-            ImGui.PopStyleColor();
+            ImGuiTableFlags tableFlags = ImGuiTableFlags.RowBg |
+                                        ImGuiTableFlags.Borders |
+                                        ImGuiTableFlags.SizingFixedFit;
 
-            if (isOpen)
+            if (ImGui.BeginTable("OtherInfoTable", 3, tableFlags))
             {
-                ImGui.PushStyleVar(ImGuiStyleVar.CellPadding, new Vector2(6, 6));
+                ImGui.TableSetupColumn("Term", ImGuiTableColumnFlags.WidthFixed, 150);
+                ImGui.TableSetupColumn("Explanation", ImGuiTableColumnFlags.WidthStretch);
+                ImGui.TableSetupColumn("More Info", ImGuiTableColumnFlags.WidthStretch);
+                ImGui.TableHeadersRow();
 
-                ImGuiTableFlags tableFlags = ImGuiTableFlags.RowBg |
-                                            ImGuiTableFlags.Borders |
-                                            ImGuiTableFlags.SizingFixedFit;
-
-                if (ImGui.BeginTable("PuzzleAccessibilityTable", 2, tableFlags))
+                foreach (var row in data)
                 {
-                    // Use column widths from first table if available
-                    if (isInitialized)
-                    {
-                        ImGui.TableSetupColumn("District", ImGuiTableColumnFlags.WidthFixed, columnWidths[0]);
-                        ImGui.TableSetupColumn("Main City Aetheryte Access Conditions", ImGuiTableColumnFlags.WidthStretch);
-                    }
-                    else
-                    {
-                        ImGui.TableSetupColumn("District");
-                        ImGui.TableSetupColumn("Main City Aetheryte Access Conditions");
-                    }
+                    // Skip description rows and headers
+                    if (string.IsNullOrWhiteSpace(row.Value1) || 
+                        row.Value1.Contains("Some terms may sound") ||
+                        row.Value1 == "Term")
+                        continue;
 
-                    ImGui.TableHeadersRow();
+                    ImGui.TableNextRow();
 
-                    AddPuzzleAccessibilityRow("Goblet", "\"Where the Heart Is (Goblet)\" in Western Thanalan (Lv 5)");
-                    AddPuzzleAccessibilityRow("Lavender Beds", "\"Where the Heart Is (Lavender Beds)\" in Central Shroud (Lv 5)");
-                    AddPuzzleAccessibilityRow("Mist", "\"Where the Heart Is (Mist)\" in Lower La Noscea (Lv 5)");
-                    AddPuzzleAccessibilityRow("Shirogane", "\"I Dream of Shirogane\" in Kugane (Lv 61)");
-                    AddPuzzleAccessibilityRow("Empyreum", "\"Ascending to Empyreum\" in Ishgard (Lv 60)");
-                    AddPuzzleAccessibilityRow("Apartment Wing", "Wing 1 and Wing 2 for apartments");
+                    ImGui.TableNextColumn();
+                    using (var color = new ImRaii.StyleColor(ImGuiCol.Text, UiTheme.Primary))
+                        ImGui.Text(row.Value1 ?? "");
 
-                    ImGui.EndTable();
+                    ImGui.TableNextColumn();
+                    ImGui.TextWrapped(row.Value2 ?? "");
+
+                    ImGui.TableNextColumn();
+                    ImGui.TextWrapped(row.Value3 ?? "");
                 }
 
-                ImGui.PopStyleVar();
+                ImGui.EndTable();
             }
         }
 
-        private void AddDifficultyRatingRow(string rating, string systemRating, string explanation, string squareEnixEquivalent)
+        private void DrawPuzzleAccessibilityTable(List<InfoData> data)
         {
-            ImGui.TableNextRow();
+            ImGuiTableFlags tableFlags = ImGuiTableFlags.RowBg |
+                                        ImGuiTableFlags.Borders |
+                                        ImGuiTableFlags.SizingFixedFit;
 
-            ImGui.TableNextColumn();
-
-            // Apply color to rating text based on difficulty
-            switch (rating)
+            if (ImGui.BeginTable("PuzzleAccessibilityTable", 3, tableFlags))
             {
-                case "1★":
-                    using (var color = new ImRaii.StyleColor(ImGuiCol.Text, new Vector4(0.0f, 0.8f, 0.0f, 1.0f)))
-                        ImGui.Text(rating);
-                    break;
-                case "2★":
-                    using (var color = new ImRaii.StyleColor(ImGuiCol.Text, new Vector4(0.0f, 0.6f, 0.9f, 1.0f)))
-                        ImGui.Text(rating);
-                    break;
-                case "3★":
-                    using (var color = new ImRaii.StyleColor(ImGuiCol.Text, new Vector4(0.9f, 0.8f, 0.0f, 1.0f)))
-                        ImGui.Text(rating);
-                    break;
-                case "4★":
-                    using (var color = new ImRaii.StyleColor(ImGuiCol.Text, new Vector4(1.0f, 0.5f, 0.0f, 1.0f)))
-                        ImGui.Text(rating);
-                    break;
-                case "5★":
-                    using (var color = new ImRaii.StyleColor(ImGuiCol.Text, new Vector4(0.9f, 0.0f, 0.0f, 1.0f)))
-                        ImGui.Text(rating);
-                    break;
-                default:
-                    using (var color = new ImRaii.StyleColor(ImGuiCol.Text, new Vector4(0.8f, 0.8f, 0.8f, 1.0f)))
-                        ImGui.Text(rating);
-                    break;
+                ImGui.TableSetupColumn("District", ImGuiTableColumnFlags.WidthFixed, 120);
+                ImGui.TableSetupColumn("Main City Aethernet Access Conditions", ImGuiTableColumnFlags.WidthStretch);
+                ImGui.TableSetupColumn("More Info", ImGuiTableColumnFlags.WidthStretch);
+                ImGui.TableHeadersRow();
+
+                foreach (var row in data)
+                {
+                    // Skip description rows and headers
+                    if (string.IsNullOrWhiteSpace(row.Value1) || 
+                        row.Value1.Contains("Having a huge list") ||
+                        row.Value1 == "District")
+                        continue;
+
+                    ImGui.TableNextRow();
+
+                    ImGui.TableNextColumn();
+                    using (var color = new ImRaii.StyleColor(ImGuiCol.Text, UiTheme.Primary))
+                        ImGui.Text(row.Value1 ?? "");
+
+                    ImGui.TableNextColumn();
+                    ImGui.TextWrapped(row.Value2 ?? "");
+
+                    ImGui.TableNextColumn();
+                    ImGui.TextWrapped(row.Value3 ?? "");
+                }
+
+                ImGui.EndTable();
+            }
+        }
+
+        private void DrawGenericTable(List<InfoData> data)
+        {
+            ImGuiTableFlags tableFlags = ImGuiTableFlags.RowBg |
+                                        ImGuiTableFlags.Borders |
+                                        ImGuiTableFlags.SizingStretchProp;
+
+            if (ImGui.BeginTable("GenericTable", 5, tableFlags))
+            {
+                ImGui.TableSetupColumn("Section");
+                ImGui.TableSetupColumn("Key");
+                ImGui.TableSetupColumn("Value 1");
+                ImGui.TableSetupColumn("Value 2");
+                ImGui.TableSetupColumn("Value 3");
+                ImGui.TableHeadersRow();
+
+                foreach (var row in data)
+                {
+                    ImGui.TableNextRow();
+
+                    ImGui.TableNextColumn();
+                    ImGui.Text(row.Section ?? "");
+
+                    ImGui.TableNextColumn();
+                    ImGui.Text(row.Key ?? "");
+
+                    ImGui.TableNextColumn();
+                    ImGui.TextWrapped(row.Value1 ?? "");
+
+                    ImGui.TableNextColumn();
+                    ImGui.TextWrapped(row.Value2 ?? "");
+
+                    ImGui.TableNextColumn();
+                    ImGui.TextWrapped(row.Value3 ?? "");
+                }
+
+                ImGui.EndTable();
+            }
+        }
+
+        private void DrawColoredRating(string rating)
+        {
+            if (string.IsNullOrEmpty(rating))
+            {
+                ImGui.Text("");
+                return;
             }
 
-            ImGui.TableNextColumn();
-            ImGui.Text(systemRating);
+            Vector4 color = GetRatingColor(rating);
 
-            ImGui.TableNextColumn();
-            ImGui.TextWrapped(explanation);
-
-            ImGui.TableNextColumn();
-            ImGui.TextWrapped(squareEnixEquivalent);
+            using (var colorStyle = new ImRaii.StyleColor(ImGuiCol.Text, color))
+            {
+                ImGui.Text(rating);
+            }
         }
 
-        private void AddSubTypeKeyRow(string code, string element, string moreInfo)
+        private void DrawStarDiagramOnly(string rating, string starDiagram)
         {
-            ImGui.TableNextRow();
+            Vector4 ratingColor = GetRatingColor(rating);
 
-            ImGui.TableNextColumn();
-            using (var color = new ImRaii.StyleColor(ImGuiCol.Text, UiTheme.Primary))
-                ImGui.Text(code);
+            if (string.IsNullOrEmpty(rating))
+            {
+                ImGui.Text("");
+                return;
+            }
 
-            ImGui.TableNextColumn();
-            ImGui.Text(element);
+            // Create simplified star display based on rating
+            string displayText = rating switch
+            {
+                "1★" => "1★",
+                "2★" => "2★★",
+                "3★" => "3★★★",
+                "4★" => "4★★★★",
+                "5★" => "5★★★★★",
+                _ => rating // For special ratings like P, E, T, F
+            };
 
-            ImGui.TableNextColumn();
-            ImGui.TextWrapped(moreInfo);
+            using (var colorStyle = new ImRaii.StyleColor(ImGuiCol.Text, ratingColor))
+            {
+                ImGui.Text(displayText);
+            }
         }
 
-        private void AddOtherInfoRow(string term, string explanation)
+        private void DrawExplanationOnly(string starDiagram)
         {
-            ImGui.TableNextRow();
+            if (string.IsNullOrEmpty(starDiagram))
+            {
+                ImGui.Text("");
+                return;
+            }
 
-            ImGui.TableNextColumn();
-            using (var color = new ImRaii.StyleColor(ImGuiCol.Text, UiTheme.Primary))
-                ImGui.Text(term);
-
-            ImGui.TableNextColumn();
-            ImGui.TextWrapped(explanation);
+            // Extract just the explanation part (after " - ")
+            var parts = starDiagram.Split(new[] { " - " }, 2, System.StringSplitOptions.None);
+            if (parts.Length >= 2)
+            {
+                ImGui.TextWrapped(parts[1]); // Just the explanation part
+            }
+            else
+            {
+                ImGui.TextWrapped(starDiagram); // If no separator, show the whole thing
+            }
         }
 
-        private void AddPuzzleAccessibilityRow(string district, string accessConditions)
+        private void DrawColoredStarDiagram(string rating, string starDiagram)
         {
-            ImGui.TableNextRow();
+            if (string.IsNullOrEmpty(starDiagram))
+            {
+                ImGui.Text("");
+                return;
+            }
 
-            ImGui.TableNextColumn();
-            using (var color = new ImRaii.StyleColor(ImGuiCol.Text, UiTheme.Primary))
-                ImGui.Text(district);
+            Vector4 color = GetRatingColor(rating);
 
-            ImGui.TableNextColumn();
-            ImGui.TextWrapped(accessConditions);
+            // Split the text to find the star portion and the description
+            var parts = starDiagram.Split(new[] { " - " }, 2, System.StringSplitOptions.None);
+            
+            if (parts.Length >= 2)
+            {
+                // Draw the star portion with color
+                using (var colorStyle = new ImRaii.StyleColor(ImGuiCol.Text, color))
+                {
+                    ImGui.Text(parts[0]);
+                }
+                
+                // Draw the description on the same line with normal color
+                ImGui.SameLine();
+                ImGui.Text(" - ");
+                ImGui.SameLine();
+                ImGui.TextWrapped(parts[1]);
+            }
+            else
+            {
+                // If no " - " separator found, just draw the whole thing with color
+                using (var colorStyle = new ImRaii.StyleColor(ImGuiCol.Text, color))
+                {
+                    ImGui.TextWrapped(starDiagram);
+                }
+            }
+        }
+
+        private Vector4 GetRatingColor(string rating)
+        {
+            return rating switch
+            {
+                "1★" => new Vector4(0.0f, 0.8f, 0.0f, 1.0f),      // Green
+                "2★" => new Vector4(0.0f, 0.6f, 0.9f, 1.0f),      // Blue
+                "3★" => new Vector4(0.9f, 0.8f, 0.0f, 1.0f),      // Yellow
+                "4★" => new Vector4(1.0f, 0.5f, 0.0f, 1.0f),      // Orange
+                "5★" => new Vector4(0.9f, 0.0f, 0.0f, 1.0f),      // Red
+                _ => new Vector4(0.8f, 0.8f, 0.8f, 1.0f)          // Gray for special ratings
+            };
         }
     }
 }

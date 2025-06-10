@@ -17,6 +17,7 @@
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       <Visible>false</Visible>
     </Content>
+
   </ItemGroup>
 
   <ItemGroup>

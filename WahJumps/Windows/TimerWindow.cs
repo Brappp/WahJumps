@@ -18,13 +18,24 @@ namespace WahJumps.Windows
         private TimeSpan currentTime = TimeSpan.Zero;
         private int countdownRemaining = 0;
         private Vector4 timeColor = new Vector4(0.0f, 0.8f, 0.2f, 1.0f);
-        private int countdownSeconds = 3; // Default countdown seconds
 
-        // Fixed window dimensions - these set the initial size
-        private readonly Vector2 windowSize = new Vector2(300, 200);
+        // Animation state
+        private float pulseAnimation = 0f;
+        private float glowIntensity = 0f;
+        private DateTime lastStateChange = DateTime.Now;
+
+        // Window styling
+        private readonly Vector2 windowSize = new Vector2(280, 180);
+
+        // Colors and themes
+        private readonly Vector4 primaryGreen = new Vector4(0.2f, 0.8f, 0.3f, 1.0f);
+        private readonly Vector4 warningYellow = new Vector4(1.0f, 0.8f, 0.0f, 1.0f);
+        private readonly Vector4 dangerRed = new Vector4(1.0f, 0.3f, 0.3f, 1.0f);
+        private readonly Vector4 finishedGold = new Vector4(1.0f, 0.8f, 0.2f, 1.0f);
+        private readonly Vector4 countdownOrange = new Vector4(1.0f, 0.6f, 0.1f, 1.0f);
 
         public TimerWindow(SpeedrunManager speedrunManager, Plugin plugin)
-            : base("Jump Timer", ImGuiWindowFlags.NoScrollbar)
+            : base("Jump Timer##WahJumpsTimer", ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoResize | ImGuiWindowFlags.NoCollapse)
         {
             this.speedrunManager = speedrunManager;
             this.plugin = plugin;
@@ -34,11 +45,17 @@ namespace WahJumps.Windows
             speedrunManager.StateChanged += OnStateChanged;
             speedrunManager.CountdownTick += OnCountdownTick;
 
-            // Set initial size only; omit explicit Position assignment so the window remains movable.
+            // Set initial size and position
             Size = windowSize;
+            SizeConstraints = new WindowSizeConstraints
+            {
+                MinimumSize = windowSize,
+                MaximumSize = windowSize
+            };
 
-            // Do not set SizeConstraints so that the window is not locked.
-            // SizeConstraints = null;
+            // Set initial position to prevent jumping
+            Position = new Vector2(100, 100);
+            PositionCondition = ImGuiCond.FirstUseEver;
 
             // Start with window closed
             IsOpen = false;
@@ -52,268 +69,373 @@ namespace WahJumps.Windows
 
         private void OnStateChanged(SpeedrunManager.SpeedrunState state)
         {
-            // Make sure window is visible when timer is running or counting down
-            if (state == SpeedrunManager.SpeedrunState.Running ||
-                state == SpeedrunManager.SpeedrunState.Countdown)
+            lastStateChange = DateTime.Now;
+            
+            // Only auto-show window when timer starts (not on every state change)
+            if (state == SpeedrunManager.SpeedrunState.Countdown && !IsOpen)
             {
-                if (!IsOpen)
-                {
-                    IsOpen = true;
-                }
+                IsOpen = true;
             }
+
+            // Reset animations on state change
+            pulseAnimation = 0f;
+            glowIntensity = 0f;
         }
 
         private void OnCountdownTick(int remaining)
         {
             countdownRemaining = remaining;
+            // Remove shake effect to prevent window jumping
+            // shakeOffset = 2.0f;
         }
 
         public override void Draw()
         {
-            // IMPORTANT: Do NOT call SetWindowSize here
-            // That's what was preventing window movement
+            // Update animations
+            UpdateAnimations();
 
-            // Get current state from speedrun manager
-            var state = speedrunManager.GetState();
+            // Apply modern window styling
+            ApplyWindowStyling();
 
-            // Handle countdown overlay if in countdown state
-            if (state == SpeedrunManager.SpeedrunState.Countdown)
+            try
             {
-                DrawCountdown();
-                return;
-            }
+                var state = speedrunManager.GetState();
 
-            DrawTimerContent(state);
+                // Handle countdown overlay
+                if (state == SpeedrunManager.SpeedrunState.Countdown)
+                {
+                    DrawModernCountdown();
+                    return;
+                }
+
+                DrawModernTimerContent(state);
+            }
+            finally
+            {
+                // Clean up styling
+                CleanupWindowStyling();
+            }
         }
 
-        private void DrawCountdown()
+        private void UpdateAnimations()
         {
-            // Add a pulsing effect based on time
-            float pulseFactor = 0.2f * (float)Math.Sin(ImGui.GetTime() * 3.0) + 1.0f;
+            // Remove all animations for crisp, clean rendering
+            pulseAnimation = 0f;
+            glowIntensity = 0f;
+        }
 
-            // Get content region dimensions
-            Vector2 contentSize = ImGui.GetContentRegionAvail();
-            float windowWidth = contentSize.X;
-            float windowHeight = contentSize.Y;
+        private void ApplyWindowStyling()
+        {
+            // HD window styling with higher precision
+            ImGui.PushStyleVar(ImGuiStyleVar.WindowRounding, 12.0f);
+            ImGui.PushStyleVar(ImGuiStyleVar.WindowPadding, new Vector2(20, 16));
+            ImGui.PushStyleVar(ImGuiStyleVar.ItemSpacing, new Vector2(10, 10));
+            ImGui.PushStyleVar(ImGuiStyleVar.FrameRounding, 8.0f);
+            ImGui.PushStyleVar(ImGuiStyleVar.ButtonTextAlign, new Vector2(0.5f, 0.5f));
 
-            // Get window position for background
-            Vector2 startPos = ImGui.GetCursorScreenPos();
+            // HD dynamic window background with better gradients
+            var state = speedrunManager.GetState();
+            Vector4 bgColor = state switch
+            {
+                SpeedrunManager.SpeedrunState.Running => new Vector4(0.05f, 0.15f, 0.05f, 0.98f),
+                SpeedrunManager.SpeedrunState.Countdown => new Vector4(0.15f, 0.08f, 0.03f, 0.98f),
+                SpeedrunManager.SpeedrunState.Finished => new Vector4(0.15f, 0.12f, 0.03f, 0.98f),
+                _ => new Vector4(0.06f, 0.06f, 0.15f, 0.98f)
+            };
 
-            // Draw Background
-            ImDrawListPtr drawList = ImGui.GetWindowDrawList();
+            ImGui.PushStyleColor(ImGuiCol.WindowBg, bgColor);
+        }
+
+        private void CleanupWindowStyling()
+        {
+            // Pop in reverse order: 1 color, 5 style vars
+            ImGui.PopStyleColor(1);
+            ImGui.PopStyleVar(5);
+        }
+
+        private void DrawModernCountdown()
+        {
+            var contentSize = ImGui.GetContentRegionAvail();
+            var drawList = ImGui.GetWindowDrawList();
+            var windowPos = ImGui.GetWindowPos();
+            var windowSize = ImGui.GetWindowSize();
+
+            // Remove shake effect to prevent window jumping
+            // if (shakeOffset > 0)
+            // {
+            //     float shakeX = (float)(Math.Sin(ImGui.GetTime() * 30) * shakeOffset);
+            //     float shakeY = (float)(Math.Cos(ImGui.GetTime() * 25) * shakeOffset * 0.5f);
+            //     ImGui.SetWindowPos(new Vector2(windowPos.X + shakeX, windowPos.Y + shakeY));
+            // }
+
+            // Clean static background gradient
+            Vector4 gradientTop = new Vector4(0.06f, 0.03f, 0.015f, 1.0f);
+            Vector4 gradientBottom = new Vector4(0.03f, 0.015f, 0.006f, 1.0f);
+
             drawList.AddRectFilledMultiColor(
-                startPos,
-                new Vector2(startPos.X + windowWidth, startPos.Y + windowHeight),
-                ImGui.GetColorU32(new Vector4(0.1f, 0.1f, 0.2f, 1.0f)),
-                ImGui.GetColorU32(new Vector4(0.1f, 0.1f, 0.2f, 1.0f)),
-                ImGui.GetColorU32(new Vector4(0.15f, 0.15f, 0.3f, 1.0f)),
-                ImGui.GetColorU32(new Vector4(0.15f, 0.15f, 0.3f, 1.0f))
+                windowPos + new Vector2(0, 25), // Account for title bar
+                windowPos + windowSize,
+                ImGui.GetColorU32(gradientTop),
+                ImGui.GetColorU32(gradientTop),
+                ImGui.GetColorU32(gradientBottom),
+                ImGui.GetColorU32(gradientBottom)
             );
 
-            // Large countdown display with pulse effect
-            float fontSize = 5.0f * pulseFactor; // Apply pulsing
+            // Large countdown number with moderate scaling for crispness
             string countText = countdownRemaining.ToString();
-
+            
+            // Use moderate font scaling for size without fuzziness
+            float fontSize = 2.5f;
             var textSize = ImGui.CalcTextSize(countText) * fontSize;
-            float centerX = (windowWidth - textSize.X) * 0.5f;
-            float centerY = (windowHeight - textSize.Y) * 0.5f - 20;
+            float centerX = (contentSize.X - textSize.X) * 0.5f;
+            float centerY = (contentSize.Y - textSize.Y) * 0.5f - 30;
 
+            // Main countdown text - large but crisp
             ImGui.SetCursorPos(new Vector2(centerX, centerY));
-            ImGui.PushStyleColor(ImGuiCol.Text, new Vector4(1.0f, 0.6f, 0.0f, 1.0f));
-            ImGui.SetWindowFontScale(fontSize);
-            ImGui.Text(countText);
-            ImGui.SetWindowFontScale(1.0f);
-            ImGui.PopStyleColor();
-
-            // "Get Ready!" text with glow effect
-            string readyText = "Get Ready!";
-            textSize = ImGui.CalcTextSize(readyText);
-            centerX = (windowWidth - textSize.X) * 0.5f;
-
-            // Shadowed text effect
-            Vector2 shadowPos = new Vector2(centerX + 1, centerY + 61);
-            ImGui.SetCursorPos(shadowPos);
-            ImGui.TextColored(new Vector4(0.0f, 0.0f, 0.0f, 0.5f), readyText);
-
-            ImGui.SetCursorPos(new Vector2(centerX, centerY + 60));
-            ImGui.TextColored(UiTheme.Primary, readyText);
-
-            // Skip button
-            float skipButtonWidth = 120;
-            centerX = (windowWidth - skipButtonWidth) * 0.5f;
-
-            ImGui.SetCursorPos(new Vector2(centerX, centerY + 100));
-
-            // Better skip button styling
-            ImGui.PushStyleColor(ImGuiCol.Button, new Vector4(0.3f, 0.3f, 0.4f, 0.7f));
-            ImGui.PushStyleColor(ImGuiCol.ButtonHovered, new Vector4(0.4f, 0.4f, 0.5f, 0.8f));
-            ImGui.PushStyleColor(ImGuiCol.ButtonActive, new Vector4(0.5f, 0.5f, 0.6f, 0.9f));
-            ImGui.PushStyleVar(ImGuiStyleVar.FrameRounding, 4.0f);
-
-            if (ImGui.Button("Skip Countdown", new Vector2(skipButtonWidth, 30)))
+            ImGui.PushStyleColor(ImGuiCol.Text, countdownOrange);
+            try
             {
-                speedrunManager.SkipCountdown();
+                // Use moderate font scaling for good size/crispness balance
+                ImGui.SetWindowFontScale(fontSize);
+                ImGui.Text(countText);
+                ImGui.SetWindowFontScale(1.0f);
+            }
+            finally
+            {
+                ImGui.PopStyleColor(1);
             }
 
-            ImGui.PopStyleVar();
-            ImGui.PopStyleColor(3);
+            // Clean "Get Ready!" text
+            string readyText = "Get Ready!";
+            textSize = ImGui.CalcTextSize(readyText);
+            centerX = (contentSize.X - textSize.X) * 0.5f;
+
+            ImGui.SetCursorPos(new Vector2(centerX, centerY + 80));
+            ImGui.PushStyleColor(ImGuiCol.Text, new Vector4(1.0f, 1.0f, 1.0f, 0.9f));
+            try
+            {
+                ImGui.Text(readyText);
+            }
+            finally
+            {
+                ImGui.PopStyleColor(1);
+            }
+
+            // Modern skip button - centered
+            float buttonWidth = 140f;
+            float buttonCenterX = (contentSize.X - buttonWidth) * 0.5f;
+            ImGui.SetCursorPos(new Vector2(buttonCenterX, centerY + 130));
+            DrawModernButton("Skip Countdown", new Vector2(buttonWidth, 32), 
+                new Vector4(0.4f, 0.3f, 0.2f, 0.8f),
+                new Vector4(0.5f, 0.4f, 0.3f, 0.9f),
+                () => speedrunManager.SkipCountdown());
         }
 
-        private void DrawTimerContent(SpeedrunManager.SpeedrunState state)
+        private void DrawModernTimerContent(SpeedrunManager.SpeedrunState state)
         {
-            // Get content region dimensions
-            float contentWidth = ImGui.GetContentRegionAvail().X;
+            var contentSize = ImGui.GetContentRegionAvail();
 
-            // Draw puzzle name in a more prominent way if available
+            // Puzzle name header with modern styling
             var puzzle = speedrunManager.GetCurrentPuzzle();
             if (puzzle != null)
             {
-                ImGui.PushStyleColor(ImGuiCol.Text, UiTheme.Primary);
-                string title = puzzle.PuzzleName;
-                float textWidth = ImGui.CalcTextSize(title).X;
-                ImGui.SetCursorPosX((contentWidth - textWidth) * 0.5f);
-                ImGui.Text(title);
-                ImGui.PopStyleColor();
-                ImGui.Separator();
+                DrawPuzzleHeader(puzzle, contentSize.X);
             }
 
             ImGui.Spacing();
-            ImGui.Spacing();
 
-            // Format time display
-            string timeText = FormatTime(currentTime);
-
-            // Apply dynamic color based on elapsed time
-            if (state == SpeedrunManager.SpeedrunState.Running)
-            {
-                if (currentTime.TotalMinutes < 3)
-                {
-                    timeColor = new Vector4(0.0f, 0.8f, 0.2f, 1.0f); // Green
-                }
-                else if (currentTime.TotalMinutes < 10)
-                {
-                    timeColor = new Vector4(0.9f, 0.9f, 0.0f, 1.0f); // Yellow
-                }
-                else
-                {
-                    timeColor = new Vector4(1.0f, 0.3f, 0.3f, 1.0f); // Red
-                }
-            }
-            else if (state == SpeedrunManager.SpeedrunState.Finished)
-            {
-                timeColor = new Vector4(1.0f, 0.8f, 0.0f, 1.0f); // Gold
-            }
-
-            // Display the time in a large, centered format
-            float fontSize = 2.5f;
-            ImGui.PushStyleColor(ImGuiCol.Text, timeColor);
-
-            var textSize = ImGui.CalcTextSize(timeText) * fontSize;
-            ImGui.SetCursorPosX((contentWidth - textSize.X) * 0.5f);
-            ImGui.SetCursorPosY(ImGui.GetCursorPosY() + 10);
-
-            ImGui.SetWindowFontScale(fontSize);
-            ImGui.Text(timeText);
-            ImGui.SetWindowFontScale(1.0f);
-            ImGui.PopStyleColor();
-
-            // Display status label if running or finished
-            if (state == SpeedrunManager.SpeedrunState.Running)
-            {
-                string statusLabel = "Running...";
-                textSize = ImGui.CalcTextSize(statusLabel);
-                ImGui.SetCursorPosX((contentWidth - textSize.X) * 0.5f);
-                ImGui.TextColored(new Vector4(0.7f, 0.7f, 0.7f, 1.0f), statusLabel);
-            }
-            else if (state == SpeedrunManager.SpeedrunState.Finished)
-            {
-                string statusLabel = "Completed!";
-                textSize = ImGui.CalcTextSize(statusLabel);
-                ImGui.SetCursorPosX((contentWidth - textSize.X) * 0.5f);
-                ImGui.TextColored(new Vector4(0.8f, 0.8f, 0.0f, 1.0f), statusLabel);
-            }
+            // Main timer display with enhanced styling
+            DrawMainTimer(state, contentSize.X);
 
             ImGui.Spacing();
+
+            // Status indicator
+            DrawStatusIndicator(state, contentSize.X);
+
             ImGui.Spacing();
 
-            DrawControls(state);
-
-            // Footer: show countdown value and a Close button
-            ImGui.Separator();
-            ImGui.Text($"Countdown: {countdownSeconds}s");
-            ImGui.SameLine(contentWidth - 60);
-
-            ImGui.PushStyleColor(ImGuiCol.Button, new Vector4(0.2f, 0.2f, 0.25f, 1.0f));
-            ImGui.PushStyleColor(ImGuiCol.ButtonHovered, new Vector4(0.3f, 0.3f, 0.35f, 1.0f));
-            if (ImGui.Button("Close", new Vector2(50, 0)))
-            {
-                IsOpen = false;
-            }
-            ImGui.PopStyleColor(2);
+            // Control buttons
+            DrawModernControls(state, contentSize.X);
         }
 
-        private void DrawControls(SpeedrunManager.SpeedrunState state)
+        private void DrawPuzzleHeader(JumpPuzzleData puzzle, float contentWidth)
         {
-            float buttonWidth = 80;
-            float contentWidth = ImGui.GetContentRegionAvail().X;
+            string title = puzzle.PuzzleName;
+            if (title.Length > 25) title = title.Substring(0, 22) + "...";
+
+            var textSize = ImGui.CalcTextSize(title);
+            ImGui.SetCursorPosX((contentWidth - textSize.X) * 0.5f);
+
+            // HD header with enhanced background and border
+            var drawList = ImGui.GetWindowDrawList();
+            var pos = ImGui.GetCursorScreenPos();
+            
+            // Background with gradient
+            drawList.AddRectFilledMultiColor(
+                new Vector2(pos.X - 12, pos.Y - 4),
+                new Vector2(pos.X + textSize.X + 12, pos.Y + textSize.Y + 4),
+                ImGui.GetColorU32(new Vector4(0.25f, 0.25f, 0.35f, 0.4f)),
+                ImGui.GetColorU32(new Vector4(0.25f, 0.25f, 0.35f, 0.4f)),
+                ImGui.GetColorU32(new Vector4(0.15f, 0.15f, 0.25f, 0.2f)),
+                ImGui.GetColorU32(new Vector4(0.15f, 0.15f, 0.25f, 0.2f))
+            );
+            
+            // Subtle border
+            drawList.AddRect(
+                new Vector2(pos.X - 12, pos.Y - 4),
+                new Vector2(pos.X + textSize.X + 12, pos.Y + textSize.Y + 4),
+                ImGui.GetColorU32(new Vector4(0.4f, 0.4f, 0.5f, 0.3f)),
+                6.0f,
+                ImDrawFlags.None,
+                1.0f
+            );
+
+            ImGui.PushStyleColor(ImGuiCol.Text, UiTheme.Primary);
+            try
+            {
+                ImGui.Text(title);
+            }
+            finally
+            {
+                ImGui.PopStyleColor(1);
+            }
+        }
+
+        private void DrawMainTimer(SpeedrunManager.SpeedrunState state, float contentWidth)
+        {
+            string timeText = FormatTime(currentTime);
+
+            // Dynamic color based on time and state
+            timeColor = state switch
+            {
+                SpeedrunManager.SpeedrunState.Running when currentTime.TotalMinutes < 2 => primaryGreen,
+                SpeedrunManager.SpeedrunState.Running when currentTime.TotalMinutes < 5 => warningYellow,
+                SpeedrunManager.SpeedrunState.Running => dangerRed,
+                SpeedrunManager.SpeedrunState.Finished => finishedGold,
+                _ => new Vector4(0.8f, 0.8f, 0.8f, 1.0f)
+            };
+
+            // Large timer display with moderate scaling for crispness
+            float fontSize = 2.0f;
+            var textSize = ImGui.CalcTextSize(timeText) * fontSize;
+            float centerX = (contentWidth - textSize.X) * 0.5f;
+
+            // Store current cursor position for main text
+            float currentY = ImGui.GetCursorPosY();
+
+            // Main timer text - large but crisp
+            ImGui.SetCursorPos(new Vector2(centerX, currentY));
+            ImGui.PushStyleColor(ImGuiCol.Text, timeColor);
+            try
+            {
+                // Use moderate font scaling for good size/crispness balance
+                ImGui.SetWindowFontScale(fontSize);
+                ImGui.Text(timeText);
+                ImGui.SetWindowFontScale(1.0f);
+            }
+            finally
+            {
+                ImGui.PopStyleColor(1);
+            }
+        }
+
+        private void DrawStatusIndicator(SpeedrunManager.SpeedrunState state, float contentWidth)
+        {
+            string statusText = state switch
+            {
+                SpeedrunManager.SpeedrunState.Running => "● RUNNING",
+                SpeedrunManager.SpeedrunState.Finished => "✓ COMPLETED",
+                SpeedrunManager.SpeedrunState.Idle => "○ Ready",
+                _ => ""
+            };
+
+            if (string.IsNullOrEmpty(statusText)) return;
+
+            Vector4 statusColor = state switch
+            {
+                SpeedrunManager.SpeedrunState.Running => primaryGreen,
+                SpeedrunManager.SpeedrunState.Finished => finishedGold,
+                _ => new Vector4(0.6f, 0.6f, 0.6f, 1.0f)
+            };
+
+            var textSize = ImGui.CalcTextSize(statusText);
+            ImGui.SetCursorPosX((contentWidth - textSize.X) * 0.5f);
+            ImGui.PushStyleColor(ImGuiCol.Text, statusColor);
+            try
+            {
+                ImGui.Text(statusText);
+            }
+            finally
+            {
+                ImGui.PopStyleColor(1);
+            }
+        }
+
+        private void DrawModernControls(SpeedrunManager.SpeedrunState state, float contentWidth)
+        {
+            float buttonWidth = 100;
+            float centerX = (contentWidth - buttonWidth) * 0.5f;
+
+            ImGui.SetCursorPosX(centerX);
 
             switch (state)
             {
                 case SpeedrunManager.SpeedrunState.Idle:
-                    float startX = (contentWidth - buttonWidth) * 0.5f;
-                    ImGui.SetCursorPosX(startX);
-
-                    ImGui.PushStyleColor(ImGuiCol.Button, new Vector4(0.0f, 0.5f, 0.2f, 1.0f));
-                    ImGui.PushStyleColor(ImGuiCol.ButtonHovered, new Vector4(0.0f, 0.6f, 0.3f, 1.0f));
-                    ImGui.PushStyleColor(ImGuiCol.ButtonActive, new Vector4(0.0f, 0.7f, 0.4f, 1.0f));
-                    ImGui.PushStyleColor(ImGuiCol.Text, new Vector4(1.0f, 1.0f, 1.0f, 1.0f));
-
-                    if (ImGui.Button("Start", new Vector2(buttonWidth, 24)))
-                    {
-                        speedrunManager.StartCountdown();
-                    }
-
-                    ImGui.PopStyleColor(4);
+                    DrawModernButton("START", new Vector2(buttonWidth, 32),
+                        new Vector4(0.2f, 0.6f, 0.3f, 0.8f),
+                        new Vector4(0.3f, 0.7f, 0.4f, 0.9f),
+                        () => speedrunManager.StartCountdown());
                     break;
 
                 case SpeedrunManager.SpeedrunState.Running:
-                    startX = (contentWidth - buttonWidth) * 0.5f;
-                    ImGui.SetCursorPosX(startX);
-
-                    ImGui.PushStyleColor(ImGuiCol.Button, new Vector4(0.7f, 0.1f, 0.1f, 1.0f));
-                    ImGui.PushStyleColor(ImGuiCol.ButtonHovered, new Vector4(0.8f, 0.2f, 0.2f, 1.0f));
-                    ImGui.PushStyleColor(ImGuiCol.ButtonActive, new Vector4(0.9f, 0.3f, 0.3f, 1.0f));
-                    ImGui.PushStyleColor(ImGuiCol.Text, new Vector4(1.0f, 1.0f, 1.0f, 1.0f));
-
-                    if (ImGui.Button("Stop", new Vector2(buttonWidth, 24)))
-                    {
-                        speedrunManager.StopTimer();
-                    }
-
-                    ImGui.PopStyleColor(4);
+                    DrawModernButton("STOP", new Vector2(buttonWidth, 32),
+                        new Vector4(0.7f, 0.2f, 0.2f, 0.8f),
+                        new Vector4(0.8f, 0.3f, 0.3f, 0.9f),
+                        () => speedrunManager.StopTimer());
                     break;
 
                 case SpeedrunManager.SpeedrunState.Finished:
-                    ImGui.SetCursorPosX((contentWidth - buttonWidth) * 0.5f);
-
-                    ImGui.PushStyleColor(ImGuiCol.Button, new Vector4(0.2f, 0.4f, 0.6f, 1.0f));
-                    ImGui.PushStyleColor(ImGuiCol.ButtonHovered, new Vector4(0.3f, 0.5f, 0.7f, 1.0f));
-                    ImGui.PushStyleColor(ImGuiCol.ButtonActive, new Vector4(0.4f, 0.6f, 0.8f, 1.0f));
-                    ImGui.PushStyleColor(ImGuiCol.Text, new Vector4(1.0f, 1.0f, 1.0f, 1.0f));
-
-                    if (ImGui.Button("Reset", new Vector2(buttonWidth, 24)))
-                    {
-                        speedrunManager.ResetTimer();
-                    }
-
-                    ImGui.PopStyleColor(4);
+                    DrawModernButton("RESET", new Vector2(buttonWidth, 32),
+                        new Vector4(0.3f, 0.4f, 0.6f, 0.8f),
+                        new Vector4(0.4f, 0.5f, 0.7f, 0.9f),
+                        () => speedrunManager.ResetTimer());
                     break;
+            }
+        }
+
+
+
+        private void DrawModernButton(string text, Vector2 size, Vector4 normalColor, Vector4 hoverColor, Action onClick)
+        {
+            // HD button styling with enhanced effects
+            ImGui.PushStyleColor(ImGuiCol.Button, normalColor);
+            ImGui.PushStyleColor(ImGuiCol.ButtonHovered, hoverColor);
+            ImGui.PushStyleColor(ImGuiCol.ButtonActive, new Vector4(hoverColor.X * 1.3f, hoverColor.Y * 1.3f, hoverColor.Z * 1.3f, 1.0f));
+            ImGui.PushStyleColor(ImGuiCol.Text, Vector4.One);
+            ImGui.PushStyleVar(ImGuiStyleVar.FrameRounding, 10.0f);
+            ImGui.PushStyleVar(ImGuiStyleVar.FramePadding, new Vector2(12, 8));
+
+            try
+            {
+                if (ImGui.Button(text, size))
+                {
+                    onClick?.Invoke();
+                }
+            }
+            finally
+            {
+                ImGui.PopStyleVar(2);
+                ImGui.PopStyleColor(4);
             }
         }
 
         private string FormatTime(TimeSpan time)
         {
-            return $"{(int)time.TotalMinutes:D2}:{time.Seconds:D2}.{time.Milliseconds / 10:D2}";
+            if (time.TotalHours >= 1)
+            {
+                return $"{(int)time.TotalHours:D1}:{time.Minutes:D2}:{time.Seconds:D2}.{time.Milliseconds / 10:D2}";
+            }
+            return $"{time.Minutes:D2}:{time.Seconds:D2}.{time.Milliseconds / 10:D2}";
         }
 
         // Window visibility control
