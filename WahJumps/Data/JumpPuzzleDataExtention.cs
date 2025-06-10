@@ -1,4 +1,3 @@
-// File: WahJumps/Data/JumpPuzzleDataExtension.cs
 using System;
 
 namespace WahJumps.Data

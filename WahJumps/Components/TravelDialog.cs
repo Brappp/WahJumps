@@ -1,5 +1,3 @@
-// File: WahJumps/Windows/Components/TravelDialog.cs
-
 using ImGuiNET;
 using System;
 using System.Numerics;

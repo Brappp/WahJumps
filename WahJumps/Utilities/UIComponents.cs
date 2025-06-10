@@ -1,6 +1,3 @@
-// File: WahJumps/Windows/Components/UiComponents.cs
-// Status: CONDENSED VERSION - More professional and compact
-
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;

@@ -1,6 +1,3 @@
-// File: WahJumps/Utilities/AnimationHelper.cs
-// Status: NEW FILE - Create this file
-
 using System;
 using System.Numerics;
 using ImGuiNET;

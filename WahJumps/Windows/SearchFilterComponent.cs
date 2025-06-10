@@ -1,6 +1,3 @@
-// File: WahJumps/Windows/SearchFilterComponent.cs
-// Status: REDESIGNED VERSION - Modern search with consistent UI styling
-
 using System;
 using System.Collections.Generic;
 using System.Linq;

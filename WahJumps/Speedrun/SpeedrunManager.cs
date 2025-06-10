@@ -1,4 +1,3 @@
-// File: WahJumps/Data/SpeedrunManager.cs
 using System;
 using WahJumps.Data;
 

@@ -1,4 +1,3 @@
-// File: WahJumps/Data/JumpPuzzleData.cs
 namespace WahJumps.Data
 {
     public partial class JumpPuzzleData

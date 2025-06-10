@@ -1,6 +1,3 @@
-// File: WahJumps/Windows/StrangeHousingTab.cs
-// Status: COMPLETE - Clean design with animated stick figure
-
 using ImGuiNET;
 using WahJumps.Utilities;
 using WahJumps.Windows.Components;

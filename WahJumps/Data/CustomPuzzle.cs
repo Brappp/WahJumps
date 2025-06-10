@@ -1,4 +1,3 @@
-// File: WahJumps/Data/CustomPuzzle.cs
 using System;
 
 namespace WahJumps.Data

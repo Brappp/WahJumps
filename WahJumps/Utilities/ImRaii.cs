@@ -1,4 +1,3 @@
-// File: WahJumps/Utilities/ImRaii.cs
 using System;
 using ImGuiNET;
 using System.Numerics;

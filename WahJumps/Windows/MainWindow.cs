@@ -621,428 +621,500 @@ namespace WahJumps.Windows
             }
         }
 
-        private void DrawDataCenterInfo(string dataCenterName, List<JumpPuzzleData> puzzles)
+        private void DrawDataCenterComparison()
         {
-            // Quick stats for this data center
-            var ratingCounts = puzzles.GroupBy(p => p.Rating)
-                .ToDictionary(g => g.Key, g => g.Count());
-            
-            var worldCounts = puzzles.GroupBy(p => p.World)
-                .ToDictionary(g => g.Key, g => g.Count());
-
-            ImGui.Text($"Data Center Overview: {puzzles.Count} total puzzles");
-            ImGui.SameLine();
-            
-            // Show rating distribution with white text
-            var ratings = new[] { "★★★★★", "★★★★", "★★★", "★★", "★" };
-            bool first = true;
-            foreach (var rating in ratings)
-            {
-                if (ratingCounts.ContainsKey(rating) && ratingCounts[rating] > 0)
-                {
-                    if (!first) ImGui.SameLine();
-                    
-                    // Use white text instead of colored text
-                    ImGui.Text($"{rating}: {ratingCounts[rating]}");
-                    
-                    first = false;
-                }
-            }
-            
+            ImGui.Text("Data Center Statistics & Distribution");
             ImGui.Separator();
-        }
-
-        private void DrawFavoritesTab()
-        {
-            // Show favorites if any exist
-            if (favoritePuzzles.Count > 0)
+            
+            if (csvDataByDataCenter.Count == 0)
             {
-                using var child = new ImRaii.Child("FavoritesView", new Vector2(0, 0), true);
-
-                // Draw the favorites table with a special column for unfavorite buttons
-                DrawFavoritesTable(favoritePuzzles);
-            }
-            else
-            {
-                // No favorites message with a nice icon
-                float centerY = ImGui.GetContentRegionAvail().Y * 0.4f;
-                ImGui.SetCursorPosY(centerY);
-
-                ImGui.PushStyleColor(ImGuiCol.Text, new Vector4(0.6f, 0.6f, 0.6f, 1.0f));
-                UiTheme.CenteredText("♡");
-                ImGui.SetWindowFontScale(1.5f);
-                UiTheme.CenteredText("No favorites added yet");
-                ImGui.SetWindowFontScale(1.0f);
-                ImGui.Spacing();
-                UiTheme.CenteredText("Browse puzzles and click 'Add' to favorite them");
-                ImGui.PopStyleColor();
-            }
-        }
-
-        private void DrawRatingTabs(List<JumpPuzzleData> puzzles)
-        {
-            var puzzlesByRating = puzzles
-                .GroupBy(p => p.Rating)
-                .OrderByDescending(g => ConvertRatingToInt(g.Key));
-
-            using var tabBar = new ImRaii.TabBar("RatingTabs");
-            if (!tabBar.Success) return;
-
-            // Add an "All" tab first with total count
-            if (ImGui.BeginTabItem($"All ({puzzles.Count})"))
-            {
-                DrawPuzzleTable(puzzles);
-                ImGui.EndTabItem();
-            }
-
-            // Then rating-specific tabs with counts (no special coloring)
-            foreach (var ratingGroup in puzzlesByRating)
-            {
-                string tabName = $"{ratingGroup.Key} ({ratingGroup.Count()})";
-
-                // No boolean reference = no close button
-                if (ImGui.BeginTabItem(tabName))
-                {
-                    DrawPuzzleTable(ratingGroup.ToList());
-                    ImGui.EndTabItem();
-                }
-            }
-        }
-
-        // New method specifically for drawing the favorites table with unfavorite buttons
-        private void DrawFavoritesTable(List<JumpPuzzleData> puzzles)
-        {
-            if (puzzles.Count == 0)
-            {
-                UiTheme.CenteredText("No puzzles available.");
+                UiTheme.CenteredText("No data loaded yet. Please wait for data to load or refresh.");
                 return;
             }
-
+            
+            // Sort by puzzle count (descending)
+            var sortedDCs = csvDataByDataCenter
+                .OrderByDescending(dc => dc.Value.Count)
+                .ToList();
+            
+            // Calculate totals for percentages
+            var totalPuzzles = csvDataByDataCenter.Values.Sum(v => v.Count);
+            
+            // Draw summary statistics at the top
+            DrawSummaryStatistics(totalPuzzles);
+            
+            ImGui.Spacing();
+            ImGui.Separator();
+            ImGui.Spacing();
+            
+            // Create a single scrollable area for all tables
+            using var child = new ImRaii.Child("DCOverviewScrollArea", new Vector2(0, 0), true);
+            
             // Apply consistent table styling
             UiTheme.StyleTable();
-
+            
             ImGuiTableFlags flags = ImGuiTableFlags.RowBg |
                                    ImGuiTableFlags.Borders |
                                    ImGuiTableFlags.Resizable |
-                                   ImGuiTableFlags.ScrollY |
                                    ImGuiTableFlags.SizingFixedFit |
                                    ImGuiTableFlags.Sortable;
 
-            if (ImGui.BeginTable("FavoritesTable", 9, flags))
+            if (ImGui.BeginTable("DCComparison", 11, flags))
             {
-                // Configure columns with improved widths
-                ImGui.TableSetupColumn("Rating", ImGuiTableColumnFlags.WidthFixed, 45);
-                ImGui.TableSetupColumn("Name", ImGuiTableColumnFlags.WidthStretch, 200);
-                ImGui.TableSetupColumn("Builder", ImGuiTableColumnFlags.WidthStretch, 130);
-                ImGui.TableSetupColumn("World", ImGuiTableColumnFlags.WidthFixed, 70);
-                ImGui.TableSetupColumn("Address", ImGuiTableColumnFlags.WidthStretch, 180);
-                ImGui.TableSetupColumn("Type", ImGuiTableColumnFlags.WidthFixed, 60);
-                ImGui.TableSetupColumn("Rules", ImGuiTableColumnFlags.WidthStretch, 170);
-                ImGui.TableSetupColumn("Unfavorite", ImGuiTableColumnFlags.WidthFixed, 70); // New column specifically for unfavorite
-                ImGui.TableSetupColumn("Go", ImGuiTableColumnFlags.WidthFixed, 40);
-
-                ImGui.TableSetupScrollFreeze(0, 1);
+                ImGui.TableSetupColumn("Region");
+                ImGui.TableSetupColumn("Data Center");
+                ImGui.TableSetupColumn("Total");
+                ImGui.TableSetupColumn("Worlds");
+                ImGui.TableSetupColumn("★★★★★");
+                ImGui.TableSetupColumn("★★★★");
+                ImGui.TableSetupColumn("★★★");
+                ImGui.TableSetupColumn("★★");
+                ImGui.TableSetupColumn("★");
+                ImGui.TableSetupColumn("Special");
+                ImGui.TableSetupColumn("Distribution", ImGuiTableColumnFlags.WidthStretch);
+                
                 ImGui.TableHeadersRow();
-
-                // Draw each row
-                for (int i = 0; i < puzzles.Count; i++)
+                
+                foreach (var dc in sortedDCs)
                 {
-                    var puzzle = puzzles[i];
-                    ImGui.TableNextRow();
-                    ImGui.TableNextColumn();
-
-                    // Use Selectable to highlight the row
-                    ImGui.PushID(i);
-                    ImGui.Selectable($"##row_{i}", false, ImGuiSelectableFlags.SpanAllColumns | ImGuiSelectableFlags.AllowItemOverlap);
-                    ImGui.PopID();
-
-                    // Reset cursor to start of row for the actual content
-                    ImGui.TableSetColumnIndex(0);
-
-                    // Rating with color
-                    RenderRatingWithColor(puzzle.Rating);
-
-                    // Puzzle Name
-                    ImGui.TableNextColumn();
-                    ImGui.TextWrapped(puzzle.PuzzleName);
-
-                    // Builder
-                    ImGui.TableNextColumn();
-                    ImGui.Text(puzzle.Builder);
-
-                    // World
-                    ImGui.TableNextColumn();
-                    ImGui.Text(puzzle.World);
-
-                    // Address
-                    ImGui.TableNextColumn();
-                    ImGui.TextWrapped(puzzle.Address);
-
-                    // Codes (compacted)
-                    ImGui.TableNextColumn();
-                    string combinedCodes = UiComponents.CombineCodes(puzzle.M, puzzle.E, puzzle.S, puzzle.P, puzzle.V, puzzle.J, puzzle.G, puzzle.L, puzzle.X);
-                    RenderCodesWithTooltips(combinedCodes);
-
-                    // Goals/Rules
-                    ImGui.TableNextColumn();
-                    ImGui.TextWrapped(puzzle.GoalsOrRules);
-
-                    // Unfavorite Button
-                    ImGui.TableNextColumn();
-                    ImGui.PushStyleColor(ImGuiCol.Button, new Vector4(0.7f, 0.1f, 0.1f, 1.0f)); // Red button
-                    ImGui.PushStyleColor(ImGuiCol.ButtonHovered, new Vector4(0.8f, 0.2f, 0.2f, 1.0f));
-
-                    if (ImGui.Button($"Remove##{puzzle.Id}"))
-                    {
-                        RemoveFromFavorites(puzzle);
-                        ShowNotification("Puzzle removed from favorites", MessageType.Info);
-                    }
-                    ImGui.PopStyleColor(2);
-
-                    if (ImGui.IsItemHovered())
-                        ImGui.SetTooltip("Remove from favorites");
-
-                    // Travel Button (compact icon)
-                    ImGui.TableNextColumn();
-                    ImGui.PushStyleColor(ImGuiCol.Text, UiTheme.Primary);
-                    if (ImGui.Button($"→##{puzzle.Id}"))
-                    {
-                        OnTravelRequest(puzzle);
-                    }
-                    if (ImGui.IsItemHovered()) ImGui.SetTooltip($"Travel to {puzzle.World} {puzzle.Address}");
-                    ImGui.PopStyleColor();
-                }
-
-                ImGui.EndTable();
-            }
-
-            // End table styling
-            UiTheme.EndTableStyle();
-        }
-
-
-
-        // Updated table drawing method with professional styling
-        private void DrawPuzzleTable(List<JumpPuzzleData> puzzles, bool includeAddToFavorites = true)
-        {
-            if (puzzles.Count == 0)
-            {
-                UiTheme.CenteredText("No puzzles available.");
-                return;
-            }
-
-            // Apply consistent table styling
-            UiTheme.StyleTable();
-
-            ImGuiTableFlags flags = ImGuiTableFlags.RowBg |
-                                   ImGuiTableFlags.Borders |
-                                   ImGuiTableFlags.Resizable |
-                                   ImGuiTableFlags.ScrollY |
-                                   ImGuiTableFlags.SizingFixedFit |
-                                   ImGuiTableFlags.Sortable;
-
-            // Reduced column count (removed Timer column)
-            int columnCount = includeAddToFavorites ? 9 : 8;
-
-            if (ImGui.BeginTable("PuzzlesTable", columnCount, flags))
-            {
-                // Configure columns with improved widths
-                ImGui.TableSetupColumn("Rating", ImGuiTableColumnFlags.WidthFixed, 45);
-                ImGui.TableSetupColumn("Name", ImGuiTableColumnFlags.WidthStretch, 200); // Increased width
-                ImGui.TableSetupColumn("Builder", ImGuiTableColumnFlags.WidthStretch, 130);
-                ImGui.TableSetupColumn("World", ImGuiTableColumnFlags.WidthFixed, 70);
-                ImGui.TableSetupColumn("Address", ImGuiTableColumnFlags.WidthStretch, 180);
-                ImGui.TableSetupColumn("Type", ImGuiTableColumnFlags.WidthFixed, 60);
-                ImGui.TableSetupColumn("Rules", ImGuiTableColumnFlags.WidthStretch, 170);
-
-                if (includeAddToFavorites)
-                {
-                    ImGui.TableSetupColumn("Fav", ImGuiTableColumnFlags.WidthFixed, 40);
-                }
-
-                ImGui.TableSetupColumn("Go", ImGuiTableColumnFlags.WidthFixed, 40);
-
-                ImGui.TableSetupScrollFreeze(0, 1);
-                ImGui.TableHeadersRow();
-
-                // Draw each row
-                for (int i = 0; i < puzzles.Count; i++)
-                {
-                    var puzzle = puzzles[i];
-                    ImGui.TableNextRow();
-                    ImGui.TableNextColumn();
-
-                    // Use Selectable to highlight the row - SpanAllColumns makes it cover the whole row
-                    ImGui.PushID(i);
-                    ImGui.Selectable($"##row_{i}", false, ImGuiSelectableFlags.SpanAllColumns | ImGuiSelectableFlags.AllowItemOverlap);
-                    ImGui.PopID();
-
-                    // Reset cursor to start of row for the actual content
-                    ImGui.TableSetColumnIndex(0);
-
-                    // Vertically and horizontally centered rating
-                    float rowHeight = ImGui.GetTextLineHeightWithSpacing();
-                    float textHeight = ImGui.GetTextLineHeight();
-                    float cellY = ImGui.GetCursorPosY();
-                    float textWidth = ImGui.CalcTextSize(puzzle.Rating).X;
-                    float columnWidth = ImGui.GetColumnWidth();
-                    float columnX = ImGui.GetCursorPosX();
-
-                    // Center horizontally
-                    ImGui.SetCursorPosX(columnX + (columnWidth - textWidth) * 0.5f);
+                    var ratings = dc.Value.GroupBy(p => p.Rating)
+                        .ToDictionary(g => g.Key, g => g.Count());
                     
-                    // Center vertically - move cursor up to align to top of cell
-                    ImGui.SetCursorPosY(cellY + (rowHeight - textHeight) * 0.1f);
-
-                    // Now render with color
-                    RenderRatingWithColor(puzzle.Rating);
-
-                    // Puzzle Name
+                    var percentage = (float)dc.Value.Count / totalPuzzles * 100f;
+                    
+                    // Calculate additional stats
+                    var worldCount = dc.Value.Select(p => p.World).Distinct().Count();
+                    var specialCount = GetSpecialPuzzleCount(dc.Value);
+                    
+                    ImGui.TableNextRow();
+                    
+                    // Region
                     ImGui.TableNextColumn();
-                    ImGui.TextWrapped(puzzle.PuzzleName);
-
-                    // Builder
+                    var region = GetRegionForDataCenter(dc.Key);
+                    ImGui.Text(region);
+                    
+                    // Data Center name
                     ImGui.TableNextColumn();
-                    ImGui.Text(puzzle.Builder);
-
-                    // World
+                    ImGui.Text(dc.Key);
+                    
+                    // Total count
                     ImGui.TableNextColumn();
-                    ImGui.Text(puzzle.World);
-
-                    // Address
+                    ImGui.Text(dc.Value.Count.ToString());
+                    
+                    // World count
                     ImGui.TableNextColumn();
-                    ImGui.TextWrapped(puzzle.Address);
-
-                    // Codes (compacted)
+                    ImGui.Text(worldCount.ToString());
+                    
+                    // Rating columns
                     ImGui.TableNextColumn();
-                    string combinedCodes = UiComponents.CombineCodes(puzzle.M, puzzle.E, puzzle.S, puzzle.P, puzzle.V, puzzle.J, puzzle.G, puzzle.L, puzzle.X);
-                    RenderCodesWithTooltips(combinedCodes);
-
-                    // Goals/Rules
-                    ImGui.TableNextColumn();
-                    ImGui.TextWrapped(puzzle.GoalsOrRules);
-
-                    // Favorite Button (compact icon)
-                    if (includeAddToFavorites)
+                    var fiveStarCount = ratings.GetValueOrDefault("★★★★★", 0);
+                    if (fiveStarCount > 0)
                     {
-                        ImGui.TableNextColumn();
-                        bool isFav = IsFavorite(puzzle);
-
-                        if (isFav)
-                        {
-                            ImGui.PushStyleColor(ImGuiCol.Text, UiTheme.Error);
-                            if (ImGui.Button($"♥##{puzzle.Id}"))
-                            {
-                                RemoveFromFavorites(puzzle);
-                                ShowNotification("Puzzle removed from favorites", MessageType.Info);
-                            }
-                            if (ImGui.IsItemHovered()) ImGui.SetTooltip("Remove from favorites");
-                            ImGui.PopStyleColor();
-                        }
-                        else
-                        {
-                            ImGui.PushStyleColor(ImGuiCol.Text, UiTheme.Success);
-                            if (ImGui.Button($"♡##{puzzle.Id}"))
-                            {
-                                AddToFavorites(puzzle);
-                                ShowNotification("Puzzle added to favorites", MessageType.Success);
-                            }
-                            if (ImGui.IsItemHovered()) ImGui.SetTooltip("Add to favorites");
-                            ImGui.PopStyleColor();
-                        }
-                    }
-
-                    // Travel Button (compact icon)
-                    ImGui.TableNextColumn();
-                    ImGui.PushStyleColor(ImGuiCol.Text, UiTheme.Primary);
-                    if (ImGui.Button($"→##{puzzle.Id}"))
-                    {
-                        OnTravelRequest(puzzle);
-                    }
-                    if (ImGui.IsItemHovered()) ImGui.SetTooltip($"Travel to {puzzle.World} {puzzle.Address}");
-                    ImGui.PopStyleColor();
-                }
-
-                ImGui.EndTable();
-            }
-
-            // End table styling
-            UiTheme.EndTableStyle();
-        }
-
-        private void RenderRatingWithColor(string rating)
-        {
-            Vector4 color = GetRatingColor(rating);
-
-            using var textColor = new ImRaii.StyleColor(ImGuiCol.Text, color);
-            ImGui.Text(rating);
-        }
-
-        private void RenderCodesWithTooltips(string codes)
-        {
-            if (string.IsNullOrEmpty(codes))
-            {
-                ImGui.Text("-");
-                return;
-            }
-
-            ImGui.Text(codes);
-
-            if (ImGui.IsItemHovered())
-            {
-                ImGui.PushStyleColor(ImGuiCol.PopupBg, new Vector4(0.18f, 0.18f, 0.22f, 0.95f));
-                ImGui.BeginTooltip();
-                ImGui.Text("Puzzle Type Codes:");
-                ImGui.Separator();
-
-                Dictionary<string, string> codeDescriptions = new Dictionary<string, string>
-                {
-                    { "M", "Mystery - Hard-to-find or maze-like paths" },
-                    { "E", "Emote - Requires emote interaction" },
-                    { "S", "Speed - Sprinting and time-based actions" },
-                    { "P", "Phasing - Furniture interactions that phase you" },
-                    { "V", "Void Jump - Requires jumping into void" },
-                    { "J", "Job Gate - Requires specific jobs" },
-                    { "G", "Ghost - Disappearances of furnishings" },
-                    { "L", "Logic - Logic-based puzzle solving" },
-                    { "X", "No Media - No streaming/recording allowed" }
-                };
-
-                string[] codeParts = codes.Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries);
-                foreach (string code in codeParts)
-                {
-                    string trimmedCode = code.Trim();
-                    if (codeDescriptions.TryGetValue(trimmedCode, out string description))
-                    {
-                        ImGui.BulletText($"{trimmedCode}: {description}");
+                        ImGui.Text(fiveStarCount.ToString());
                     }
                     else
                     {
-                        ImGui.BulletText(trimmedCode);
+                        ImGui.Text("-");
                     }
+                    
+                    ImGui.TableNextColumn();
+                    var fourStarCount = ratings.GetValueOrDefault("★★★★", 0);
+                    if (fourStarCount > 0)
+                    {
+                        ImGui.Text(fourStarCount.ToString());
+                    }
+                    else
+                    {
+                        ImGui.Text("-");
+                    }
+                    
+                    ImGui.TableNextColumn();
+                    var threeStarCount = ratings.GetValueOrDefault("★★★", 0);
+                    if (threeStarCount > 0)
+                    {
+                        ImGui.Text(threeStarCount.ToString());
+                    }
+                    else
+                    {
+                        ImGui.Text("-");
+                    }
+                    
+                    ImGui.TableNextColumn();
+                    var twoStarCount = ratings.GetValueOrDefault("★★", 0);
+                    if (twoStarCount > 0)
+                    {
+                        ImGui.Text(twoStarCount.ToString());
+                    }
+                    else
+                    {
+                        ImGui.Text("-");
+                    }
+                    
+                    ImGui.TableNextColumn();
+                    var oneStarCount = ratings.GetValueOrDefault("★", 0);
+                    if (oneStarCount > 0)
+                    {
+                        ImGui.Text(oneStarCount.ToString());
+                    }
+                    else
+                    {
+                        ImGui.Text("-");
+                    }
+                    
+                    // Special puzzles count
+                    ImGui.TableNextColumn();
+                    ImGui.Text(specialCount.ToString());
+                    if (ImGui.IsItemHovered())
+                    {
+                        ImGui.BeginTooltip();
+                        DrawSpecialPuzzleBreakdown(dc.Value);
+                        ImGui.EndTooltip();
+                    }
+                    
+                    // Mini bar chart with percentage
+                    ImGui.TableNextColumn();
+                    DrawMiniBarChartWithPercentage(ratings, dc.Value.Count, totalPuzzles, percentage);
                 }
+                
+                ImGui.EndTable();
+            }
 
-                ImGui.EndTooltip();
-                ImGui.PopStyleColor();
+            UiTheme.EndTableStyle();
+            
+            // Top Builders section
+            ImGui.Spacing();
+            ImGui.Spacing();
+            ImGui.Separator();
+            ImGui.Spacing();
+            DrawTopBuildersTable(sortedDCs);
+        }
+
+        private string GetRegionForDataCenter(string dataCenterName)
+        {
+            foreach (var region in regionGroups)
+            {
+                if (region.Value.DataCenters.Contains(dataCenterName))
+                {
+                    return region.Key;
+                }
+            }
+            return "Unknown";
+        }
+
+        private void DrawTopBuildersTable(List<KeyValuePair<string, List<JumpPuzzleData>>> sortedDCs)
+        {
+            // Make the header more prominent
+            ImGui.PushStyleColor(ImGuiCol.Text, UiTheme.Primary);
+            ImGui.Text("Top 5 Builders by Data Center");
+            ImGui.PopStyleColor();
+            ImGui.Separator();
+            
+            UiTheme.StyleTable();
+            
+            ImGuiTableFlags flags = ImGuiTableFlags.RowBg |
+                                   ImGuiTableFlags.Borders |
+                                   ImGuiTableFlags.Resizable |
+                                   ImGuiTableFlags.SizingFixedFit;
+
+            if (ImGui.BeginTable("TopBuilders", 8, flags))
+            {
+                ImGui.TableSetupColumn("Region");
+                ImGui.TableSetupColumn("Data Center");
+                ImGui.TableSetupColumn("1st Place");
+                ImGui.TableSetupColumn("2nd Place");
+                ImGui.TableSetupColumn("3rd Place");
+                ImGui.TableSetupColumn("4th Place");
+                ImGui.TableSetupColumn("5th Place");
+                ImGui.TableSetupColumn("Total Builders", ImGuiTableColumnFlags.WidthStretch);
+                
+                ImGui.TableHeadersRow();
+                
+                foreach (var dc in sortedDCs)
+                {
+                    var builderStats = dc.Value
+                        .Where(p => !string.IsNullOrEmpty(p.Builder))
+                        .GroupBy(p => p.Builder)
+                        .OrderByDescending(g => g.Count())
+                        .Take(5)
+                        .ToList();
+                    
+                    var totalBuilders = dc.Value
+                        .Where(p => !string.IsNullOrEmpty(p.Builder))
+                        .Select(p => p.Builder)
+                        .Distinct()
+                        .Count();
+                    
+                    ImGui.TableNextRow();
+                    
+                    // Region
+                    ImGui.TableNextColumn();
+                    var region = GetRegionForDataCenter(dc.Key);
+                    ImGui.Text(region);
+                    
+                    // Data Center name
+                    ImGui.TableNextColumn();
+                    ImGui.Text(dc.Key);
+                    
+                    // Top 5 builders
+                    for (int i = 0; i < 5; i++)
+                    {
+                        ImGui.TableNextColumn();
+                        if (i < builderStats.Count)
+                        {
+                            var builder = builderStats[i];
+                            var name = builder.Key;
+                            var count = builder.Count();
+                            var avgDiff = CalculateAverageDifficulty(builder.ToList());
+                            
+                            // Truncate long names
+                            if (name.Length > 15)
+                                name = name.Substring(0, 12) + "...";
+                            
+                            ImGui.Text($"{name} ({count})");
+                            
+                            if (ImGui.IsItemHovered())
+                            {
+                                ImGui.BeginTooltip();
+                                ImGui.Text($"Builder: {builder.Key}");
+                                ImGui.Text($"Puzzles: {count}");
+                                ImGui.Text($"Avg Difficulty: {avgDiff:F1}★");
+                                ImGui.EndTooltip();
+                            }
+                        }
+                        else
+                        {
+                            ImGui.Text("-");
+                        }
+                    }
+                    
+                    // Total builders
+                    ImGui.TableNextColumn();
+                    ImGui.Text(totalBuilders.ToString());
+                }
+                
+                ImGui.EndTable();
+            }
+
+            UiTheme.EndTableStyle();
+        }
+
+        private void DrawMiniBarChartWithPercentage(Dictionary<string, int> ratings, int totalForDC, int grandTotal, float percentage)
+        {
+            ImDrawListPtr drawList = ImGui.GetWindowDrawList();
+            Vector2 pos = ImGui.GetCursorScreenPos();
+            float barWidth = ImGui.GetColumnWidth() - 10;
+            float barHeight = 20;
+            
+            // Background
+            drawList.AddRectFilled(
+                pos,
+                new Vector2(pos.X + barWidth, pos.Y + barHeight),
+                ImGui.GetColorU32(new Vector4(0.1f, 0.1f, 0.1f, 1.0f)),
+                2.0f
+            );
+            
+            // Filled portion based on percentage of total
+            float fillWidth = barWidth * (percentage / 100f);
+            if (fillWidth > 0)
+            {
+                // Color based on data center size
+                Vector4 fillColor = totalForDC switch
+                {
+                    < 10 => new Vector4(0.6f, 0.6f, 0.6f, 0.8f),    // Gray
+                    < 50 => new Vector4(0.7f, 0.6f, 0.5f, 0.8f),    // Soft brown for medium (10-49)
+                    < 100 => new Vector4(0.4f, 0.8f, 0.8f, 0.8f),   // Cyan for large (50-99)
+                    _ => new Vector4(0.4f, 0.8f, 0.4f, 0.8f)         // Green for very large (100+)
+                };
+                
+                drawList.AddRectFilled(
+                    pos,
+                    new Vector2(pos.X + fillWidth, pos.Y + barHeight),
+                    ImGui.GetColorU32(fillColor),
+                    2.0f
+                );
+            }
+            
+            // Text overlay with percentage
+            string text = $"{percentage:F1}%";
+            var textSize = ImGui.CalcTextSize(text);
+            if (textSize.X < barWidth)
+            {
+                drawList.AddText(
+                    new Vector2(
+                        pos.X + (barWidth - textSize.X) * 0.5f,
+                        pos.Y + (barHeight - textSize.Y) * 0.5f
+                    ),
+                    ImGui.GetColorU32(new Vector4(1, 1, 1, 1)),
+                    text
+                );
+            }
+            
+            ImGui.Dummy(new Vector2(barWidth, barHeight));
+        }
+
+        private float CalculateAverageDifficulty(List<JumpPuzzleData> puzzles)
+        {
+            if (puzzles.Count == 0) return 0f;
+            
+            float totalDifficulty = 0f;
+            int validRatings = 0;
+            
+            foreach (var puzzle in puzzles)
+            {
+                int difficulty = ConvertRatingToInt(puzzle.Rating);
+                if (difficulty > 0)
+                {
+                    totalDifficulty += difficulty;
+                    validRatings++;
+                }
+            }
+            
+            return validRatings > 0 ? totalDifficulty / validRatings : 0f;
+        }
+
+        private string GetTopBuilder(List<JumpPuzzleData> puzzles)
+        {
+            if (puzzles.Count == 0) return "-";
+            
+            var builderCounts = puzzles
+                .Where(p => !string.IsNullOrEmpty(p.Builder))
+                .GroupBy(p => p.Builder)
+                .OrderByDescending(g => g.Count())
+                .FirstOrDefault();
+            
+            if (builderCounts == null) return "-";
+            
+            var count = builderCounts.Count();
+            var name = builderCounts.Key;
+            
+            // Truncate long names
+            if (name.Length > 12)
+                name = name.Substring(0, 9) + "...";
+                
+            return $"{name} ({count})";
+        }
+
+        private int GetSpecialPuzzleCount(List<JumpPuzzleData> puzzles)
+        {
+            return puzzles.Count(p => 
+                p.Rating == "E" || p.Rating == "T" || p.Rating == "F" || p.Rating == "P" ||
+                !string.IsNullOrEmpty(p.M) || !string.IsNullOrEmpty(p.E) || 
+                !string.IsNullOrEmpty(p.S) || !string.IsNullOrEmpty(p.P) ||
+                !string.IsNullOrEmpty(p.V) || !string.IsNullOrEmpty(p.J) ||
+                !string.IsNullOrEmpty(p.G) || !string.IsNullOrEmpty(p.L) ||
+                !string.IsNullOrEmpty(p.X));
+        }
+
+        private void DrawSpecialPuzzleBreakdown(List<JumpPuzzleData> puzzles)
+        {
+            ImGui.Text("Special Puzzle Types:");
+            ImGui.Separator();
+            
+            var specialTypes = new Dictionary<string, int>
+            {
+                ["Event (E)"] = puzzles.Count(p => p.Rating == "E"),
+                ["Temp (T)"] = puzzles.Count(p => p.Rating == "T"),
+                ["In Flux (F)"] = puzzles.Count(p => p.Rating == "F"),
+                ["Training (P)"] = puzzles.Count(p => p.Rating == "P"),
+                ["Mystery (M)"] = puzzles.Count(p => !string.IsNullOrEmpty(p.M)),
+                ["Emote (E)"] = puzzles.Count(p => !string.IsNullOrEmpty(p.E)),
+                ["Speed (S)"] = puzzles.Count(p => !string.IsNullOrEmpty(p.S)),
+                ["Phasing (P)"] = puzzles.Count(p => !string.IsNullOrEmpty(p.P)),
+                ["Void Jump (V)"] = puzzles.Count(p => !string.IsNullOrEmpty(p.V)),
+                ["Job Gate (J)"] = puzzles.Count(p => !string.IsNullOrEmpty(p.J)),
+                ["Ghost (G)"] = puzzles.Count(p => !string.IsNullOrEmpty(p.G)),
+                ["Logic (L)"] = puzzles.Count(p => !string.IsNullOrEmpty(p.L)),
+                ["No Media (X)"] = puzzles.Count(p => !string.IsNullOrEmpty(p.X))
+            };
+            
+            foreach (var type in specialTypes.Where(t => t.Value > 0).OrderByDescending(t => t.Value))
+            {
+                ImGui.Text($"{type.Key}: {type.Value}");
             }
         }
 
-        private Vector4 GetRatingColor(string rating)
+        private void DrawSummaryStatistics(int totalPuzzles)
         {
-            return rating switch
+            // Enhanced summary statistics
+            ImGui.PushStyleColor(ImGuiCol.Text, UiTheme.Primary);
+            ImGui.Text($"Summary: {totalPuzzles:N0} total puzzles across {csvDataByDataCenter.Count} data centers");
+            ImGui.PopStyleColor();
+            
+            ImGui.Spacing();
+            
+            // Show region breakdown
+            var regionTotals = new Dictionary<string, int>();
+            foreach (var dc in csvDataByDataCenter)
             {
-                "1★" => new Vector4(0.0f, 0.8f, 0.0f, 1.0f),      // Green
-                "2★" => new Vector4(0.0f, 0.6f, 0.9f, 1.0f),      // Blue
-                "3★" => new Vector4(0.9f, 0.8f, 0.0f, 1.0f),      // Yellow
-                "4★" => new Vector4(1.0f, 0.5f, 0.0f, 1.0f),      // Orange
-                "5★" => new Vector4(0.9f, 0.0f, 0.0f, 1.0f),      // Red
-                _ when rating.Contains("★★★★★") => new Vector4(0.9f, 0.0f, 0.0f, 1.0f),      // Red for 5★
-                _ when rating.Contains("★★★★") => new Vector4(1.0f, 0.5f, 0.0f, 1.0f),       // Orange for 4★
-                _ when rating.Contains("★★★") => new Vector4(0.9f, 0.8f, 0.0f, 1.0f),        // Yellow for 3★
-                _ when rating.Contains("★★") => new Vector4(0.0f, 0.6f, 0.9f, 1.0f),         // Blue for 2★
-                _ when rating.Contains("★") => new Vector4(0.0f, 0.8f, 0.0f, 1.0f),          // Green for 1★
-                _ => new Vector4(0.8f, 0.8f, 0.8f, 1.0f)          // Gray for special ratings
+                var region = GetRegionForDataCenter(dc.Key);
+                regionTotals[region] = regionTotals.GetValueOrDefault(region, 0) + dc.Value.Count;
+            }
+            
+            ImGui.Text("By Region: ");
+            ImGui.SameLine();
+            bool first = true;
+            foreach (var region in regionTotals.OrderByDescending(r => r.Value))
+            {
+                if (!first) 
+                {
+                    ImGui.SameLine();
+                    ImGui.Text(" | ");
+                    ImGui.SameLine();
+                }
+                
+                ImGui.Text($"{region.Key}: {region.Value}");
+                
+                first = false;
+            }
+            
+            ImGui.Spacing();
+            
+            // Global statistics
+            var allPuzzles = csvDataByDataCenter.Values.SelectMany(v => v).ToList();
+            
+            // Total unique builders
+            var uniqueBuilders = allPuzzles
+                .Where(p => !string.IsNullOrEmpty(p.Builder))
+                .Select(p => p.Builder)
+                .Distinct()
+                .Count();
+            
+            // Total unique worlds
+            var uniqueWorlds = allPuzzles
+                .Select(p => p.World)
+                .Distinct()
+                .Count();
+            
+            // Global average difficulty
+            var globalAvgDiff = CalculateAverageDifficulty(allPuzzles);
+            
+            // Most common special mechanics
+            var mechanicCounts = new Dictionary<string, int>
+            {
+                ["Mystery"] = allPuzzles.Count(p => !string.IsNullOrEmpty(p.M)),
+                ["Emote"] = allPuzzles.Count(p => !string.IsNullOrEmpty(p.E)),
+                ["Speed"] = allPuzzles.Count(p => !string.IsNullOrEmpty(p.S)),
+                ["Phasing"] = allPuzzles.Count(p => !string.IsNullOrEmpty(p.P)),
+                ["Void Jump"] = allPuzzles.Count(p => !string.IsNullOrEmpty(p.V)),
+                ["Job Gate"] = allPuzzles.Count(p => !string.IsNullOrEmpty(p.J)),
+                ["Ghost"] = allPuzzles.Count(p => !string.IsNullOrEmpty(p.G)),
+                ["Logic"] = allPuzzles.Count(p => !string.IsNullOrEmpty(p.L))
             };
+            
+            var topMechanic = mechanicCounts.OrderByDescending(m => m.Value).FirstOrDefault();
+            
+            ImGui.Text($"Unique Builders: {uniqueBuilders:N0} | Unique Worlds: {uniqueWorlds:N0} | Global Avg Difficulty: {globalAvgDiff:F1}★");
+            if (topMechanic.Value > 0)
+            {
+                ImGui.Text($"Most Common Mechanic: {topMechanic.Key} ({topMechanic.Value} puzzles)");
+            }
+        }
+
+        public void Dispose()
+        {
+            csvManager.StatusUpdated -= OnStatusUpdated;
+            csvManager.ProgressUpdated -= OnProgressUpdated;
+            csvManager.CsvProcessingCompleted -= OnCsvProcessingCompleted;
         }
 
         private void ShowNotification(string message, MessageType type, float duration = 3.0f)
@@ -1211,13 +1283,6 @@ namespace WahJumps.Windows
             Plugin.ChatGui.Print(message);
         }
 
-        public void Dispose()
-        {
-            csvManager.StatusUpdated -= OnStatusUpdated;
-            csvManager.ProgressUpdated -= OnProgressUpdated;
-            csvManager.CsvProcessingCompleted -= OnCsvProcessingCompleted;
-        }
-
         private List<JumpPuzzleData> LoadFavorites()
         {
             try
@@ -1350,24 +1415,102 @@ namespace WahJumps.Windows
             return settingsManager.Configuration;
         }
 
-        private void DrawDataCenterComparison()
+        private void DrawDataCenterInfo(string dataCenterName, List<JumpPuzzleData> puzzles)
         {
-            ImGui.Text("Data Center Statistics & Distribution");
-            ImGui.Separator();
+            // Quick stats for this data center
+            var ratingCounts = puzzles.GroupBy(p => p.Rating)
+                .ToDictionary(g => g.Key, g => g.Count());
             
-            if (csvDataByDataCenter.Count == 0)
+            var worldCounts = puzzles.GroupBy(p => p.World)
+                .ToDictionary(g => g.Key, g => g.Count());
+
+            ImGui.Text($"Data Center Overview: {puzzles.Count} total puzzles");
+            ImGui.SameLine();
+            
+            // Show rating distribution with white text
+            var ratings = new[] { "★★★★★", "★★★★", "★★★", "★★", "★" };
+            bool first = true;
+            foreach (var rating in ratings)
             {
-                UiTheme.CenteredText("No data loaded yet. Please wait for data to load or refresh.");
-                return;
+                if (ratingCounts.ContainsKey(rating) && ratingCounts[rating] > 0)
+                {
+                    if (!first) ImGui.SameLine();
+                    
+                    // Use white text instead of colored text
+                    ImGui.Text($"{rating}: {ratingCounts[rating]}");
+                    
+                    first = false;
+                }
             }
             
-            // Sort by puzzle count (descending)
-            var sortedDCs = csvDataByDataCenter
-                .OrderByDescending(dc => dc.Value.Count)
-                .ToList();
-            
-            // Calculate totals for percentages
-            var totalPuzzles = csvDataByDataCenter.Values.Sum(v => v.Count);
+            ImGui.Separator();
+        }
+
+        private void DrawFavoritesTab()
+        {
+            // Show favorites if any exist
+            if (favoritePuzzles.Count > 0)
+            {
+                using var child = new ImRaii.Child("FavoritesView", new Vector2(0, 0), true);
+
+                // Draw the favorites table with a special column for unfavorite buttons
+                DrawFavoritesTable(favoritePuzzles);
+            }
+            else
+            {
+                // No favorites message with a nice icon
+                float centerY = ImGui.GetContentRegionAvail().Y * 0.4f;
+                ImGui.SetCursorPosY(centerY);
+
+                ImGui.PushStyleColor(ImGuiCol.Text, new Vector4(0.6f, 0.6f, 0.6f, 1.0f));
+                UiTheme.CenteredText("♡");
+                ImGui.SetWindowFontScale(1.5f);
+                UiTheme.CenteredText("No favorites added yet");
+                ImGui.SetWindowFontScale(1.0f);
+                ImGui.Spacing();
+                UiTheme.CenteredText("Browse puzzles and click 'Add' to favorite them");
+                ImGui.PopStyleColor();
+            }
+        }
+
+        private void DrawRatingTabs(List<JumpPuzzleData> puzzles)
+        {
+            var puzzlesByRating = puzzles
+                .GroupBy(p => p.Rating)
+                .OrderByDescending(g => ConvertRatingToInt(g.Key));
+
+            using var tabBar = new ImRaii.TabBar("RatingTabs");
+            if (!tabBar.Success) return;
+
+            // Add an "All" tab first with total count
+            if (ImGui.BeginTabItem($"All ({puzzles.Count})"))
+            {
+                DrawPuzzleTable(puzzles);
+                ImGui.EndTabItem();
+            }
+
+            // Then rating-specific tabs with counts (no special coloring)
+            foreach (var ratingGroup in puzzlesByRating)
+            {
+                string tabName = $"{ratingGroup.Key} ({ratingGroup.Count()})";
+
+                // No boolean reference = no close button
+                if (ImGui.BeginTabItem(tabName))
+                {
+                    DrawPuzzleTable(ratingGroup.ToList());
+                    ImGui.EndTabItem();
+                }
+            }
+        }
+
+        // New method specifically for drawing the favorites table with unfavorite buttons
+        private void DrawFavoritesTable(List<JumpPuzzleData> puzzles)
+        {
+            if (puzzles.Count == 0)
+            {
+                UiTheme.CenteredText("No puzzles available.");
+                return;
+            }
             
             // Apply consistent table styling
             UiTheme.StyleTable();
@@ -1379,221 +1522,319 @@ namespace WahJumps.Windows
                                    ImGuiTableFlags.SizingFixedFit |
                                    ImGuiTableFlags.Sortable;
 
-            if (ImGui.BeginTable("DCComparison", 10, flags))
+            if (ImGui.BeginTable("FavoritesTable", 9, flags))
             {
-                ImGui.TableSetupColumn("Region");
-                ImGui.TableSetupColumn("Data Center");
-                ImGui.TableSetupColumn("Total");
-                ImGui.TableSetupColumn("★★★★★");
-                ImGui.TableSetupColumn("★★★★");
-                ImGui.TableSetupColumn("★★★");
-                ImGui.TableSetupColumn("★★");
-                ImGui.TableSetupColumn("★");
-                ImGui.TableSetupColumn("% of Total");
-                ImGui.TableSetupColumn("Distribution", ImGuiTableColumnFlags.WidthStretch);
-                
+                // Configure columns with improved widths
+                ImGui.TableSetupColumn("Rating", ImGuiTableColumnFlags.WidthFixed, 45);
+                ImGui.TableSetupColumn("Name", ImGuiTableColumnFlags.WidthStretch, 200);
+                ImGui.TableSetupColumn("Builder", ImGuiTableColumnFlags.WidthStretch, 130);
+                ImGui.TableSetupColumn("World", ImGuiTableColumnFlags.WidthFixed, 70);
+                ImGui.TableSetupColumn("Address", ImGuiTableColumnFlags.WidthStretch, 180);
+                ImGui.TableSetupColumn("Type", ImGuiTableColumnFlags.WidthFixed, 60);
+                ImGui.TableSetupColumn("Rules", ImGuiTableColumnFlags.WidthStretch, 170);
+                ImGui.TableSetupColumn("Unfavorite", ImGuiTableColumnFlags.WidthFixed, 70); // New column specifically for unfavorite
+                ImGui.TableSetupColumn("Go", ImGuiTableColumnFlags.WidthFixed, 40);
+
+                ImGui.TableSetupScrollFreeze(0, 1);
                 ImGui.TableHeadersRow();
                 
-                foreach (var dc in sortedDCs)
+                // Draw each row
+                for (int i = 0; i < puzzles.Count; i++)
                 {
-                    var ratings = dc.Value.GroupBy(p => p.Rating)
-                        .ToDictionary(g => g.Key, g => g.Count());
-                    
-                    var percentage = (float)dc.Value.Count / totalPuzzles * 100f;
-                    
+                    var puzzle = puzzles[i];
                     ImGui.TableNextRow();
-                    
-                    // Region - use white text instead of colored
                     ImGui.TableNextColumn();
-                    var region = GetRegionForDataCenter(dc.Key);
-                    ImGui.Text(region);
                     
-                    // Data Center name
-                    ImGui.TableNextColumn();
-                    ImGui.Text(dc.Key);
+                    // Use Selectable to highlight the row
+                    ImGui.PushID(i);
+                    ImGui.Selectable($"##row_{i}", false, ImGuiSelectableFlags.SpanAllColumns | ImGuiSelectableFlags.AllowItemOverlap);
+                    ImGui.PopID();
                     
-                    // Total count
-                    ImGui.TableNextColumn();
-                    ImGui.Text(dc.Value.Count.ToString());
+                    // Reset cursor to start of row for the actual content
+                    ImGui.TableSetColumnIndex(0);
                     
-                    // Rating columns - use white text instead of colored
-                    ImGui.TableNextColumn();
-                    var fiveStarCount = ratings.GetValueOrDefault("★★★★★", 0);
-                    if (fiveStarCount > 0)
-                    {
-                        ImGui.Text(fiveStarCount.ToString());
-                    }
-                    else
-                    {
-                        ImGui.Text("-");
-                    }
+                    // Rating with color
+                    RenderRatingWithColor(puzzle.Rating);
                     
+                    // Puzzle Name
                     ImGui.TableNextColumn();
-                    var fourStarCount = ratings.GetValueOrDefault("★★★★", 0);
-                    if (fourStarCount > 0)
-                    {
-                        ImGui.Text(fourStarCount.ToString());
-                    }
-                    else
-                    {
-                        ImGui.Text("-");
-                    }
+                    ImGui.TextWrapped(puzzle.PuzzleName);
                     
+                    // Builder
                     ImGui.TableNextColumn();
-                    var threeStarCount = ratings.GetValueOrDefault("★★★", 0);
-                    if (threeStarCount > 0)
-                    {
-                        ImGui.Text(threeStarCount.ToString());
-                    }
-                    else
-                    {
-                        ImGui.Text("-");
-                    }
+                    ImGui.Text(puzzle.Builder);
                     
+                    // World
                     ImGui.TableNextColumn();
-                    var twoStarCount = ratings.GetValueOrDefault("★★", 0);
-                    if (twoStarCount > 0)
-                    {
-                        ImGui.Text(twoStarCount.ToString());
-                    }
-                    else
-                    {
-                        ImGui.Text("-");
-                    }
+                    ImGui.Text(puzzle.World);
                     
+                    // Address
                     ImGui.TableNextColumn();
-                    var oneStarCount = ratings.GetValueOrDefault("★", 0);
-                    if (oneStarCount > 0)
-                    {
-                        ImGui.Text(oneStarCount.ToString());
-                    }
-                    else
-                    {
-                        ImGui.Text("-");
-                    }
+                    ImGui.TextWrapped(puzzle.Address);
                     
-                    // Percentage
+                    // Codes (compacted)
                     ImGui.TableNextColumn();
-                    ImGui.Text($"{percentage:F1}%");
-                    
-                    // Mini bar chart
+                    string combinedCodes = UiComponents.CombineCodes(puzzle.M, puzzle.E, puzzle.S, puzzle.P, puzzle.V, puzzle.J, puzzle.G, puzzle.L, puzzle.X);
+                    RenderCodesWithTooltips(combinedCodes);
+
+                    // Goals/Rules
                     ImGui.TableNextColumn();
-                    DrawMiniBarChart(ratings, dc.Value.Count, totalPuzzles);
+                    ImGui.TextWrapped(puzzle.GoalsOrRules);
+
+                    // Unfavorite Button
+                    ImGui.TableNextColumn();
+                    ImGui.PushStyleColor(ImGuiCol.Button, new Vector4(0.7f, 0.1f, 0.1f, 1.0f)); // Red button
+                    ImGui.PushStyleColor(ImGuiCol.ButtonHovered, new Vector4(0.8f, 0.2f, 0.2f, 1.0f));
+
+                    if (ImGui.Button($"Remove##{puzzle.Id}"))
+                    {
+                        RemoveFromFavorites(puzzle);
+                        ShowNotification("Puzzle removed from favorites", MessageType.Info);
+                    }
+                    ImGui.PopStyleColor(2);
+
+                    if (ImGui.IsItemHovered())
+                        ImGui.SetTooltip("Remove from favorites");
+
+                    // Travel Button (compact icon)
+                    ImGui.TableNextColumn();
+                    ImGui.PushStyleColor(ImGuiCol.Text, UiTheme.Primary);
+                    if (ImGui.Button($"→##{puzzle.Id}"))
+                    {
+                        OnTravelRequest(puzzle);
+                    }
+                    if (ImGui.IsItemHovered()) ImGui.SetTooltip($"Travel to {puzzle.World} {puzzle.Address}");
+                    ImGui.PopStyleColor();
                 }
                 
-                                ImGui.EndTable();
+                ImGui.EndTable();
             }
 
+            // End table styling
             UiTheme.EndTableStyle();
-            
-            // Summary statistics
-            ImGui.Spacing();
-            ImGui.Separator();
-            ImGui.Text($"Summary: {totalPuzzles:N0} total puzzles across {csvDataByDataCenter.Count} data centers");
-            
-            // Show region breakdown
-            var regionTotals = new Dictionary<string, int>();
-            foreach (var dc in csvDataByDataCenter)
-            {
-                var region = GetRegionForDataCenter(dc.Key);
-                regionTotals[region] = regionTotals.GetValueOrDefault(region, 0) + dc.Value.Count;
-            }
-            
-            ImGui.Text("By Region: ");
-            ImGui.SameLine();
-            bool first = true;
-            foreach (var region in regionTotals.OrderByDescending(r => r.Value))
-            {
-                if (!first) 
-                {
-                    ImGui.SameLine();
-                    ImGui.Text(" | ");
-                    ImGui.SameLine();
-                }
-                
-                // Use white text instead of colored text
-                ImGui.Text($"{region.Key}: {region.Value}");
-                
-                first = false;
-            }
         }
 
-        private void DrawMiniBarChart(Dictionary<string, int> ratings, int totalForDC, int grandTotal)
+        // Updated table drawing method with professional styling
+        private void DrawPuzzleTable(List<JumpPuzzleData> puzzles, bool includeAddToFavorites = true)
         {
-            ImDrawListPtr drawList = ImGui.GetWindowDrawList();
-            Vector2 pos = ImGui.GetCursorScreenPos();
-            float barWidth = ImGui.GetColumnWidth() - 10;
-            float barHeight = 20;
-            
-            // Background
-            drawList.AddRectFilled(
-                pos,
-                new Vector2(pos.X + barWidth, pos.Y + barHeight),
-                ImGui.GetColorU32(new Vector4(0.1f, 0.1f, 0.1f, 1.0f)),
-                2.0f
-            );
-            
-            // Filled portion based on percentage of total
-            float fillWidth = barWidth * ((float)totalForDC / grandTotal);
-            if (fillWidth > 0)
+            if (puzzles.Count == 0)
             {
-                // Color based on data center size
-                Vector4 fillColor = totalForDC switch
+                UiTheme.CenteredText("No puzzles available.");
+                return;
+            }
+            
+            // Apply consistent table styling
+            UiTheme.StyleTable();
+            
+            ImGuiTableFlags flags = ImGuiTableFlags.RowBg |
+                                   ImGuiTableFlags.Borders |
+                                   ImGuiTableFlags.Resizable |
+                                   ImGuiTableFlags.ScrollY |
+                                   ImGuiTableFlags.SizingFixedFit |
+                                   ImGuiTableFlags.Sortable;
+
+            // Reduced column count (removed Timer column)
+            int columnCount = includeAddToFavorites ? 9 : 8;
+
+            if (ImGui.BeginTable("PuzzlesTable", columnCount, flags))
+            {
+                // Configure columns with improved widths
+                ImGui.TableSetupColumn("Rating", ImGuiTableColumnFlags.WidthFixed, 45);
+                ImGui.TableSetupColumn("Name", ImGuiTableColumnFlags.WidthStretch, 200); // Increased width
+                ImGui.TableSetupColumn("Builder", ImGuiTableColumnFlags.WidthStretch, 130);
+                ImGui.TableSetupColumn("World", ImGuiTableColumnFlags.WidthFixed, 70);
+                ImGui.TableSetupColumn("Address", ImGuiTableColumnFlags.WidthStretch, 180);
+                ImGui.TableSetupColumn("Type", ImGuiTableColumnFlags.WidthFixed, 60);
+                ImGui.TableSetupColumn("Rules", ImGuiTableColumnFlags.WidthStretch, 170);
+
+                if (includeAddToFavorites)
                 {
-                    < 10 => new Vector4(0.6f, 0.6f, 0.6f, 0.8f),    // Gray
-                    < 50 => new Vector4(0.7f, 0.6f, 0.5f, 0.8f),    // Soft brown for medium (10-49)
-                    < 100 => new Vector4(0.4f, 0.8f, 0.8f, 0.8f),   // Cyan for large (50-99)
-                    _ => new Vector4(0.4f, 0.8f, 0.4f, 0.8f)         // Green for very large (100+)
+                    ImGui.TableSetupColumn("Fav", ImGuiTableColumnFlags.WidthFixed, 40);
+                }
+
+                ImGui.TableSetupColumn("Go", ImGuiTableColumnFlags.WidthFixed, 40);
+
+                ImGui.TableSetupScrollFreeze(0, 1);
+                ImGui.TableHeadersRow();
+                
+                // Draw each row
+                for (int i = 0; i < puzzles.Count; i++)
+                {
+                    var puzzle = puzzles[i];
+                    ImGui.TableNextRow();
+                    ImGui.TableNextColumn();
+
+                    // Use Selectable to highlight the row - SpanAllColumns makes it cover the whole row
+                    ImGui.PushID(i);
+                    ImGui.Selectable($"##row_{i}", false, ImGuiSelectableFlags.SpanAllColumns | ImGuiSelectableFlags.AllowItemOverlap);
+                    ImGui.PopID();
+                    
+                    // Reset cursor to start of row for the actual content
+                    ImGui.TableSetColumnIndex(0);
+                    
+                    // Vertically and horizontally centered rating
+                    float rowHeight = ImGui.GetTextLineHeightWithSpacing();
+                    float textHeight = ImGui.GetTextLineHeight();
+                    float cellY = ImGui.GetCursorPosY();
+                    float textWidth = ImGui.CalcTextSize(puzzle.Rating).X;
+                    float columnWidth = ImGui.GetColumnWidth();
+                    float columnX = ImGui.GetCursorPosX();
+                            
+                    // Center horizontally
+                    ImGui.SetCursorPosX(columnX + (columnWidth - textWidth) * 0.5f);
+                    
+                    // Center vertically - move cursor up to align to top of cell
+                    ImGui.SetCursorPosY(cellY + (rowHeight - textHeight) * 0.1f);
+
+                    // Now render with color
+                    RenderRatingWithColor(puzzle.Rating);
+
+                    // Puzzle Name
+                    ImGui.TableNextColumn();
+                    ImGui.TextWrapped(puzzle.PuzzleName);
+
+                    // Builder
+                    ImGui.TableNextColumn();
+                    ImGui.Text(puzzle.Builder);
+
+                    // World
+                    ImGui.TableNextColumn();
+                    ImGui.Text(puzzle.World);
+                    
+                    // Address
+                    ImGui.TableNextColumn();
+                    ImGui.TextWrapped(puzzle.Address);
+
+                    // Codes (compacted)
+                    ImGui.TableNextColumn();
+                    string combinedCodes = UiComponents.CombineCodes(puzzle.M, puzzle.E, puzzle.S, puzzle.P, puzzle.V, puzzle.J, puzzle.G, puzzle.L, puzzle.X);
+                    RenderCodesWithTooltips(combinedCodes);
+
+                    // Goals/Rules
+                    ImGui.TableNextColumn();
+                    ImGui.TextWrapped(puzzle.GoalsOrRules);
+            
+                    // Favorite Button (compact icon)
+                    if (includeAddToFavorites)
+                    {
+                        ImGui.TableNextColumn();
+                        bool isFav = IsFavorite(puzzle);
+
+                        if (isFav)
+                        {
+                            ImGui.PushStyleColor(ImGuiCol.Text, UiTheme.Error);
+                            if (ImGui.Button($"♥##{puzzle.Id}"))
+                            {
+                                RemoveFromFavorites(puzzle);
+                                ShowNotification("Puzzle removed from favorites", MessageType.Info);
+                            }
+                            if (ImGui.IsItemHovered()) ImGui.SetTooltip("Remove from favorites");
+                            ImGui.PopStyleColor();
+                        }
+                        else
+                        {
+                            ImGui.PushStyleColor(ImGuiCol.Text, UiTheme.Success);
+                            if (ImGui.Button($"♡##{puzzle.Id}"))
+                            {
+                                AddToFavorites(puzzle);
+                                ShowNotification("Puzzle added to favorites", MessageType.Success);
+                            }
+                            if (ImGui.IsItemHovered()) ImGui.SetTooltip("Add to favorites");
+                            ImGui.PopStyleColor();
+                        }
+                    }
+
+                    // Travel Button (compact icon)
+                    ImGui.TableNextColumn();
+                    ImGui.PushStyleColor(ImGuiCol.Text, UiTheme.Primary);
+                    if (ImGui.Button($"→##{puzzle.Id}"))
+                    {
+                        OnTravelRequest(puzzle);
+                    }
+                    if (ImGui.IsItemHovered()) ImGui.SetTooltip($"Travel to {puzzle.World} {puzzle.Address}");
+                    ImGui.PopStyleColor();
+                }
+
+                ImGui.EndTable();
+            }
+
+            // End table styling
+            UiTheme.EndTableStyle();
+        }
+
+        private void RenderRatingWithColor(string rating)
+        {
+            Vector4 color = GetRatingColor(rating);
+
+            using var textColor = new ImRaii.StyleColor(ImGuiCol.Text, color);
+            ImGui.Text(rating);
+        }
+
+        private void RenderCodesWithTooltips(string codes)
+        {
+            if (string.IsNullOrEmpty(codes))
+            {
+                ImGui.Text("-");
+                return;
+            }
+
+            ImGui.Text(codes);
+
+            if (ImGui.IsItemHovered())
+            {
+                ImGui.PushStyleColor(ImGuiCol.PopupBg, new Vector4(0.18f, 0.18f, 0.22f, 0.95f));
+                ImGui.BeginTooltip();
+                ImGui.Text("Puzzle Type Codes:");
+                ImGui.Separator();
+                
+                Dictionary<string, string> codeDescriptions = new Dictionary<string, string>
+                {
+                    { "M", "Mystery - Hard-to-find or maze-like paths" },
+                    { "E", "Emote - Requires emote interaction" },
+                    { "S", "Speed - Sprinting and time-based actions" },
+                    { "P", "Phasing - Furniture interactions that phase you" },
+                    { "V", "Void Jump - Requires jumping into void" },
+                    { "J", "Job Gate - Requires specific jobs" },
+                    { "G", "Ghost - Disappearances of furnishings" },
+                    { "L", "Logic - Logic-based puzzle solving" },
+                    { "X", "No Media - No streaming/recording allowed" }
                 };
-                
-                drawList.AddRectFilled(
-                    pos,
-                    new Vector2(pos.X + fillWidth, pos.Y + barHeight),
-                    ImGui.GetColorU32(fillColor),
-                    2.0f
-                );
+
+                string[] codeParts = codes.Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries);
+                foreach (string code in codeParts)
+                {
+                    string trimmedCode = code.Trim();
+                    if (codeDescriptions.TryGetValue(trimmedCode, out string description))
+                    {
+                        ImGui.BulletText($"{trimmedCode}: {description}");
+                    }
+                    else
+                    {
+                        ImGui.BulletText(trimmedCode);
+                    }
+                }
+
+                ImGui.EndTooltip();
+                ImGui.PopStyleColor();
             }
-            
-            // Text overlay
-            string text = totalForDC.ToString();
-            var textSize = ImGui.CalcTextSize(text);
-            if (textSize.X < barWidth)
-            {
-                drawList.AddText(
-                    new Vector2(
-                        pos.X + (barWidth - textSize.X) * 0.5f,
-                        pos.Y + (barHeight - textSize.Y) * 0.5f
-                    ),
-                    ImGui.GetColorU32(new Vector4(1, 1, 1, 1)),
-                    text
-                );
-            }
-            
-            ImGui.Dummy(new Vector2(barWidth, barHeight));
         }
 
-        private string GetRegionForDataCenter(string dataCenterName)
+        private Vector4 GetRatingColor(string rating)
         {
-            foreach (var region in regionGroups)
+            return rating switch
             {
-                if (region.Value.DataCenters.Contains(dataCenterName))
-                {
-                    return region.Key;
-                }
-            }
-            return "Unknown";
-        }
-
-        private Vector4 GetRegionColorForDC(string dataCenterName)
-        {
-            foreach (var region in regionGroups)
-            {
-                if (region.Value.DataCenters.Contains(dataCenterName))
-                {
-                    return region.Value.TabColor;
-                }
-            }
-            return new Vector4(0.8f, 0.8f, 0.8f, 1.0f); // Default gray
+                "1★" => new Vector4(0.0f, 0.8f, 0.0f, 1.0f),      // Green
+                "2★" => new Vector4(0.0f, 0.6f, 0.9f, 1.0f),      // Blue
+                "3★" => new Vector4(0.9f, 0.8f, 0.0f, 1.0f),      // Yellow
+                "4★" => new Vector4(1.0f, 0.5f, 0.0f, 1.0f),      // Orange
+                "5★" => new Vector4(0.9f, 0.0f, 0.0f, 1.0f),      // Red
+                _ when rating.Contains("★★★★★") => new Vector4(0.9f, 0.0f, 0.0f, 1.0f),      // Red for 5★
+                _ when rating.Contains("★★★★") => new Vector4(1.0f, 0.5f, 0.0f, 1.0f),       // Orange for 4★
+                _ when rating.Contains("★★★") => new Vector4(0.9f, 0.8f, 0.0f, 1.0f),        // Yellow for 3★
+                _ when rating.Contains("★★") => new Vector4(0.0f, 0.6f, 0.9f, 1.0f),         // Blue for 2★
+                _ when rating.Contains("★") => new Vector4(0.0f, 0.8f, 0.0f, 1.0f),          // Green for 1★
+                _ => new Vector4(0.8f, 0.8f, 0.8f, 1.0f)          // Gray for special ratings
+            };
         }
     }
 }

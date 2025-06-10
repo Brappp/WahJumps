@@ -1,4 +1,3 @@
-// File: WahJumps/Utilities/UiTheme.cs
 using System.Numerics;
 using ImGuiNET;
 using System.Collections.Generic;

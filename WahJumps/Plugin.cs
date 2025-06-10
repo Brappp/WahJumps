@@ -1,4 +1,3 @@
-// File: WahJumps/Plugin.cs
 using Dalamud.Plugin;
 using Dalamud.Plugin.Services;
 using Dalamud.IoC;
@@ -22,15 +21,6 @@ namespace WahJumps
         [PluginService] internal static IPluginLog PluginLog { get; private set; } = null!;
 
         private const string CommandName = "/WahJumps";
-        private const string TimerCommandName = "/JumpTimer";
-        private const string RecordsCommandName = "/JumpRecords";
-
-        // Timer command shortcuts
-        private const string TimerStartCommand = "/jumptimer start";
-        private const string TimerStopCommand = "/jumptimer stop";
-        private const string TimerResetCommand = "/jumptimer reset";
-        private const string TimerShowCommand = "/jumptimer show";
-        private const string TimerHideCommand = "/jumptimer hide";
 
         public CsvManager CsvManager { get; private set; }
         public LifestreamIpcHandler LifestreamIpcHandler { get; private set; }
@@ -68,17 +58,7 @@ namespace WahJumps
             // Register commands
             CommandManager.AddHandler(CommandName, new CommandInfo(OnCommand)
             {
-                HelpMessage = "Opens the WahJumps UI for finding jump puzzles. Use '/wahjumps debug' to toggle debug logging."
-            });
-
-            CommandManager.AddHandler(TimerCommandName, new CommandInfo(OnTimerCommand)
-            {
-                HelpMessage = "Controls the jump puzzle timer. Usage: /jumptimer [start|stop|reset|show|hide]"
-            });
-
-            CommandManager.AddHandler(RecordsCommandName, new CommandInfo(OnRecordsCommand)
-            {
-                HelpMessage = "Show jumprunner timer window"
+                HelpMessage = "Opens the WahJumps UI."
             });
 
             // Register UI events
@@ -141,8 +121,6 @@ namespace WahJumps
             TimerWindow.Dispose();
 
             CommandManager.RemoveHandler(CommandName);
-            CommandManager.RemoveHandler(TimerCommandName);
-            CommandManager.RemoveHandler(RecordsCommandName);
         }
 
         private void OnCommand(string command, string args)
@@ -150,9 +128,10 @@ namespace WahJumps
             // Handle subcommands
             if (!string.IsNullOrEmpty(args))
             {
-                string lowerArgs = args.ToLower().Trim();
+                string[] argParts = args.ToLower().Trim().Split(' ', StringSplitOptions.RemoveEmptyEntries);
+                string mainArg = argParts[0];
                 
-                if (lowerArgs == "debug")
+                if (mainArg == "debug")
                 {
                     // Toggle debug logging
                     var config = MainWindow.GetConfiguration();
@@ -164,76 +143,63 @@ namespace WahJumps
                     ChatGui.Print($"[WahJumps] Debug logging {status}");
                     return;
                 }
+                else if (mainArg == "timer")
+                {
+                    // Handle timer commands
+                    if (argParts.Length == 1)
+                    {
+                        // Just "timer" - toggle timer window
+                        TimerWindow.Toggle();
+                        return;
+                    }
+                    
+                    string timerArg = argParts[1];
+                    switch (timerArg)
+                    {
+                        case "start":
+                            SpeedrunManager.StartCountdown();
+                            TimerWindow.ShowTimer();
+                            ChatGui.Print("[WahJumps] Timer started with countdown");
+                            break;
+                        case "stop":
+                            if (SpeedrunManager.GetState() == SpeedrunManager.SpeedrunState.Running)
+                            {
+                                SpeedrunManager.StopTimer();
+                                ChatGui.Print("[WahJumps] Timer stopped");
+                            }
+                            else
+                            {
+                                ChatGui.Print("[WahJumps] Timer is not currently running");
+                            }
+                            break;
+                        case "reset":
+                            SpeedrunManager.ResetTimer();
+                            ChatGui.Print("[WahJumps] Timer reset");
+                            break;
+                        case "show":
+                            TimerWindow.ShowTimer();
+                            ChatGui.Print("[WahJumps] Timer window shown");
+                            break;
+                        case "hide":
+                            TimerWindow.HideTimer();
+                            ChatGui.Print("[WahJumps] Timer window hidden");
+                            break;
+                        default:
+                            ChatGui.Print("[WahJumps] Timer commands: start, stop, reset, show, hide");
+                            break;
+                    }
+                    return;
+                }
+                else
+                {
+                    // Unknown subcommand - just open main window
+                    MainWindow.ToggleVisibility();
+                    return;
+                }
             }
             
             // Default behavior - toggle main window
             MainWindow.ToggleVisibility();
-        }
-
-        private void OnTimerCommand(string command, string args)
-        {
-            // Process timer commands with arguments
-            if (string.IsNullOrEmpty(args))
-            {
-                // No args means toggle the timer window
-                TimerWindow.Toggle();
-                return;
-            }
-
-            // Convert to lowercase for case-insensitive comparison
-            string lowerArgs = args.ToLower().Trim();
-
-            switch (lowerArgs)
-            {
-                case "start":
-                    // Start the timer with countdown
-                    SpeedrunManager.StartCountdown();
-                    TimerWindow.ShowTimer();
-                    ChatGui.Print("[WahJumps] Timer started with countdown");
-                    break;
-
-                case "stop":
-                    // Stop the current run
-                    if (SpeedrunManager.GetState() == SpeedrunManager.SpeedrunState.Running)
-                    {
-                        SpeedrunManager.StopTimer();
-                        ChatGui.Print("[WahJumps] Timer stopped");
-                    }
-                    else
-                    {
-                        ChatGui.Print("[WahJumps] Timer is not currently running");
-                    }
-                    break;
-
-                case "reset":
-                    // Reset the timer
-                    SpeedrunManager.ResetTimer();
-                    ChatGui.Print("[WahJumps] Timer reset");
-                    break;
-
-                case "show":
-                    // Show the timer window
-                    TimerWindow.ShowTimer();
-                    ChatGui.Print("[WahJumps] Timer window shown");
-                    break;
-
-                case "hide":
-                    // Hide the timer window
-                    TimerWindow.HideTimer();
-                    ChatGui.Print("[WahJumps] Timer window hidden");
-                    break;
-
-                default:
-                    // Unknown command
-                    ChatGui.Print("[WahJumps] Timer commands: start, stop, reset, show, hide");
-                    break;
-            }
-        }
-
-        private void OnRecordsCommand(string command, string args)
-        {
-            // Just show the timer window
-            TimerWindow.ShowTimer();
         }
 
         private void DrawUI()

@@ -1,4 +1,3 @@
-// File: WahJumps/Windows/TimerWindow.cs
 using System;
 using System.Numerics;
 using Dalamud.Interface.Windowing;
@@ -249,7 +248,6 @@ namespace WahJumps.Windows
 
             ImGui.Spacing();
 
-            // Status indicator
             DrawStatusIndicator(state, contentSize.X);
 
             ImGui.Spacing();
