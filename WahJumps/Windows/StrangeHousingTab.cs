@@ -1,5 +1,5 @@
 // File: WahJumps/Windows/StrangeHousingTab.cs
-// Status: COMPLETE - Clean single-column design without broken icons
+// Status: COMPLETE - Clean and elegant design
 
 using ImGuiNET;
 using WahJumps.Utilities;
@@ -18,13 +18,14 @@ namespace WahJumps.Windows
 
             float windowWidth = ImGui.GetWindowWidth();
 
-            // Header section
+            // Clean header
+            ImGui.Spacing();
             ImGui.Spacing();
             UiTheme.CenteredText("Strange Housing Community", UiTheme.Primary);
             ImGui.Spacing();
             
             // Description
-            ImGui.PushTextWrapPos(windowWidth - 40);
+            ImGui.PushTextWrapPos(windowWidth - 60);
             UiTheme.CenteredText("Discover and explore creative jump puzzles built by the FFXIV community");
             ImGui.PopTextWrapPos();
             
@@ -34,7 +35,7 @@ namespace WahJumps.Windows
 
             // Thank you message
             ImGui.PushStyleColor(ImGuiCol.Text, UiTheme.Accent);
-            ImGui.PushTextWrapPos(windowWidth - 40);
+            ImGui.PushTextWrapPos(windowWidth - 60);
             UiTheme.CenteredText("Thank you to the Strange Housing staff and community for their amazing work!");
             ImGui.PopTextWrapPos();
             ImGui.PopStyleColor();
@@ -42,13 +43,13 @@ namespace WahJumps.Windows
             ImGui.Spacing();
             ImGui.Spacing();
 
-            // Main links section
-            float buttonWidth = Math.Min(300, windowWidth - 40);
+            // Main buttons section
+            float buttonWidth = Math.Min(280, windowWidth - 60);
             float centerX = (windowWidth - buttonWidth) / 2;
 
             // Website button
             ImGui.SetCursorPosX(centerX);
-            if (DrawStyledButton("Visit ffxiv.ju.mp", buttonWidth, UiTheme.Primary))
+            if (DrawCleanButton("Visit ffxiv.ju.mp", buttonWidth, UiTheme.Primary))
             {
                 OpenUrl("https://ffxiv.ju.mp/");
             }
@@ -57,16 +58,10 @@ namespace WahJumps.Windows
 
             // Discord button
             ImGui.SetCursorPosX(centerX);
-            ImGui.PushStyleColor(ImGuiCol.Button, UiTheme.DiscordPrimary);
-            ImGui.PushStyleColor(ImGuiCol.ButtonHovered, UiTheme.DiscordHover);
-            ImGui.PushStyleColor(ImGuiCol.ButtonActive, UiTheme.DiscordActive);
-            
-            if (ImGui.Button("Join Discord Server", new Vector2(buttonWidth, 35)))
+            if (DrawCleanButton("Join Discord Server", buttonWidth, UiTheme.DiscordPrimary))
             {
                 OpenUrl("https://discord.gg/6agVYe6xYk");
             }
-            
-            ImGui.PopStyleColor(3);
 
             ImGui.Spacing();
             ImGui.Spacing();
@@ -77,7 +72,7 @@ namespace WahJumps.Windows
 
             // Jumping guide
             ImGui.SetCursorPosX(centerX);
-            if (DrawStyledButton("Jumping Guide", buttonWidth, UiTheme.Success))
+            if (DrawCleanButton("Jumping Guide", buttonWidth, UiTheme.Success))
             {
                 OpenUrl("https://docs.google.com/document/d/1CrO9doADJAP1BbYq8uPAyFqzGU1fS4cemXat_YACtJI/edit");
             }
@@ -86,7 +81,7 @@ namespace WahJumps.Windows
 
             // Puzzle database
             ImGui.SetCursorPosX(centerX);
-            if (DrawStyledButton("Puzzle Database", buttonWidth, UiTheme.Warning))
+            if (DrawCleanButton("Puzzle Database", buttonWidth, UiTheme.Warning))
             {
                 OpenUrl("https://docs.google.com/spreadsheets/d/1DyOqqECaNuAEntBxwv2NQ7p5rTrC1tDN9hHpcI_PNs4/edit?gid=1921920879#gid=1921920879");
             }
@@ -96,14 +91,14 @@ namespace WahJumps.Windows
 
             // LifeStream notice
             ImGui.PushStyleColor(ImGuiCol.Text, UiTheme.Warning);
-            ImGui.PushTextWrapPos(windowWidth - 40);
+            ImGui.PushTextWrapPos(windowWidth - 60);
             UiTheme.CenteredText("LifeStream Plugin Required");
             ImGui.PopTextWrapPos();
             ImGui.PopStyleColor();
 
             ImGui.Spacing();
 
-            ImGui.PushTextWrapPos(windowWidth - 40);
+            ImGui.PushTextWrapPos(windowWidth - 60);
             UiTheme.CenteredText("The LifeStream plugin is required for travel buttons to work properly.");
             ImGui.PopTextWrapPos();
 
@@ -111,7 +106,7 @@ namespace WahJumps.Windows
 
             // LifeStream download
             ImGui.SetCursorPosX(centerX);
-            if (DrawStyledButton("Download LifeStream", buttonWidth, UiTheme.Primary))
+            if (DrawCleanButton("Download LifeStream", buttonWidth, UiTheme.Primary))
             {
                 OpenUrl("https://github.com/NightmareXIV/Lifestream");
             }
@@ -120,24 +115,20 @@ namespace WahJumps.Windows
             ImGui.Spacing();
             ImGui.Spacing();
 
-            // Credits
-            ImGui.PushStyleColor(ImGuiCol.Text, UiTheme.Error);
-            UiTheme.CenteredText("Made with ♥");
-            ImGui.PopStyleColor();
-            
-            ImGui.PushStyleColor(ImGuiCol.Text, UiTheme.Accent);
-            UiTheme.CenteredText("wah");
-            ImGui.PopStyleColor();
+            // Simple credits
+            UiTheme.CenteredText("Made with ♥", UiTheme.Error);
+            UiTheme.CenteredText("wah", UiTheme.Accent);
         }
 
-        private bool DrawStyledButton(string label, float width, Vector4 color)
+        private bool DrawCleanButton(string label, float width, Vector4 color)
         {
-            ImGui.PushStyleColor(ImGuiCol.Button, new Vector4(color.X * 0.7f, color.Y * 0.7f, color.Z * 0.7f, 1.0f));
+            // Simple, clean button with subtle styling
+            ImGui.PushStyleColor(ImGuiCol.Button, new Vector4(color.X * 0.8f, color.Y * 0.8f, color.Z * 0.8f, 1.0f));
             ImGui.PushStyleColor(ImGuiCol.ButtonHovered, color);
-            ImGui.PushStyleColor(ImGuiCol.ButtonActive, new Vector4(color.X * 0.5f, color.Y * 0.5f, color.Z * 0.5f, 1.0f));
-            ImGui.PushStyleVar(ImGuiStyleVar.FrameRounding, 6.0f);
+            ImGui.PushStyleColor(ImGuiCol.ButtonActive, new Vector4(color.X * 0.6f, color.Y * 0.6f, color.Z * 0.6f, 1.0f));
+            ImGui.PushStyleVar(ImGuiStyleVar.FrameRounding, 4.0f);
 
-            bool clicked = ImGui.Button(label, new Vector2(width, 35));
+            bool clicked = ImGui.Button(label, new Vector2(width, 32));
 
             ImGui.PopStyleVar();
             ImGui.PopStyleColor(3);
