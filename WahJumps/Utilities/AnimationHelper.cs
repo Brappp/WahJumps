@@ -24,7 +24,6 @@ namespace WahJumps.Utilities
             EaseInOutBounce
         }
 
-        // Apply an easing function to a value between 0 and 1
         public static float ApplyEasing(float t, EasingType easingType)
         {
             switch (easingType)
@@ -81,7 +80,6 @@ namespace WahJumps.Utilities
                 float totalDistance = distance / step;
                 float progress = 1 - Math.Min(distance / totalDistance, 1);
 
-                // Apply easing to progress
                 float easedProgress = ApplyEasing(progress, easingType);
 
                 // Use eased progress to calculate new value
@@ -109,7 +107,6 @@ namespace WahJumps.Utilities
                 float totalDistance = distance / (speed * deltaTime);
                 float progress = 1 - Math.Min(distance / totalDistance, 1);
 
-                // Apply easing
                 float easedProgress = ApplyEasing(progress, easingType);
 
                 // Interpolate based on eased progress
@@ -174,7 +171,6 @@ namespace WahJumps.Utilities
             }
         }
 
-        // Draw an animated spinner
         public static void DrawSpinner(string id, float radius, float thickness, Vector4 color, float speed = 2.0f)
         {
             ImDrawListPtr drawList = ImGui.GetWindowDrawList();
@@ -184,7 +180,6 @@ namespace WahJumps.Utilities
             // Calculate rotation angle based on time
             float t = (float)ImGui.GetTime() * speed;
 
-            // Draw segments with varying alpha
             int segments = 8;
             for (int i = 0; i < segments; i++)
             {
@@ -203,7 +198,6 @@ namespace WahJumps.Utilities
             ImGui.Dummy(new Vector2(radius * 2, radius * 2));
         }
 
-        // Draw a progress bar with gradient
         public static void DrawGradientProgressBar(float fraction, Vector2 size, Vector4 startColor, Vector4 endColor)
         {
             ImDrawListPtr drawList = ImGui.GetWindowDrawList();

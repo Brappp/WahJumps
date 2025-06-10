@@ -59,7 +59,6 @@ namespace WahJumps.Utilities
             return (Primary, PrimaryLight, PrimaryLighter);
         }
 
-        // Creates a button styled as a hyperlink
         public static bool Hyperlink(string text, string id = null)
         {
             ImGui.PushStyleColor(ImGuiCol.Text, Primary);
@@ -74,7 +73,6 @@ namespace WahJumps.Utilities
                 ImGui.SetMouseCursor(ImGuiMouseCursor.Hand);
                 ImGui.SetTooltip("Click to follow link");
 
-                // Draw an underline
                 var min = ImGui.GetItemRectMin();
                 var max = ImGui.GetItemRectMax();
                 min.Y = max.Y;
@@ -85,7 +83,6 @@ namespace WahJumps.Utilities
             return clicked;
         }
 
-        // Creates a centered heading
         public static void CenteredText(string text, Vector4? color = null)
         {
             float windowWidth = ImGui.GetWindowWidth();
@@ -105,7 +102,6 @@ namespace WahJumps.Utilities
             }
         }
 
-        // Creates a header with styling
         public static void Header(string text, Vector4? color = null)
         {
             ImGui.PushStyleColor(ImGuiCol.Text, color ?? Primary);
@@ -116,43 +112,35 @@ namespace WahJumps.Utilities
             ImGui.PopStyleColor();
         }
 
-        // Improved table styling with more whitespace and better colors
         public static void StyleTable()
         {
-            ImGui.PushStyleVar(ImGuiStyleVar.CellPadding, new Vector2(8, 4)); // More padding
-            ImGui.PushStyleVar(ImGuiStyleVar.ItemSpacing, new Vector2(8, 6)); // More space between rows
+            ImGui.PushStyleVar(ImGuiStyleVar.CellPadding, new Vector2(8, 4));
+            ImGui.PushStyleVar(ImGuiStyleVar.ItemSpacing, new Vector2(8, 6));
 
-            // Better header colors for contrast
             ImGui.PushStyleColor(ImGuiCol.TableHeaderBg, new Vector4(0.15f, 0.35f, 0.5f, 1.0f));
             ImGui.PushStyleColor(ImGuiCol.TableBorderStrong, new Vector4(0.5f, 0.5f, 0.5f, 1.0f));
             ImGui.PushStyleColor(ImGuiCol.TableBorderLight, new Vector4(0.3f, 0.3f, 0.3f, 1.0f));
 
-            // Better row colors for readability
             ImGui.PushStyleColor(ImGuiCol.TableRowBg, new Vector4(0.18f, 0.18f, 0.2f, 1.0f));
             ImGui.PushStyleColor(ImGuiCol.TableRowBgAlt, new Vector4(0.25f, 0.25f, 0.28f, 1.0f));
         }
 
-        // End table styling - updated to match the number of pushed styles
         public static void EndTableStyle()
         {
-            ImGui.PopStyleColor(5); // Match the number of PushStyleColor calls
-            ImGui.PopStyleVar(2);   // Match the number of PushStyleVar calls
+            ImGui.PopStyleColor(5);
+            ImGui.PopStyleVar(2);
         }
 
-        // Apply default styling for consistent look
         public static void ApplyGlobalStyle()
         {
-            // Enhanced spacing and padding
             ImGui.PushStyleVar(ImGuiStyleVar.FramePadding, new Vector2(6, 4));
             ImGui.PushStyleVar(ImGuiStyleVar.ItemSpacing, new Vector2(8, 6));
             ImGui.PushStyleVar(ImGuiStyleVar.WindowPadding, new Vector2(12, 12));
 
-            // Better rounding for visual appeal
             ImGui.PushStyleVar(ImGuiStyleVar.FrameRounding, 4.0f);
             ImGui.PushStyleVar(ImGuiStyleVar.TabRounding, 6.0f);
             ImGui.PushStyleVar(ImGuiStyleVar.GrabRounding, 3.0f);
 
-            // Improved colors
             ImGui.PushStyleColor(ImGuiCol.TableRowBgAlt, new Vector4(0.25f, 0.25f, 0.27f, 1.0f));
             ImGui.PushStyleColor(ImGuiCol.FrameBg, new Vector4(0.18f, 0.18f, 0.22f, 1.0f));
             ImGui.PushStyleColor(ImGuiCol.PopupBg, new Vector4(0.12f, 0.12f, 0.15f, 0.98f));
@@ -160,14 +148,12 @@ namespace WahJumps.Utilities
             ImGui.PushStyleColor(ImGuiCol.TitleBgActive, new Vector4(0.15f, 0.3f, 0.5f, 1.0f));
         }
 
-        // End global styling - updated to match the pushed styles
         public static void EndGlobalStyle()
         {
-            ImGui.PopStyleColor(5); // Match number of PushStyleColor calls
-            ImGui.PopStyleVar(6);   // Match number of PushStyleVar calls 
+            ImGui.PopStyleColor(5);
+            ImGui.PopStyleVar(6);
         }
 
-        // Create a tooltip with standardized styling
         public static void Tooltip(string text)
         {
             if (ImGui.IsItemHovered())
@@ -182,7 +168,6 @@ namespace WahJumps.Utilities
             }
         }
 
-        // Create a button with standardized styling
         public static bool StandardButton(string label, Vector2? size = null)
         {
             Vector2 buttonSize = size ?? new Vector2(0, 0);
@@ -198,7 +183,6 @@ namespace WahJumps.Utilities
             return clicked;
         }
 
-        // Enhanced section header with optional help tooltip
         public static void SectionHeader(string text, string tooltipText = null)
         {
             ImGui.PushStyleColor(ImGuiCol.Text, Primary);
@@ -214,14 +198,12 @@ namespace WahJumps.Utilities
             ImGui.Spacing();
         }
 
-        // Draw a stylish header with gradient background
         public static void GradientHeader(string text, Vector4 startColor, Vector4 endColor)
         {
             var drawList = ImGui.GetWindowDrawList();
             var pos = ImGui.GetCursorScreenPos();
             var size = new Vector2(ImGui.GetWindowWidth() - ImGui.GetStyle().WindowPadding.X * 2, 40);
 
-            // Draw gradient background
             drawList.AddRectFilledMultiColor(
                 pos,
                 new Vector2(pos.X + size.X, pos.Y + size.Y),
@@ -231,7 +213,6 @@ namespace WahJumps.Utilities
                 ImGui.GetColorU32(startColor)
             );
 
-            // Draw text centered
             var textSize = ImGui.CalcTextSize(text);
             var textPos = new Vector2(
                 pos.X + (size.X - textSize.X) * 0.5f,
@@ -240,12 +221,10 @@ namespace WahJumps.Utilities
 
             drawList.AddText(textPos, ImGui.GetColorU32(new Vector4(1, 1, 1, 1)), text);
 
-            // Advance cursor
             ImGui.Dummy(size);
             ImGui.Spacing();
         }
 
-        // Loading spinner with improved visuals
         public static void LoadingSpinner(string label, float radius = 10.0f, float thickness = 2.0f, Vector4? color = null)
         {
             Vector4 spinnerColor = color ?? Primary;
@@ -253,9 +232,8 @@ namespace WahJumps.Utilities
             ImDrawListPtr drawList = ImGui.GetWindowDrawList();
             Vector2 pos = ImGui.GetCursorScreenPos();
             Vector2 center = new Vector2(pos.X + radius, pos.Y + radius);
-            float time = (float)ImGui.GetTime() * 1.5f; // Slightly faster animation
+            float time = (float)ImGui.GetTime() * 1.5f;
 
-            // Draw a subtle background circle
             drawList.AddCircleFilled(
                 center,
                 radius * 0.8f,
@@ -263,13 +241,11 @@ namespace WahJumps.Utilities
                 12
             );
 
-            // Draw spinning segments
-            for (int i = 0; i < 6; i++) // Reduced number of segments for cleaner look
+            for (int i = 0; i < 6; i++)
             {
                 float a1 = time + i * MathF.PI / 3.0f;
                 float a2 = a1 + MathF.PI / 6.0f;
 
-                // Calculate alpha based on position (fade effect)
                 float alpha = 0.1f + 0.9f * ((i + time * 0.954f) % 6) / 6.0f;
 
                 drawList.PathArcTo(
@@ -287,10 +263,8 @@ namespace WahJumps.Utilities
                 );
             }
 
-            // Advance cursor
             ImGui.Dummy(new Vector2(radius * 2 + 4, radius * 2));
 
-            // Add label if provided
             if (!string.IsNullOrEmpty(label))
             {
                 ImGui.SameLine();
@@ -298,13 +272,11 @@ namespace WahJumps.Utilities
             }
         }
 
-        // Create a progress bar with gradient
         public static void GradientProgressBar(float fraction, Vector2 size, Vector4 startColor, Vector4 endColor, string overlay = null)
         {
             ImDrawListPtr drawList = ImGui.GetWindowDrawList();
             Vector2 pos = ImGui.GetCursorScreenPos();
 
-            // Background
             drawList.AddRectFilled(
                 pos,
                 new Vector2(pos.X + size.X, pos.Y + size.Y),
@@ -312,7 +284,6 @@ namespace WahJumps.Utilities
                 4.0f
             );
 
-            // Progress gradient
             if (fraction > 0)
             {
                 float width = size.X * Math.Clamp(fraction, 0, 1);
@@ -325,7 +296,6 @@ namespace WahJumps.Utilities
                     ImGui.GetColorU32(startColor)
                 );
 
-                // Add rounded corners with small overlaid circles
                 float radius = Math.Min(4.0f, size.Y / 2);
                 drawList.AddCircleFilled(
                     new Vector2(pos.X + width - radius, pos.Y + radius),
@@ -339,7 +309,6 @@ namespace WahJumps.Utilities
                 );
             }
 
-            // Overlay text
             if (!string.IsNullOrEmpty(overlay))
             {
                 var textSize = ImGui.CalcTextSize(overlay);
@@ -353,11 +322,9 @@ namespace WahJumps.Utilities
                 );
             }
 
-            // Advance cursor
             ImGui.Dummy(size);
         }
 
-        // Create a button with an icon
         public static bool IconButton(string icon, string label, Vector4 color, float width = 0)
         {
             float buttonWidth = width > 0 ? width : ImGui.CalcTextSize(label).X + 30;
@@ -373,7 +340,6 @@ namespace WahJumps.Utilities
             return clicked;
         }
 
-        // Draw a card with title and content
         public static void Card(string title, string content, Vector4 titleColor, float width = 0)
         {
             float cardWidth = width > 0 ? width : ImGui.GetContentRegionAvail().X;
@@ -381,7 +347,6 @@ namespace WahJumps.Utilities
             ImGui.PushStyleColor(ImGuiCol.ChildBg, new Vector4(0.15f, 0.15f, 0.18f, 1.0f));
             ImGui.BeginChild($"##card_{title}", new Vector2(cardWidth, 0), true);
 
-            // Title
             ImGui.PushStyleColor(ImGuiCol.Text, titleColor);
             ImGui.Text(title);
             ImGui.PopStyleColor();
@@ -389,7 +354,6 @@ namespace WahJumps.Utilities
             ImGui.Separator();
             ImGui.Spacing();
 
-            // Content
             ImGui.TextWrapped(content);
 
             ImGui.EndChild();

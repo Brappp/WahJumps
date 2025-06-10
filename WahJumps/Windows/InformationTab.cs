@@ -22,7 +22,6 @@ namespace WahJumps.Windows
         {
             try
             {
-                // Load data from static embedded data instead of CSV file
                 infoData = StaticInfoData.GetInfoData();
                 dataLoaded = true;
             }
@@ -58,7 +57,6 @@ namespace WahJumps.Windows
             // Group data by sections
             var sections = GroupDataBySections();
 
-            // Draw each section
             foreach (var section in sections)
             {
                 DrawSection(section.Key, section.Value);
@@ -132,7 +130,6 @@ namespace WahJumps.Windows
 
         private void DrawSection(string sectionName, List<InfoData> sectionData)
         {
-            // Draw section header
             ImGui.PushStyleColor(ImGuiCol.Text, UiTheme.Primary);
             bool isOpen = ImGui.CollapsingHeader(sectionName, ImGuiTreeNodeFlags.DefaultOpen);
             ImGui.PopStyleColor();

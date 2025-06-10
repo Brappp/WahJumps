@@ -142,18 +142,15 @@ namespace WahJumps.Windows
             var sceneHeight = 120f;
             var groundY = windowPos.Y + cursorPos.Y + sceneHeight - 15f;
 
-            // Update position
             float speed = 80f;
             stickFigureX += speed * deltaTime;
 
-            // Reset when off screen
             if (stickFigureX > windowWidth + 50)
             {
                 stickFigureX = -50f;
                 lastObstacleX = 0f;
             }
 
-            // Obstacle positions
             float[] obstaclePositions = { 
                 windowWidth * 0.15f,
                 windowWidth * 0.3f,
@@ -163,7 +160,6 @@ namespace WahJumps.Windows
                 windowWidth * 0.9f
             };
             
-            // Check for jumps
             foreach (var obstacleX in obstaclePositions)
             {
                 if (Math.Abs(stickFigureX - obstacleX) < 35f && !isJumping && obstacleX != lastObstacleX)
@@ -175,7 +171,6 @@ namespace WahJumps.Windows
                 }
             }
 
-            // Update jump state
             if (isJumping)
             {
                 float jumpDuration = 1.0f;
@@ -185,7 +180,6 @@ namespace WahJumps.Windows
                 }
             }
 
-            // Draw ground
             drawList.AddLine(
                 new Vector2(windowPos.X, groundY),
                 new Vector2(windowPos.X + windowWidth, groundY),
@@ -193,12 +187,11 @@ namespace WahJumps.Windows
                 3.0f
             );
 
-            // Draw obstacles
             for (int i = 0; i < obstaclePositions.Length; i++)
             {
                 var obstacleX = obstaclePositions[i];
                 
-                if (i % 3 == 0) // Gaps
+                if (i % 3 == 0)
                 {
                     drawList.AddRectFilled(
                         new Vector2(windowPos.X + obstacleX - 45, groundY - 20),
@@ -219,7 +212,7 @@ namespace WahJumps.Windows
                         ImGui.GetColorU32(UiTheme.Success)
                     );
                 }
-                else if (i % 3 == 1) // High platforms
+                else if (i % 3 == 1)
                 {
                     float platformHeight = 35f;
                     drawList.AddRectFilled(
@@ -234,7 +227,7 @@ namespace WahJumps.Windows
                         ImGui.GetColorU32(new Vector4(1.0f, 1.0f, 0.6f, 1.0f))
                     );
                 }
-                else // Small obstacles
+                else
                 {
                     drawList.AddRectFilled(
                         new Vector2(windowPos.X + obstacleX - 15, groundY - 25),
@@ -253,11 +246,9 @@ namespace WahJumps.Windows
 
             DrawBackgroundElements(drawList, windowPos, windowWidth, groundY, sceneHeight);
 
-            // Calculate stick figure position
             float figureX = windowPos.X + stickFigureX;
             float figureY = groundY;
 
-            // Apply jump animation
             if (isJumping)
             {
                 float jumpProgress = (animationTime - jumpStartTime) / 1.0f;
@@ -273,7 +264,6 @@ namespace WahJumps.Windows
         {
             var bgColor = ImGui.GetColorU32(new Vector4(0.3f, 0.3f, 0.35f, 0.6f));
             
-            // Background platforms
             drawList.AddRectFilled(
                 new Vector2(windowPos.X + windowWidth * 0.1f, groundY - 60),
                 new Vector2(windowPos.X + windowWidth * 0.25f, groundY - 45),
@@ -286,14 +276,12 @@ namespace WahJumps.Windows
                 bgColor
             );
 
-            // Floating platforms
             drawList.AddRectFilled(
                 new Vector2(windowPos.X + windowWidth * 0.4f, groundY - 80),
                 new Vector2(windowPos.X + windowWidth * 0.5f, groundY - 75),
                 ImGui.GetColorU32(new Vector4(0.2f, 0.4f, 0.6f, 0.4f))
             );
 
-            // Building silhouettes
             for (int i = 0; i < 4; i++)
             {
                 float buildingX = windowPos.X + (windowWidth / 4) * i + (windowWidth * 0.05f);
@@ -314,21 +302,17 @@ namespace WahJumps.Windows
             float legLength = 15f;
             float armLength = 12f;
 
-            // Head
             drawList.AddCircle(new Vector2(x, y - bodyHeight - headRadius), headRadius, color, 12, 2.0f);
 
-            // Body
             drawList.AddLine(
                 new Vector2(x, y - bodyHeight),
                 new Vector2(x, y),
                 color, 2.0f
             );
 
-            // Animation offsets
             float legOffset = jumping ? 0f : (float)(Math.Sin(time * 8) * 8);
             float armOffset = jumping ? 0f : (float)(Math.Cos(time * 8) * 6);
 
-            // Legs
             if (jumping)
             {
                 drawList.AddLine(
@@ -356,7 +340,6 @@ namespace WahJumps.Windows
                 );
             }
 
-            // Arms
             if (jumping)
             {
                 drawList.AddLine(

@@ -9,7 +9,6 @@ namespace WahJumps.Utilities
 {
     public static class UiHelpers
     {
-        // Rating color mapping - centralized from multiple files
         public static Vector4 GetRatingColor(string rating)
         {
             return rating switch
@@ -28,16 +27,12 @@ namespace WahJumps.Utilities
             };
         }
 
-        // Render rating with color - used in multiple table components
         public static void RenderRatingWithColor(string rating)
         {
-            Vector4 color = GetRatingColor(rating);
-            ImGui.PushStyleColor(ImGuiCol.Text, color);
+            using var color = ImRaii.PushColor(ImGuiCol.Text, GetRatingColor(rating));
             ImGui.Text(rating);
-            ImGui.PopStyleColor();
         }
 
-        // Render codes with tooltips - duplicated across components
         public static void RenderCodesWithTooltips(string codes)
         {
             if (string.IsNullOrEmpty(codes))
@@ -50,44 +45,35 @@ namespace WahJumps.Utilities
 
             if (ImGui.IsItemHovered())
             {
-                ShowCodesTooltip(codes);
-            }
-        }
+                using var tooltip = new ImRaii.Tooltip();
+                ImGui.Text("Puzzle Types:");
+                ImGui.Separator();
 
-        // Code tooltip - shared logic
-        private static void ShowCodesTooltip(string codes)
-        {
-            ImGui.BeginTooltip();
-            ImGui.Text("Puzzle Types:");
-            ImGui.Separator();
-
-            var codeDescriptions = new Dictionary<string, string>
-            {
-                { "M", "Mystery - Hard-to-find or maze-like paths" },
-                { "E", "Emote - Requires emote interaction" },
-                { "S", "Speed - Sprinting and time-based actions" },
-                { "P", "Phasing - Furniture interactions that phase you" },
-                { "V", "Void Jump - Requires jumping into void" },
-                { "J", "Job Gate - Requires specific jobs" },
-                { "G", "Ghost - Disappearances of furnishings" },
-                { "L", "Logic - Logic-based puzzle solving" },
-                { "X", "No Media - No streaming/recording allowed" }
-            };
-
-            string[] codeParts = codes.Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries);
-            foreach (string code in codeParts)
-            {
-                string trimmedCode = code.Trim();
-                if (codeDescriptions.TryGetValue(trimmedCode, out string description))
+                var codeDescriptions = new Dictionary<string, string>
                 {
-                    ImGui.BulletText($"{trimmedCode}: {description}");
+                    { "M", "Mystery - Hard-to-find or maze-like paths" },
+                    { "E", "Emote - Requires emote interaction" },
+                    { "S", "Speed - Sprinting and time-based actions" },
+                    { "P", "Phasing - Furniture interactions that phase you" },
+                    { "V", "Void Jump - Requires jumping into void" },
+                    { "J", "Job Gate - Requires specific jobs" },
+                    { "G", "Ghost - Disappearances of furnishings" },
+                    { "L", "Logic - Logic-based puzzle solving" },
+                    { "X", "No Media - No streaming/recording allowed" }
+                };
+
+                string[] codeParts = codes.Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries);
+                foreach (string code in codeParts)
+                {
+                    string trimmedCode = code.Trim();
+                    if (codeDescriptions.TryGetValue(trimmedCode, out string description))
+                    {
+                        ImGui.BulletText($"{trimmedCode}: {description}");
+                    }
                 }
             }
-
-            ImGui.EndTooltip();
         }
 
-        // Favorite button - standardized across components
         public static void DrawFavoriteButton(JumpPuzzleData puzzle, Func<JumpPuzzleData, bool> isFavorite, 
             Action<JumpPuzzleData> addToFavorites, Action<JumpPuzzleData> removeFromFavorites)
         {
@@ -95,57 +81,49 @@ namespace WahJumps.Utilities
 
             if (isFav)
             {
-                ImGui.PushStyleColor(ImGuiCol.Text, UiTheme.Error);
+                using var color = ImRaii.PushColor(ImGuiCol.Text, UiTheme.Error);
                 if (ImGui.Button($"♥##{puzzle.Id}"))
                 {
                     removeFromFavorites(puzzle);
                 }
                 if (ImGui.IsItemHovered()) ImGui.SetTooltip("Remove from favorites");
-                ImGui.PopStyleColor();
             }
             else
             {
-                ImGui.PushStyleColor(ImGuiCol.Text, UiTheme.Success);
+                using var color = ImRaii.PushColor(ImGuiCol.Text, UiTheme.Success);
                 if (ImGui.Button($"♡##{puzzle.Id}"))
                 {
                     addToFavorites(puzzle);
                 }
                 if (ImGui.IsItemHovered()) ImGui.SetTooltip("Add to favorites");
-                ImGui.PopStyleColor();
             }
         }
 
-        // Travel button - standardized across components
         public static void DrawTravelButton(JumpPuzzleData puzzle, Action<JumpPuzzleData> onTravel)
         {
-            ImGui.PushStyleColor(ImGuiCol.Button, UiTheme.Primary);
-            ImGui.PushStyleColor(ImGuiCol.ButtonHovered, UiTheme.PrimaryLight);
+            using var colors = ImRaii.PushColor(ImGuiCol.Button, UiTheme.Primary);
+            using var hoverColor = ImRaii.PushColor(ImGuiCol.ButtonHovered, UiTheme.PrimaryLight);
+            
             if (ImGui.Button($"Travel##{puzzle.Id}"))
             {
                 onTravel(puzzle);
             }
             if (ImGui.IsItemHovered()) ImGui.SetTooltip($"Travel to {puzzle.World} {puzzle.Address}");
-            ImGui.PopStyleColor(2);
         }
 
-        // Speedrun button - for timer integration
         public static void DrawSpeedrunButton(JumpPuzzleData puzzle, Action<JumpPuzzleData> onSpeedrun)
         {
-            ImGui.PushStyleColor(ImGuiCol.Button, new Vector4(0.2f, 0.4f, 0.6f, 1.0f));
-            ImGui.PushStyleColor(ImGuiCol.ButtonHovered, new Vector4(0.3f, 0.5f, 0.7f, 1.0f));
-            if (ImGui.Button($"Timer##{puzzle.Id}"))
+            if (ImRaii.StyledButton($"Timer##{puzzle.Id}", Vector2.Zero,
+                new Vector4(0.2f, 0.4f, 0.6f, 1.0f),
+                new Vector4(0.3f, 0.5f, 0.7f, 1.0f)))
             {
                 onSpeedrun(puzzle);
             }
             if (ImGui.IsItemHovered()) ImGui.SetTooltip("Start speedrun timer for this puzzle");
-            ImGui.PopStyleColor(2);
         }
 
-        // Standard table setup - used across multiple components
-        public static bool BeginPuzzleTable(string tableId, bool includeSpeedrun = false)
+        public static ImRaii.StyledTable BeginPuzzleTable(string tableId, bool includeSpeedrun = false)
         {
-            UiTheme.StyleTable();
-
             ImGuiTableFlags flags = ImGuiTableFlags.RowBg |
                                    ImGuiTableFlags.Borders |
                                    ImGuiTableFlags.Resizable |
@@ -154,7 +132,9 @@ namespace WahJumps.Utilities
 
             int columnCount = includeSpeedrun ? 9 : 8;
             
-            if (ImGui.BeginTable(tableId, columnCount, flags))
+            var table = new ImRaii.StyledTable(tableId, columnCount, flags);
+            
+            if (table.Success)
             {
                 ImGui.TableSetupColumn("Rating", ImGuiTableColumnFlags.WidthFixed, 60);
                 ImGui.TableSetupColumn("Name", ImGuiTableColumnFlags.WidthStretch, 200);
@@ -171,19 +151,16 @@ namespace WahJumps.Utilities
 
                 ImGui.TableSetupScrollFreeze(0, 1);
                 ImGui.TableHeadersRow();
-                return true;
             }
-            return false;
+            
+            return table;
         }
 
-        // End table with cleanup
         public static void EndPuzzleTable()
         {
-            ImGui.EndTable();
-            UiTheme.EndTableStyle();
+            // This method is now obsolete - use 'using var table = BeginPuzzleTable()' instead
         }
 
-        // Draw a complete puzzle table row
         public static void DrawPuzzleTableRow(JumpPuzzleData puzzle, int index,
             Func<JumpPuzzleData, bool> isFavorite,
             Action<JumpPuzzleData> addToFavorites,
@@ -194,45 +171,35 @@ namespace WahJumps.Utilities
             ImGui.TableNextRow();
             ImGui.TableNextColumn();
 
-            ImGui.PushID(index);
+            using var id = new ImRaii.Id(index);
             ImGui.Selectable($"##row_{index}", false, ImGuiSelectableFlags.SpanAllColumns | ImGuiSelectableFlags.AllowItemOverlap);
-            ImGui.PopID();
 
             ImGui.TableSetColumnIndex(0);
 
-            // Rating
             RenderRatingWithColor(puzzle.Rating);
 
-            // Name
             ImGui.TableNextColumn();
             ImGui.TextWrapped(puzzle.PuzzleName);
 
-            // Builder
             ImGui.TableNextColumn();
             ImGui.Text(puzzle.Builder);
 
-            // World
             ImGui.TableNextColumn();
             ImGui.Text(puzzle.World);
 
-            // Address
             ImGui.TableNextColumn();
             ImGui.TextWrapped(puzzle.Address);
 
-            // Codes
             ImGui.TableNextColumn();
             string combinedCodes = UiComponents.CombineCodes(puzzle.M, puzzle.E, puzzle.S, puzzle.P, puzzle.V, puzzle.J, puzzle.G, puzzle.L, puzzle.X);
             RenderCodesWithTooltips(combinedCodes);
 
-            // Favorite button
             ImGui.TableNextColumn();
             DrawFavoriteButton(puzzle, isFavorite, addToFavorites, removeFromFavorites);
 
-            // Travel button
             ImGui.TableNextColumn();
             DrawTravelButton(puzzle, onTravel);
 
-            // Speedrun button (optional)
             if (onSpeedrun != null)
             {
                 ImGui.TableNextColumn();

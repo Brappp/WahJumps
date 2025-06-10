@@ -68,14 +68,12 @@ namespace WahJumps.Handlers
                     StatusUpdated?.Invoke($"Failed to download CSV for {dataCenter.DataCenter}");
                     processedCount++;
 
-                    // Update progress even on failure
                     float progress = (float)processedCount / totalDataCenters;
                     ProgressUpdated?.Invoke(progress);
 
                     continue;
                 }
 
-                // Preprocess the CSV data to ensure the "ID" column is present
                 var preprocessedCsv = PreprocessCsvForMissingId(csvData);
 
                 var cleanedData = CleanCsvData(preprocessedCsv);
@@ -83,7 +81,6 @@ namespace WahJumps.Handlers
 
                 processedCount++;
 
-                // Update progress
                 float progressValue = (float)processedCount / totalDataCenters;
                 ProgressUpdated?.Invoke(progressValue);
             }

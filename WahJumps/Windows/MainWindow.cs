@@ -40,7 +40,7 @@ namespace WahJumps.Windows
         private DateTime lastRefreshDate;
         private string favoritesFilePath;
         private int viewMode = 0; // 0=Tabs only
-        private float currentProgress = 0f; // Track progress for loading bar
+        private float currentProgress = 0f;
 
         // Notification system
         private float notificationTimer = 0;
@@ -97,23 +97,18 @@ namespace WahJumps.Windows
             this.lifestreamIpcHandler = lifestreamIpcHandler;
             this.plugin = plugin;
 
-            // Initialize settings
             settingsManager = new SettingsManager(Plugin.PluginInterface, csvManager.CsvDirectoryPath);
             var config = settingsManager.Configuration;
 
-            // Set initial values from configuration
             viewMode = config.DefaultViewMode;
 
-            // Initialize UI components
             strangeHousingTab = new StrangeHousingTab();
             informationTab = new InformationTab();
 
-            // Initialize data
             csvDataByDataCenter = new Dictionary<string, List<JumpPuzzleData>>();
             favoritesFilePath = Path.Combine(csvManager.CsvDirectoryPath, "favorites.json");
             favoritePuzzles = LoadFavorites();
 
-            // Initialize search component with callbacks
             searchFilter = new SearchFilterComponent(
                 IsFavorite,
                 AddToFavorites,
@@ -121,25 +116,20 @@ namespace WahJumps.Windows
                 OnTravelRequest
             );
 
-            // Initialize travel dialog
             travelDialog = new TravelDialog(
                 ExecuteTravel,
-                () => { } // Empty cancel action
+                () => { }
             );
 
-            // Register event handlers
             csvManager.StatusUpdated += OnStatusUpdated;
             csvManager.ProgressUpdated += OnProgressUpdated;
             csvManager.CsvProcessingCompleted += OnCsvProcessingCompleted;
 
-            // Set initial state
             statusMessage = "Initializing...";
             isReady = false;
 
-            // Apply logging setting
             CustomLogger.IsLoggingEnabled = config.EnableLogging;
 
-            // Load data
             RefreshData();
         }
 
@@ -164,72 +154,57 @@ namespace WahJumps.Windows
             isReady = true;
             LoadCsvData();
 
-            // Update search filter with available data
             searchFilter.SetAvailableData(csvDataByDataCenter);
 
-            // Show success notification
             ShowNotification("Data loading completed successfully!", MessageType.Success);
         }
 
         public override void Draw()
         {
-            // Create a new ID scope to isolate our styling - ensures no style leakage
             ImGui.PushID("WahJumpsPlugin");
 
             try
             {
-                // Apply consistent styling
                 UiTheme.ApplyGlobalStyle();
 
-                // Draw window chrome (header and border)
                 DrawWindowChrome();
 
-                // First render setup
                 if (isFirstRender)
                 {
                     ImGui.SetWindowSize(new Vector2(1100, 700), ImGuiCond.FirstUseEver);
                     isFirstRender = false;
                 }
 
-                // If not ready, show loading
                 if (!isReady)
                 {
                     DrawAnimatedLoadingState();
                     return;
                 }
 
-                // Draw top toolbar with search and options
                 DrawTopToolbar();
 
                 ImGui.Separator();
 
-                // We've removed the view mode dropdown, so now always use tab mode
                 DrawTabMode();
 
-                // Draw travel dialog (if active)
                 travelDialog.Draw();
 
-                // Draw any active notifications
                 DrawNotifications();
             }
             finally
             {
-                // Clean up styling
                 UiTheme.EndGlobalStyle();
 
-                // Pop the ID scope
                 ImGui.PopID();
             }
         }
 
         private void DrawWindowChrome()
         {
-            // Draw a subtle window border
             ImDrawListPtr drawList = ImGui.GetWindowDrawList();
             Vector2 windowPos = ImGui.GetWindowPos();
             Vector2 windowSize = ImGui.GetWindowSize();
 
-            // Subtle gradient header (just a few pixels at the very top border)
             drawList.AddRectFilledMultiColor(
                 windowPos,
                 new Vector2(windowPos.X + windowSize.X, windowPos.Y + 4),
@@ -239,7 +214,6 @@ namespace WahJumps.Windows
                 ImGui.GetColorU32(UiTheme.Primary)
             );
 
-            // Subtle window border
             drawList.AddRect(
                 windowPos,
                 new Vector2(windowPos.X + windowSize.X, windowPos.Y + windowSize.Y),
@@ -255,11 +229,9 @@ namespace WahJumps.Windows
             float centerY = ImGui.GetWindowHeight() * 0.4f;
             ImGui.SetCursorPosY(centerY);
 
-            // Draw a professional looking heading
             UiTheme.CenteredText("Loading Jump Puzzle Data", UiTheme.Primary);
             ImGui.Spacing();
 
-            // Draw a pulsing status message
             float pulseValue = (float)Math.Sin(ImGui.GetTime() * 2) * 0.1f + 0.9f;
             Vector4 pulsingColor = new Vector4(0.8f, 0.8f, 0.8f, pulseValue);
 
@@ -267,18 +239,15 @@ namespace WahJumps.Windows
             UiTheme.CenteredText(statusMessage);
             ImGui.PopStyleColor();
 
-            // Draw a professional progress bar
             float progressWidth = ImGui.GetWindowWidth() * 0.7f;
             float progressX = (ImGui.GetWindowWidth() - progressWidth) * 0.5f;
 
             ImGui.SetCursorPosX(progressX);
             ImGui.SetCursorPosY(centerY + 50);
 
-            // Drawing a more professional looking progress bar
             ImDrawListPtr drawList = ImGui.GetWindowDrawList();
             Vector2 pos = ImGui.GetCursorScreenPos();
 
-            // Progress bar background
             drawList.AddRectFilled(
                 pos,
                 new Vector2(pos.X + progressWidth, pos.Y + 20),
@@ -288,7 +257,6 @@ namespace WahJumps.Windows
 
             if (currentProgress > 0)
             {
-                // Actual progress with gradient
                 float width = progressWidth * Math.Clamp(currentProgress, 0, 1);
                 drawList.AddRectFilledMultiColor(
                     pos,
@@ -299,7 +267,6 @@ namespace WahJumps.Windows
                     ImGui.GetColorU32(new Vector4(0.0f, 0.4f, 0.8f, 1.0f))
                 );
 
-                // Percentage text
                 string percentText = $"{(int)(currentProgress * 100)}%";
                 var textSize = ImGui.CalcTextSize(percentText);
                 drawList.AddText(
@@ -312,10 +279,8 @@ namespace WahJumps.Windows
                 );
             }
 
-            // Advance cursor
             ImGui.Dummy(new Vector2(progressWidth, 25));
 
-            // Add a nicer looking spinner
             ImGui.SetCursorPosX((ImGui.GetWindowWidth() - 20) * 0.5f);
             ImGui.SetCursorPosY(centerY + 90);
             DrawSpinningLoader(UiTheme.Primary);
@@ -328,14 +293,12 @@ namespace WahJumps.Windows
             Vector2 center = new Vector2(pos.X + radius, pos.Y + radius);
             float time = (float)ImGui.GetTime() * 1.8f;
 
-            // Glowing background
             drawList.AddCircleFilled(
                 center,
                 radius * 0.6f,
                 ImGui.GetColorU32(new Vector4(color.X, color.Y, color.Z, 0.1f))
             );
 
-            // Spinning dots
             int numDots = 8;
             for (int i = 0; i < numDots; i++)
             {
@@ -343,7 +306,6 @@ namespace WahJumps.Windows
                 float x = center.X + MathF.Cos(rads) * radius;
                 float y = center.Y + MathF.Sin(rads) * radius;
 
-                // Size and opacity vary with position
                 float dotSize = 2.0f + 2.0f * ((i + (int)(time * 1.5f)) % numDots) / (float)numDots;
                 float alpha = 0.2f + 0.8f * ((i + (int)(time * 1.5f)) % numDots) / (float)numDots;
 
@@ -354,17 +316,14 @@ namespace WahJumps.Windows
                 );
             }
 
-            // Dummy to advance cursor
             ImGui.Dummy(new Vector2(radius * 2, radius * 2));
         }
 
         private void DrawTopToolbar()
         {
-            // Apply professional button styling
             ImGui.PushStyleVar(ImGuiStyleVar.FramePadding, new Vector2(8, 4));
             ImGui.PushStyleVar(ImGuiStyleVar.FrameRounding, 4.0f);
 
-            // Refresh button with icon
             ImGui.PushStyleColor(ImGuiCol.Button, new Vector4(0.18f, 0.35f, 0.58f, 1.0f));
             ImGui.PushStyleColor(ImGuiCol.ButtonHovered, new Vector4(0.25f, 0.45f, 0.68f, 1.0f));
             ImGui.PushStyleColor(ImGuiCol.ButtonActive, new Vector4(0.15f, 0.30f, 0.50f, 1.0f));
@@ -387,7 +346,6 @@ namespace WahJumps.Windows
 
             ImGui.SameLine();
 
-            // Travel confirmation toggle
             var config = settingsManager.Configuration;
             bool showTravelConfirmation = config.ShowTravelConfirmation;
             
@@ -420,7 +378,6 @@ namespace WahJumps.Windows
 
             ImGui.SameLine();
 
-            // GitHub link button
             ImGui.PushStyleColor(ImGuiCol.Button, new Vector4(0.15f, 0.15f, 0.15f, 1.0f));
             ImGui.PushStyleColor(ImGuiCol.ButtonHovered, new Vector4(0.25f, 0.25f, 0.25f, 1.0f));
             ImGui.PushStyleColor(ImGuiCol.ButtonActive, new Vector4(0.35f, 0.35f, 0.35f, 1.0f));
@@ -447,17 +404,14 @@ namespace WahJumps.Windows
             ImGui.SameLine();
             ImGui.Text($"Last Updated: {lastRefreshDate.ToString("yyyy-MM-dd HH:mm")}");
 
-            // Add Timer button (right-aligned)
             ImGui.SameLine(ImGui.GetWindowWidth() - 80);
 
-            // Use a better looking Timer button with a matching icon
             ImGui.PushStyleColor(ImGuiCol.Button, new Vector4(0.2f, 0.4f, 0.6f, 1.0f));
             ImGui.PushStyleColor(ImGuiCol.ButtonHovered, new Vector4(0.3f, 0.5f, 0.7f, 1.0f));
             ImGui.PushStyleColor(ImGuiCol.ButtonActive, new Vector4(0.15f, 0.35f, 0.55f, 1.0f));
 
             if (ImGui.Button("Timer"))
             {
-                // Open the timer window
                 plugin.TimerWindow.ShowTimer();
             }
             ImGui.PopStyleColor(3);
@@ -476,25 +430,21 @@ namespace WahJumps.Windows
 
         private void DrawTabMode()
         {
-            // Apply professional tab styling
             ApplyProfessionalTabStyling();
 
             using var tabBar = new ImRaii.TabBar("MainTabBar", ImGuiTabBarFlags.FittingPolicyScroll);
 
             if (tabBar.Success)
             {
-                // Standard tabs
                 strangeHousingTab.Draw();
                 informationTab.Draw();
 
-                // Favorites Tab - no boolean reference = no close button
                 if (ImGui.BeginTabItem("Favorites"))
                 {
                     DrawFavoritesTab();
                     ImGui.EndTabItem();
                 }
 
-                // Search Tab - no boolean reference = no close button
                 if (ImGui.BeginTabItem("Search"))
                 {
                     searchFilter.Draw(csvDataByDataCenter);

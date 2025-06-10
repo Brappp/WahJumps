@@ -49,7 +49,6 @@ namespace WahJumps.Windows
             this.onTravel = onTravel;
         }
 
-        // Initializes the data for filtering
         public void SetAvailableData(Dictionary<string, List<JumpPuzzleData>> allData)
         {
             dataCenters.Clear();
@@ -92,7 +91,6 @@ namespace WahJumps.Windows
             PerformSearch(allData);
         }
 
-        // Reset filters to default values
         public void ResetFilters()
         {
             searchQuery = string.Empty;
@@ -102,22 +100,18 @@ namespace WahJumps.Windows
             selectedDistrict = "All Districts";
         }
 
-        // Main draw method with improved layout
         public void Draw(Dictionary<string, List<JumpPuzzleData>> allData)
         {
             DrawCompactFilterSection();
 
             ImGui.Separator();
 
-            // Perform search and display results
             PerformSearch(allData);
             DrawResults();
         }
 
-        // Compact and organized filter section
         private void DrawCompactFilterSection()
         {
-            // Show results count if we have data
             if (allPuzzles.Count > 0)
             {
                 ImGui.PushStyleColor(ImGuiCol.Text, UiTheme.Gray);
@@ -126,17 +120,14 @@ namespace WahJumps.Windows
                 ImGui.Spacing();
             }
 
-            // Row 1: Search box and rating filter
             float searchWidth = ImGui.GetContentRegionAvail().X * 0.6f;
             float ratingWidth = ImGui.GetContentRegionAvail().X * 0.35f;
 
-            // Search input
             ImGui.SetNextItemWidth(searchWidth);
             ImGui.InputTextWithHint("##search", "🔍 Search by name, builder, world, or description...", ref searchQuery, 256);
             
             ImGui.SameLine();
             
-            // Rating dropdown
             ImGui.SetNextItemWidth(ratingWidth);
             if (ImGui.BeginCombo("##rating", selectedRating))
             {
@@ -153,10 +144,8 @@ namespace WahJumps.Windows
                 ImGui.EndCombo();
             }
 
-            // Row 2: Location filters (Data Center, World, District)
             float filterWidth = (ImGui.GetContentRegionAvail().X - 20) / 3;
 
-            // Data Center filter
             ImGui.SetNextItemWidth(filterWidth);
             if (ImGui.BeginCombo("##datacenter", selectedDataCenter))
             {
@@ -166,7 +155,6 @@ namespace WahJumps.Windows
                     if (ImGui.Selectable(dc, isSelected))
                     {
                         selectedDataCenter = dc;
-                        // Reset world if it doesn't exist in selected DC
                         if (selectedDataCenter != "All Data Centers" && selectedWorld != "All Worlds")
                         {
                             if (!worldsByDataCenter.ContainsKey(selectedDataCenter) ||
@@ -183,7 +171,6 @@ namespace WahJumps.Windows
 
             ImGui.SameLine();
 
-            // World filter
             ImGui.SetNextItemWidth(filterWidth);
             if (ImGui.BeginCombo("##world", selectedWorld))
             {
@@ -196,7 +183,7 @@ namespace WahJumps.Windows
 
                 var worldsToShow = selectedDataCenter != "All Data Centers" && worldsByDataCenter.ContainsKey(selectedDataCenter)
                     ? worldsByDataCenter[selectedDataCenter]
-                    : availableWorlds.Skip(1); // Skip "All Worlds"
+                    : availableWorlds.Skip(1);
 
                 foreach (var world in worldsToShow)
                 {
@@ -212,7 +199,6 @@ namespace WahJumps.Windows
 
             ImGui.SameLine();
 
-            // District filter
             ImGui.SetNextItemWidth(filterWidth);
             if (ImGui.BeginCombo("##district", selectedDistrict))
             {
@@ -228,7 +214,6 @@ namespace WahJumps.Windows
                 ImGui.EndCombo();
             }
 
-            // Row 3: Quick rating buttons for easy access
             ImGui.Text("Quick Rating:");
             ImGui.SameLine();
 
@@ -255,7 +240,6 @@ namespace WahJumps.Windows
                 }
             }
 
-            // Reset button at the bottom
             ImGui.Spacing();
             if (ImGui.Button("Reset All Filters"))
             {
@@ -265,12 +249,10 @@ namespace WahJumps.Windows
             ImGui.Spacing();
         }
 
-        // Results display with improved table layout
         private void DrawResults()
         {
             if (searchResults.Count == 0)
             {
-                // Empty state
                 ImGui.Dummy(new Vector2(0, 20));
                 UiTheme.CenteredText("No puzzles found");
                 ImGui.PushStyleColor(ImGuiCol.Text, UiTheme.Gray);
@@ -279,41 +261,34 @@ namespace WahJumps.Windows
                 return;
             }
 
-            // Results header
             ImGui.Text($"Found {searchResults.Count} puzzles");
             ImGui.SameLine();
             
-            // Sort info
             ImGui.PushStyleColor(ImGuiCol.Text, UiTheme.Gray);
             ImGui.Text("• Sorted by rating and name");
             ImGui.PopStyleColor();
 
             ImGui.Spacing();
 
-            // Draw improved table
             DrawPuzzleTable();
         }
 
         private void DrawPuzzleTable()
         {
-            if (UiHelpers.BeginPuzzleTable("SearchResultsTable"))
+            using var table = UiHelpers.BeginPuzzleTable("SearchResultsTable");
+            if (table.Success)
             {
                 for (int i = 0; i < searchResults.Count; i++)
                 {
                     UiHelpers.DrawPuzzleTableRow(searchResults[i], i, isFavorite, addToFavorites, removeFromFavorites, onTravel);
                 }
-                UiHelpers.EndPuzzleTable();
             }
         }
 
-
-
-        // Perform search based on current filters
         private void PerformSearch(Dictionary<string, List<JumpPuzzleData>> allData)
         {
             searchResults.Clear();
 
-            // Determine which data centers to search
             var dataCentersToSearch = selectedDataCenter == "All Data Centers"
                 ? allData.Keys.ToList()
                 : new List<string> { selectedDataCenter };
@@ -324,18 +299,14 @@ namespace WahJumps.Windows
 
                 var puzzles = allData[dc];
 
-                // Apply filters
                 var filteredPuzzles = puzzles.Where(p =>
                 {
-                    // Rating filter
                     if (selectedRating != "All Ratings" && p.Rating != selectedRating)
                         return false;
 
-                    // World filter
                     if (selectedWorld != "All Worlds" && p.World != selectedWorld)
                         return false;
 
-                    // District filter
                     if (selectedDistrict != "All Districts")
                     {
                         bool containsDistrict = p.Address.Contains(selectedDistrict, StringComparison.OrdinalIgnoreCase);
@@ -343,7 +314,6 @@ namespace WahJumps.Windows
                             return false;
                     }
 
-                    // Text search
                     if (!string.IsNullOrWhiteSpace(searchQuery))
                     {
                         return

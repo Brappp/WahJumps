@@ -10,7 +10,6 @@ namespace WahJumps.Windows.Components
 {
     public static class UiComponents
     {
-        // Creates a button styled for external links
         public static void ExternalLinkButton(string label, string url, float width = 0)
         {
             if (width > 0)
@@ -22,7 +21,7 @@ namespace WahJumps.Windows.Components
             else
             {
                 float windowWidth = ImGui.GetWindowWidth();
-                float textWidth = ImGui.CalcTextSize(label).X + 20; // Add padding
+                float textWidth = ImGui.CalcTextSize(label).X + 20;
                 ImGui.SetCursorPosX((windowWidth - textWidth) / 2);
             }
 
@@ -41,7 +40,6 @@ namespace WahJumps.Windows.Components
             }
         }
 
-        // Creates a Discord-styled button for Discord links
         public static void DiscordButton(string label, string url)
         {
             using var colors = new ImRaii.StyleColor(
@@ -53,7 +51,6 @@ namespace WahJumps.Windows.Components
             ExternalLinkButton(label, url);
         }
 
-        // Creates a colored notification box
         public static void NotificationBox(string text, Vector4 color, bool centered = true)
         {
             ImGui.PushStyleColor(ImGuiCol.ChildBg, new Vector4(color.X, color.Y, color.Z, 0.1f));
@@ -74,13 +71,11 @@ namespace WahJumps.Windows.Components
             ImGui.PopStyleColor();
         }
 
-        // Warning box with icon
         public static void WarningBox(string text)
         {
             NotificationBox("⚠️ " + text, UiTheme.Warning);
         }
 
-        // Creates a filter combo box
         public static bool FilterCombo<T>(string label, ref T selectedItem, IReadOnlyList<T> items, Func<T, string> getDisplayString)
         {
             bool changed = false;
@@ -111,7 +106,6 @@ namespace WahJumps.Windows.Components
             return changed;
         }
 
-        // Creates a styled, compact search box
         public static bool SearchBox(ref string query, string hint = "Search...", float width = 0)
         {
             string temp = query;
@@ -137,7 +131,6 @@ namespace WahJumps.Windows.Components
             return changed;
         }
 
-        // Creates a compact filter header section
         public static void FilterHeader(string title, bool isSearching = false)
         {
             ImGui.PushStyleColor(ImGuiCol.Text, UiTheme.Primary);
@@ -157,7 +150,6 @@ namespace WahJumps.Windows.Components
             ImGui.Spacing();
         }
 
-        // Helper function to combine codes into a single string
         public static string CombineCodes(params string[] codes)
         {
             List<string> combinedCodes = new List<string>();
@@ -173,7 +165,6 @@ namespace WahJumps.Windows.Components
             return string.Join(", ", combinedCodes);
         }
 
-        // Create an iconified button that takes minimal space
         public static bool IconButton(string icon, string tooltip, Vector4 color, string id = null)
         {
             ImGui.PushStyleColor(ImGuiCol.Text, color);
@@ -188,7 +179,6 @@ namespace WahJumps.Windows.Components
             return clicked;
         }
 
-        // Draw a compact card with title and content
         public static void Card(string title, string content, float width = 0)
         {
             float cardWidth = width > 0 ? width : ImGui.GetContentRegionAvail().X;
@@ -196,7 +186,6 @@ namespace WahJumps.Windows.Components
             ImGui.PushStyleColor(ImGuiCol.ChildBg, new Vector4(0.15f, 0.15f, 0.15f, 1.0f));
             ImGui.BeginChild($"##card_{title}", new Vector2(cardWidth, 0), true);
 
-            // Title with color
             ImGui.PushStyleColor(ImGuiCol.Text, UiTheme.Primary);
             ImGui.Text(title);
             ImGui.PopStyleColor();
@@ -204,14 +193,12 @@ namespace WahJumps.Windows.Components
             ImGui.Separator();
             ImGui.Spacing();
 
-            // Content
             ImGui.TextWrapped(content);
 
             ImGui.EndChild();
             ImGui.PopStyleColor();
         }
 
-        // Draw a loading spinner
         public static void LoadingSpinner(string label, float radius = 10.0f, float thickness = 2.0f)
         {
             ImDrawListPtr drawList = ImGui.GetWindowDrawList();
@@ -219,7 +206,6 @@ namespace WahJumps.Windows.Components
             Vector2 center = new Vector2(pos.X + radius, pos.Y + radius);
             float time = (float)ImGui.GetTime();
 
-            // Calculate rotation angles for segments
             const int segmentCount = 8;
             for (int i = 0; i < segmentCount; i++)
             {
@@ -242,7 +228,6 @@ namespace WahJumps.Windows.Components
                 );
             }
 
-            // Move cursor past the spinner and add label if provided
             ImGui.Dummy(new Vector2(radius * 2 + 4, radius * 2));
 
             if (!string.IsNullOrEmpty(label))

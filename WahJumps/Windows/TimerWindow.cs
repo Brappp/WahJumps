@@ -81,56 +81,23 @@ namespace WahJumps.Windows
         public override void Draw()
         {
             UpdateAnimations();
-            ApplyWindowStyling();
+            
+            using var windowStyle = new ImRaii.TimerWindowStyle(speedrunManager.GetState());
+            var state = speedrunManager.GetState();
 
-            try
+            if (state == SpeedrunManager.SpeedrunState.Countdown)
             {
-                var state = speedrunManager.GetState();
-
-                if (state == SpeedrunManager.SpeedrunState.Countdown)
-                {
-                    DrawModernCountdown();
-                    return;
-                }
-
-                DrawModernTimerContent(state);
+                DrawModernCountdown();
+                return;
             }
-            finally
-            {
-                CleanupWindowStyling();
-            }
+
+            DrawModernTimerContent(state);
         }
 
         private void UpdateAnimations()
         {
             pulseAnimation = 0f;
             glowIntensity = 0f;
-        }
-
-        private void ApplyWindowStyling()
-        {
-            ImGui.PushStyleVar(ImGuiStyleVar.WindowRounding, 12.0f);
-            ImGui.PushStyleVar(ImGuiStyleVar.WindowPadding, new Vector2(20, 16));
-            ImGui.PushStyleVar(ImGuiStyleVar.ItemSpacing, new Vector2(10, 10));
-            ImGui.PushStyleVar(ImGuiStyleVar.FrameRounding, 8.0f);
-            ImGui.PushStyleVar(ImGuiStyleVar.ButtonTextAlign, new Vector2(0.5f, 0.5f));
-
-            var state = speedrunManager.GetState();
-            Vector4 bgColor = state switch
-            {
-                SpeedrunManager.SpeedrunState.Running => new Vector4(0.05f, 0.15f, 0.05f, 0.98f),
-                SpeedrunManager.SpeedrunState.Countdown => new Vector4(0.15f, 0.08f, 0.03f, 0.98f),
-                SpeedrunManager.SpeedrunState.Finished => new Vector4(0.15f, 0.12f, 0.03f, 0.98f),
-                _ => new Vector4(0.06f, 0.06f, 0.15f, 0.98f)
-            };
-
-            ImGui.PushStyleColor(ImGuiCol.WindowBg, bgColor);
-        }
-
-        private void CleanupWindowStyling()
-        {
-            ImGui.PopStyleColor(1);
-            ImGui.PopStyleVar(5);
         }
 
         private void DrawModernCountdown()
@@ -153,46 +120,24 @@ namespace WahJumps.Windows
             );
 
             string countText = countdownRemaining.ToString();
-            float fontSize = 2.5f;
-            var textSize = ImGui.CalcTextSize(countText) * fontSize;
-            float centerX = (contentSize.X - textSize.X) * 0.5f;
-            float centerY = (contentSize.Y - textSize.Y) * 0.5f - 30;
+            float centerY = (contentSize.Y - ImGui.CalcTextSize(countText).Y * 2.5f) * 0.5f - 30;
 
-            ImGui.SetCursorPos(new Vector2(centerX, centerY));
-            ImGui.PushStyleColor(ImGuiCol.Text, countdownOrange);
-            try
-            {
-                ImGui.SetWindowFontScale(fontSize);
-                ImGui.Text(countText);
-                ImGui.SetWindowFontScale(1.0f);
-            }
-            finally
-            {
-                ImGui.PopStyleColor(1);
-            }
+            ImGui.SetCursorPosY(centerY);
+            ImRaii.CenteredText(countText, countdownOrange, 2.5f);
 
-            string readyText = "Get Ready!";
-            textSize = ImGui.CalcTextSize(readyText);
-            centerX = (contentSize.X - textSize.X) * 0.5f;
-
-            ImGui.SetCursorPos(new Vector2(centerX, centerY + 80));
-            ImGui.PushStyleColor(ImGuiCol.Text, new Vector4(1.0f, 1.0f, 1.0f, 0.9f));
-            try
-            {
-                ImGui.Text(readyText);
-            }
-            finally
-            {
-                ImGui.PopStyleColor(1);
-            }
+            ImGui.SetCursorPosY(centerY + 80);
+            ImRaii.CenteredText("Get Ready!", new Vector4(1.0f, 1.0f, 1.0f, 0.9f));
 
             float buttonWidth = 140f;
             float buttonCenterX = (contentSize.X - buttonWidth) * 0.5f;
             ImGui.SetCursorPos(new Vector2(buttonCenterX, centerY + 130));
-            DrawModernButton("Skip Countdown", new Vector2(buttonWidth, 32), 
+            
+            if (ImRaii.StyledButton("Skip Countdown", new Vector2(buttonWidth, 32), 
                 new Vector4(0.4f, 0.3f, 0.2f, 0.8f),
-                new Vector4(0.5f, 0.4f, 0.3f, 0.9f),
-                () => speedrunManager.SkipCountdown());
+                new Vector4(0.5f, 0.4f, 0.3f, 0.9f)))
+            {
+                speedrunManager.SkipCountdown();
+            }
         }
 
         private void DrawModernTimerContent(SpeedrunManager.SpeedrunState state)
@@ -242,15 +187,8 @@ namespace WahJumps.Windows
                 1.0f
             );
 
-            ImGui.PushStyleColor(ImGuiCol.Text, UiTheme.Primary);
-            try
-            {
-                ImGui.Text(title);
-            }
-            finally
-            {
-                ImGui.PopStyleColor(1);
-            }
+            using var textColor = ImRaii.PushColor(ImGuiCol.Text, UiTheme.Primary);
+            ImGui.Text(title);
         }
 
         private void DrawMainTimer(SpeedrunManager.SpeedrunState state, float contentWidth)
@@ -266,23 +204,7 @@ namespace WahJumps.Windows
                 _ => new Vector4(0.8f, 0.8f, 0.8f, 1.0f)
             };
 
-            float fontSize = 2.0f;
-            var textSize = ImGui.CalcTextSize(timeText) * fontSize;
-            float centerX = (contentWidth - textSize.X) * 0.5f;
-            float currentY = ImGui.GetCursorPosY();
-
-            ImGui.SetCursorPos(new Vector2(centerX, currentY));
-            ImGui.PushStyleColor(ImGuiCol.Text, timeColor);
-            try
-            {
-                ImGui.SetWindowFontScale(fontSize);
-                ImGui.Text(timeText);
-                ImGui.SetWindowFontScale(1.0f);
-            }
-            finally
-            {
-                ImGui.PopStyleColor(1);
-            }
+            ImRaii.CenteredText(timeText, timeColor, 2.0f);
         }
 
         private void DrawStatusIndicator(SpeedrunManager.SpeedrunState state, float contentWidth)
@@ -304,17 +226,7 @@ namespace WahJumps.Windows
                 _ => new Vector4(0.6f, 0.6f, 0.6f, 1.0f)
             };
 
-            var textSize = ImGui.CalcTextSize(statusText);
-            ImGui.SetCursorPosX((contentWidth - textSize.X) * 0.5f);
-            ImGui.PushStyleColor(ImGuiCol.Text, statusColor);
-            try
-            {
-                ImGui.Text(statusText);
-            }
-            finally
-            {
-                ImGui.PopStyleColor(1);
-            }
+            ImRaii.CenteredText(statusText, statusColor);
         }
 
         private void DrawModernControls(SpeedrunManager.SpeedrunState state, float contentWidth)
@@ -327,50 +239,31 @@ namespace WahJumps.Windows
             switch (state)
             {
                 case SpeedrunManager.SpeedrunState.Idle:
-                    DrawModernButton("START", new Vector2(buttonWidth, 32),
+                    if (ImRaii.StyledButton("START", new Vector2(buttonWidth, 32),
                         new Vector4(0.2f, 0.6f, 0.3f, 0.8f),
-                        new Vector4(0.3f, 0.7f, 0.4f, 0.9f),
-                        () => speedrunManager.StartCountdown());
+                        new Vector4(0.3f, 0.7f, 0.4f, 0.9f)))
+                    {
+                        speedrunManager.StartCountdown();
+                    }
                     break;
 
                 case SpeedrunManager.SpeedrunState.Running:
-                    DrawModernButton("STOP", new Vector2(buttonWidth, 32),
+                    if (ImRaii.StyledButton("STOP", new Vector2(buttonWidth, 32),
                         new Vector4(0.7f, 0.2f, 0.2f, 0.8f),
-                        new Vector4(0.8f, 0.3f, 0.3f, 0.9f),
-                        () => speedrunManager.StopTimer());
+                        new Vector4(0.8f, 0.3f, 0.3f, 0.9f)))
+                    {
+                        speedrunManager.StopTimer();
+                    }
                     break;
 
                 case SpeedrunManager.SpeedrunState.Finished:
-                    DrawModernButton("RESET", new Vector2(buttonWidth, 32),
+                    if (ImRaii.StyledButton("RESET", new Vector2(buttonWidth, 32),
                         new Vector4(0.3f, 0.4f, 0.6f, 0.8f),
-                        new Vector4(0.4f, 0.5f, 0.7f, 0.9f),
-                        () => speedrunManager.ResetTimer());
+                        new Vector4(0.4f, 0.5f, 0.7f, 0.9f)))
+                    {
+                        speedrunManager.ResetTimer();
+                    }
                     break;
-            }
-        }
-
-
-
-        private void DrawModernButton(string text, Vector2 size, Vector4 normalColor, Vector4 hoverColor, Action onClick)
-        {
-            ImGui.PushStyleColor(ImGuiCol.Button, normalColor);
-            ImGui.PushStyleColor(ImGuiCol.ButtonHovered, hoverColor);
-            ImGui.PushStyleColor(ImGuiCol.ButtonActive, new Vector4(hoverColor.X * 1.3f, hoverColor.Y * 1.3f, hoverColor.Z * 1.3f, 1.0f));
-            ImGui.PushStyleColor(ImGuiCol.Text, Vector4.One);
-            ImGui.PushStyleVar(ImGuiStyleVar.FrameRounding, 10.0f);
-            ImGui.PushStyleVar(ImGuiStyleVar.FramePadding, new Vector2(12, 8));
-
-            try
-            {
-                if (ImGui.Button(text, size))
-                {
-                    onClick?.Invoke();
-                }
-            }
-            finally
-            {
-                ImGui.PopStyleVar(2);
-                ImGui.PopStyleColor(4);
             }
         }
 
