@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Numerics;
-using ImGuiNET;
+using Dalamud.Bindings.ImGui;
 using WahJumps.Data;
 using WahJumps.Utilities;
 using WahJumps.Windows.Components;

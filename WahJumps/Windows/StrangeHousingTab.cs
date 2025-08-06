@@ -1,4 +1,4 @@
-using ImGuiNET;
+using Dalamud.Bindings.ImGui;
 using WahJumps.Utilities;
 using WahJumps.Windows.Components;
 using System.Numerics;

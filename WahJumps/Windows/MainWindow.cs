@@ -4,7 +4,7 @@ using System.IO;
 using System.Linq;
 using System.Numerics;
 using Dalamud.Interface.Windowing;
-using ImGuiNET;
+using Dalamud.Bindings.ImGui;
 using Newtonsoft.Json;
 using WahJumps.Configuration;
 using WahJumps.Data;
