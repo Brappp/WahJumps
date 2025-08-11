@@ -1,1 +1,1 @@
-https://raw.githubusercontent.com/Brappp/repo/main/wah.json
+https://puni.sh/api/repository/wah
