@@ -2,6 +2,7 @@ using System.Numerics;
 using Dalamud.Bindings.ImGui;
 using System.Collections.Generic;
 using System;
+using WahJumps.Data;
 
 namespace WahJumps.Utilities
 {
@@ -20,10 +21,86 @@ namespace WahJumps.Utilities
         public static readonly Vector4 Gray = new Vector4(0.4f, 0.4f, 0.4f, 1.0f);               // #666666
         public static readonly Vector4 Light = new Vector4(0.9f, 0.9f, 0.9f, 1.0f);              // #E6E6E6
 
+        // Rating Colors (centralized - use these for all rating displays)
+        public static readonly Vector4 Rating1Star = new Vector4(0.0f, 0.8f, 0.0f, 1.0f);        // Green
+        public static readonly Vector4 Rating2Star = new Vector4(0.0f, 0.6f, 0.9f, 1.0f);        // Blue
+        public static readonly Vector4 Rating3Star = new Vector4(0.9f, 0.8f, 0.0f, 1.0f);        // Yellow
+        public static readonly Vector4 Rating4Star = new Vector4(1.0f, 0.5f, 0.0f, 1.0f);        // Orange
+        public static readonly Vector4 Rating5Star = new Vector4(0.9f, 0.0f, 0.0f, 1.0f);        // Red
+        public static readonly Vector4 RatingSpecial = new Vector4(0.8f, 0.8f, 0.8f, 1.0f);      // Gray
+
         // Discord Colors
         public static readonly Vector4 DiscordPrimary = new Vector4(0.29f, 0.33f, 0.86f, 1.0f);  // #4A54DB
         public static readonly Vector4 DiscordHover = new Vector4(0.39f, 0.43f, 0.96f, 1.0f);    // #636EF5
         public static readonly Vector4 DiscordActive = new Vector4(0.19f, 0.23f, 0.76f, 1.0f);   // #313BC2
+
+        /// <summary>
+        /// Gets the color for a puzzle rating. Use this instead of duplicating color logic.
+        /// </summary>
+        public static Vector4 GetRatingColor(string rating)
+        {
+            if (string.IsNullOrEmpty(rating)) return RatingSpecial;
+
+            return rating switch
+            {
+                "1★" or "★" => Rating1Star,
+                "2★" or "★★" => Rating2Star,
+                "3★" or "★★★" => Rating3Star,
+                "4★" or "★★★★" => Rating4Star,
+                "5★" or "★★★★★" => Rating5Star,
+                _ when rating.Contains("★★★★★") => Rating5Star,
+                _ when rating.Contains("★★★★") => Rating4Star,
+                _ when rating.Contains("★★★") => Rating3Star,
+                _ when rating.Contains("★★") => Rating2Star,
+                _ when rating.Contains("★") => Rating1Star,
+                _ => RatingSpecial
+            };
+        }
+
+        /// <summary>
+        /// Formats a travel command for Lifestream IPC. Centralized to avoid duplication.
+        /// </summary>
+        public static string FormatTravelCommand(JumpPuzzleData puzzle)
+        {
+            if (puzzle == null) return string.Empty;
+
+            var world = puzzle.World;
+            var address = puzzle.Address;
+
+            if (string.IsNullOrEmpty(address)) return $"/travel {world}";
+
+            if (address.Contains("Room"))
+            {
+                // Handle FC room - remove room information
+                var roomIndex = address.IndexOf("Room", StringComparison.Ordinal);
+                if (roomIndex > 0)
+                    address = address.Substring(0, roomIndex).Trim();
+            }
+            else if (address.Contains("Apartment"))
+            {
+                // Split the address for apartment cases
+                var apartmentIndex = address.IndexOf("Apartment", StringComparison.Ordinal);
+                if (apartmentIndex > 0)
+                {
+                    var apartmentPart = address.Substring(apartmentIndex + 9).Trim();
+                    address = address.Substring(0, apartmentIndex).Trim();
+
+                    // Handle Wing logic for subdivisions
+                    if (address.Contains("Wing 2"))
+                    {
+                        address = address.Replace("Wing 2", "subdivision").Trim();
+                    }
+                    else if (address.Contains("Wing 1"))
+                    {
+                        address = address.Replace("Wing 1", "").Trim();
+                    }
+
+                    address = $"{address} Apartment {apartmentPart}";
+                }
+            }
+
+            return $"/travel {world} {address}";
+        }
 
         // Data Center Colors
         private static readonly Dictionary<string, (Vector4 Dark, Vector4 Medium, Vector4 Light)> DataCenterColors = new Dictionary<string, (Vector4, Vector4, Vector4)>
@@ -166,6 +243,35 @@ namespace WahJumps.Utilities
                 ImGui.EndTooltip();
                 ImGui.PopStyleColor();
             }
+        }
+
+        /// <summary>
+        /// Creates a colored button with automatic hover/active state variations.
+        /// </summary>
+        public static bool ColoredButton(string label, Vector4 color, Vector2? size = null, string tooltip = null)
+        {
+            Vector2 buttonSize = size ?? Vector2.Zero;
+
+            // Darken for base, use provided color for hover, darken more for active
+            var baseColor = new Vector4(color.X * 0.8f, color.Y * 0.8f, color.Z * 0.8f, 1.0f);
+            var activeColor = new Vector4(color.X * 0.6f, color.Y * 0.6f, color.Z * 0.6f, 1.0f);
+
+            ImGui.PushStyleColor(ImGuiCol.Button, baseColor);
+            ImGui.PushStyleColor(ImGuiCol.ButtonHovered, color);
+            ImGui.PushStyleColor(ImGuiCol.ButtonActive, activeColor);
+            ImGui.PushStyleVar(ImGuiStyleVar.FrameRounding, 4.0f);
+
+            bool clicked = ImGui.Button(label, buttonSize);
+
+            ImGui.PopStyleVar();
+            ImGui.PopStyleColor(3);
+
+            if (!string.IsNullOrEmpty(tooltip) && ImGui.IsItemHovered())
+            {
+                ImGui.SetTooltip(tooltip);
+            }
+
+            return clicked;
         }
 
         public static bool StandardButton(string label, Vector2? size = null)

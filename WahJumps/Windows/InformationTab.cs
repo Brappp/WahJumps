@@ -360,25 +360,9 @@ namespace WahJumps.Windows
             }
         }
 
-        private void DrawColoredRating(string rating)
-        {
-            if (string.IsNullOrEmpty(rating))
-            {
-                ImGui.Text("");
-                return;
-            }
-
-            Vector4 color = GetRatingColor(rating);
-
-            using (var colorStyle = new ImRaii.StyleColor(ImGuiCol.Text, color))
-            {
-                ImGui.Text(rating);
-            }
-        }
-
         private void DrawStarDiagramOnly(string rating, string starDiagram)
         {
-            Vector4 ratingColor = GetRatingColor(rating);
+            Vector4 ratingColor = UiTheme.GetRatingColor(rating);
 
             if (string.IsNullOrEmpty(rating))
             {
@@ -421,56 +405,6 @@ namespace WahJumps.Windows
             {
                 ImGui.TextWrapped(starDiagram); // If no separator, show the whole thing
             }
-        }
-
-        private void DrawColoredStarDiagram(string rating, string starDiagram)
-        {
-            if (string.IsNullOrEmpty(starDiagram))
-            {
-                ImGui.Text("");
-                return;
-            }
-
-            Vector4 color = GetRatingColor(rating);
-
-            // Split the text to find the star portion and the description
-            var parts = starDiagram.Split(new[] { " - " }, 2, System.StringSplitOptions.None);
-            
-            if (parts.Length >= 2)
-            {
-                // Draw the star portion with color
-                using (var colorStyle = new ImRaii.StyleColor(ImGuiCol.Text, color))
-                {
-                    ImGui.Text(parts[0]);
-                }
-                
-                // Draw the description on the same line with normal color
-                ImGui.SameLine();
-                ImGui.Text(" - ");
-                ImGui.SameLine();
-                ImGui.TextWrapped(parts[1]);
-            }
-            else
-            {
-                // If no " - " separator found, just draw the whole thing with color
-                using (var colorStyle = new ImRaii.StyleColor(ImGuiCol.Text, color))
-                {
-                    ImGui.TextWrapped(starDiagram);
-                }
-            }
-        }
-
-        private Vector4 GetRatingColor(string rating)
-        {
-            return rating switch
-            {
-                "1★" => new Vector4(0.0f, 0.8f, 0.0f, 1.0f),      // Green
-                "2★" => new Vector4(0.0f, 0.6f, 0.9f, 1.0f),      // Blue
-                "3★" => new Vector4(0.9f, 0.8f, 0.0f, 1.0f),      // Yellow
-                "4★" => new Vector4(1.0f, 0.5f, 0.0f, 1.0f),      // Orange
-                "5★" => new Vector4(0.9f, 0.0f, 0.0f, 1.0f),      // Red
-                _ => new Vector4(0.8f, 0.8f, 0.8f, 1.0f)          // Gray for special ratings
-            };
         }
     }
 }

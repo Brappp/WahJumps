@@ -9,27 +9,9 @@ namespace WahJumps.Utilities
 {
     public static class UiHelpers
     {
-        public static Vector4 GetRatingColor(string rating)
-        {
-            return rating switch
-            {
-                "1★" => new Vector4(0.0f, 0.8f, 0.0f, 1.0f),      // Green
-                "2★" => new Vector4(0.0f, 0.6f, 0.9f, 1.0f),      // Blue  
-                "3★" => new Vector4(0.9f, 0.8f, 0.0f, 1.0f),      // Yellow
-                "4★" => new Vector4(1.0f, 0.5f, 0.0f, 1.0f),      // Orange
-                "5★" => new Vector4(0.9f, 0.0f, 0.0f, 1.0f),      // Red
-                _ when rating.Contains("★★★★★") => new Vector4(0.9f, 0.0f, 0.0f, 1.0f),
-                _ when rating.Contains("★★★★") => new Vector4(1.0f, 0.5f, 0.0f, 1.0f),
-                _ when rating.Contains("★★★") => new Vector4(0.9f, 0.8f, 0.0f, 1.0f),
-                _ when rating.Contains("★★") => new Vector4(0.0f, 0.6f, 0.9f, 1.0f),
-                _ when rating.Contains("★") => new Vector4(0.0f, 0.8f, 0.0f, 1.0f),
-                _ => new Vector4(0.8f, 0.8f, 0.8f, 1.0f)
-            };
-        }
-
         public static void RenderRatingWithColor(string rating)
         {
-            using var color = ImRaii.PushColor(ImGuiCol.Text, GetRatingColor(rating));
+            using var color = ImRaii.PushColor(ImGuiCol.Text, UiTheme.GetRatingColor(rating));
             ImGui.Text(rating);
         }
 
@@ -154,11 +136,6 @@ namespace WahJumps.Utilities
             }
             
             return table;
-        }
-
-        public static void EndPuzzleTable()
-        {
-            // This method is now obsolete - use 'using var table = BeginPuzzleTable()' instead
         }
 
         public static void DrawPuzzleTableRow(JumpPuzzleData puzzle, int index,

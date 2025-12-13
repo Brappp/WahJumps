@@ -9,7 +9,7 @@ namespace WahJumps.Windows.Components
     public class TravelDialog
     {
         private bool isOpen = false;
-        private JumpPuzzleData targetPuzzle = null;
+        private JumpPuzzleData? targetPuzzle = null;
         private Action<string> onTravel;
         private Action onCancel;
 
@@ -154,7 +154,7 @@ namespace WahJumps.Windows.Components
 
                         ImGui.Text("Rating:");
                         ImGui.SameLine();
-                        ImGui.TextColored(RatingToColor(targetPuzzle.Rating), targetPuzzle.Rating);
+                        ImGui.TextColored(UiTheme.GetRatingColor(targetPuzzle.Rating), targetPuzzle.Rating);
 
                         // Reset indentation
                         ImGui.Unindent();
@@ -182,7 +182,7 @@ namespace WahJumps.Windows.Components
                         if (ImGui.Button("Travel Now", new Vector2(buttonWidth, 0)) && targetPuzzle != null)
                         {
                             // Format travel command and execute
-                            string travelCommand = FormatTravelCommand(targetPuzzle);
+                            string travelCommand = UiTheme.FormatTravelCommand(targetPuzzle);
                             onTravel?.Invoke(travelCommand);
                             Close();
                         }
@@ -198,66 +198,6 @@ namespace WahJumps.Windows.Components
                 }
             }
             ImGui.End();
-        }
-
-        private string FormatTravelCommand(JumpPuzzleData puzzle)
-        {
-            var world = puzzle.World;
-            var address = puzzle.Address;
-
-            if (address.Contains("Room"))
-            {
-                // Handle FC room, just remove the room information
-                address = address.Split("Room")[0].Trim();
-            }
-            else if (address.Contains("Apartment"))
-            {
-                // Split the address for apartment cases
-                var parts = address.Split("Apartment");
-                var apartmentPart = parts[1].Trim();  // Extract the apartment number
-                address = parts[0].Trim();  // Keep the ward and wing part
-
-                // Handle Wing logic for subdivisions
-                if (address.Contains("Wing 2"))
-                {
-                    // Replace Wing 2 with "subdivision"
-                    address = address.Replace("Wing 2", "subdivision").Trim();
-                    address = $"{address} Apartment {apartmentPart}";
-                }
-                else if (address.Contains("Wing 1"))
-                {
-                    // Remove "Wing 1" (it can be ignored)
-                    address = address.Replace("Wing 1", "").Trim();
-                    address = $"{address} Apartment {apartmentPart}";
-                }
-                else
-                {
-                    // No wings, keep it simple
-                    address = $"{address} Apartment {apartmentPart}";
-                }
-            }
-
-            // Return the formatted command
-            return $"/travel {world} {address}";
-        }
-
-        private Vector4 RatingToColor(string rating)
-        {
-            switch (rating)
-            {
-                case "1★":
-                    return new Vector4(0.0f, 0.8f, 0.0f, 1.0f); // Green
-                case "2★":
-                    return new Vector4(0.0f, 0.6f, 0.9f, 1.0f); // Blue
-                case "3★":
-                    return new Vector4(0.9f, 0.8f, 0.0f, 1.0f); // Yellow
-                case "4★":
-                    return new Vector4(1.0f, 0.5f, 0.0f, 1.0f); // Orange
-                case "5★":
-                    return new Vector4(0.9f, 0.0f, 0.0f, 1.0f); // Red
-                default:
-                    return new Vector4(0.8f, 0.8f, 0.8f, 1.0f); // Gray
-            }
         }
     }
 }

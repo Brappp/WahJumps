@@ -322,67 +322,33 @@ namespace WahJumps.Windows
         private void DrawTopToolbar()
         {
             ImGui.PushStyleVar(ImGuiStyleVar.FramePadding, new Vector2(8, 4));
-            ImGui.PushStyleVar(ImGuiStyleVar.FrameRounding, 4.0f);
 
-            ImGui.PushStyleColor(ImGuiCol.Button, new Vector4(0.18f, 0.35f, 0.58f, 1.0f));
-            ImGui.PushStyleColor(ImGuiCol.ButtonHovered, new Vector4(0.25f, 0.45f, 0.68f, 1.0f));
-            ImGui.PushStyleColor(ImGuiCol.ButtonActive, new Vector4(0.15f, 0.30f, 0.50f, 1.0f));
-
-            if (ImGui.Button("Refresh Data"))
+            // Refresh button
+            if (UiTheme.ColoredButton("Refresh Data", UiTheme.Primary, tooltip: "Refresh puzzle data from source"))
             {
                 RefreshData();
                 ShowNotification("Refreshing data...", MessageType.Info);
             }
-            ImGui.PopStyleColor(3);
-
-            if (ImGui.IsItemHovered())
-            {
-                ImGui.PushStyleColor(ImGuiCol.PopupBg, new Vector4(0.18f, 0.18f, 0.22f, 0.95f));
-                ImGui.BeginTooltip();
-                ImGui.Text("Refresh puzzle data from source");
-                ImGui.EndTooltip();
-                ImGui.PopStyleColor();
-            }
 
             ImGui.SameLine();
 
+            // Confirmation toggle
             var config = settingsManager.Configuration;
-            bool showTravelConfirmation = config.ShowTravelConfirmation;
-            
-            Vector4 toggleColor = showTravelConfirmation 
-                ? new Vector4(0.3f, 0.3f, 0.3f, 1.0f)  // Dark gray when enabled
-                : new Vector4(0.2f, 0.2f, 0.2f, 1.0f); // Darker gray when disabled
-            
-            ImGui.PushStyleColor(ImGuiCol.Button, toggleColor);
-            ImGui.PushStyleColor(ImGuiCol.ButtonHovered, new Vector4(toggleColor.X + 0.1f, toggleColor.Y + 0.1f, toggleColor.Z + 0.1f, 1.0f));
-            ImGui.PushStyleColor(ImGuiCol.ButtonActive, new Vector4(toggleColor.X - 0.1f, toggleColor.Y - 0.1f, toggleColor.Z - 0.1f, 1.0f));
+            var toggleColor = config.ShowTravelConfirmation ? UiTheme.Success : UiTheme.Gray;
+            string confirmText = config.ShowTravelConfirmation ? "Confirm: ON" : "Confirm: OFF";
 
-            string confirmText = showTravelConfirmation ? "Confirm: ON" : "Confirm: OFF";
-            if (ImGui.Button(confirmText))
+            if (UiTheme.ColoredButton(confirmText, toggleColor, tooltip: "Toggle travel confirmation dialog"))
             {
                 config.ShowTravelConfirmation = !config.ShowTravelConfirmation;
                 settingsManager.SaveConfiguration();
                 string status = config.ShowTravelConfirmation ? "enabled" : "disabled";
                 ShowNotification($"Travel confirmation {status}", MessageType.Info);
             }
-            ImGui.PopStyleColor(3);
-
-            if (ImGui.IsItemHovered())
-            {
-                ImGui.PushStyleColor(ImGuiCol.PopupBg, new Vector4(0.18f, 0.18f, 0.22f, 0.95f));
-                ImGui.BeginTooltip();
-                ImGui.Text("Toggle travel confirmation dialog");
-                ImGui.EndTooltip();
-                ImGui.PopStyleColor();
-            }
 
             ImGui.SameLine();
 
-            ImGui.PushStyleColor(ImGuiCol.Button, new Vector4(0.15f, 0.15f, 0.15f, 1.0f));
-            ImGui.PushStyleColor(ImGuiCol.ButtonHovered, new Vector4(0.25f, 0.25f, 0.25f, 1.0f));
-            ImGui.PushStyleColor(ImGuiCol.ButtonActive, new Vector4(0.35f, 0.35f, 0.35f, 1.0f));
-
-            if (ImGui.Button("GitHub"))
+            // GitHub button
+            if (UiTheme.ColoredButton("GitHub", UiTheme.Dark, tooltip: "Open WahJumps on GitHub"))
             {
                 System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
                 {
@@ -390,42 +356,19 @@ namespace WahJumps.Windows
                     UseShellExecute = true
                 });
             }
-            ImGui.PopStyleColor(3);
-
-            if (ImGui.IsItemHovered())
-            {
-                ImGui.PushStyleColor(ImGuiCol.PopupBg, new Vector4(0.18f, 0.18f, 0.22f, 0.95f));
-                ImGui.BeginTooltip();
-                ImGui.Text("Open WahJumps on GitHub");
-                ImGui.EndTooltip();
-                ImGui.PopStyleColor();
-            }
 
             ImGui.SameLine();
-            ImGui.Text($"Last Updated: {lastRefreshDate.ToString("yyyy-MM-dd HH:mm")}");
+            ImGui.TextColored(UiTheme.Gray, $"Last Updated: {lastRefreshDate:yyyy-MM-dd HH:mm}");
 
             ImGui.SameLine(ImGui.GetWindowWidth() - 80);
 
-            ImGui.PushStyleColor(ImGuiCol.Button, new Vector4(0.2f, 0.4f, 0.6f, 1.0f));
-            ImGui.PushStyleColor(ImGuiCol.ButtonHovered, new Vector4(0.3f, 0.5f, 0.7f, 1.0f));
-            ImGui.PushStyleColor(ImGuiCol.ButtonActive, new Vector4(0.15f, 0.35f, 0.55f, 1.0f));
-
-            if (ImGui.Button("Timer"))
+            // Timer button
+            if (UiTheme.ColoredButton("Timer", UiTheme.Primary, tooltip: "Open the timer window for speedruns"))
             {
                 plugin.TimerWindow.ShowTimer();
             }
-            ImGui.PopStyleColor(3);
 
-            if (ImGui.IsItemHovered())
-            {
-                ImGui.PushStyleColor(ImGuiCol.PopupBg, new Vector4(0.18f, 0.18f, 0.22f, 0.95f));
-                ImGui.BeginTooltip();
-                ImGui.Text("Open the timer window for speedruns");
-                ImGui.EndTooltip();
-                ImGui.PopStyleColor();
-            }
-
-            ImGui.PopStyleVar(2);
+            ImGui.PopStyleVar();
         }
 
         private void DrawTabMode()
@@ -1173,7 +1116,7 @@ namespace WahJumps.Windows
             else
             {
                 // Travel directly without confirmation
-                string travelCommand = FormatTravelCommand(puzzle);
+                string travelCommand = UiTheme.FormatTravelCommand(puzzle);
                 ExecuteTravel(travelCommand);
             }
         }
@@ -1184,47 +1127,6 @@ namespace WahJumps.Windows
             DisplayTravelMessage(travelCommand);
             lifestreamIpcHandler.ExecuteLiCommand(travelCommand);
             ShowNotification("Travel command executed", MessageType.Success);
-        }
-
-        private string FormatTravelCommand(JumpPuzzleData puzzle)
-        {
-            var world = puzzle.World;
-            var address = puzzle.Address;
-
-            if (address.Contains("Room"))
-            {
-                // Handle FC room, just remove the room information
-                address = address.Split("Room")[0].Trim();
-            }
-            else if (address.Contains("Apartment"))
-            {
-                // Split the address for apartment cases
-                var parts = address.Split("Apartment");
-                var apartmentPart = parts[1].Trim();  // Extract the apartment number
-                address = parts[0].Trim();  // Keep the ward and wing part
-
-                // Handle Wing logic for subdivisions
-                if (address.Contains("Wing 2"))
-                {
-                    // Replace Wing 2 with "subdivision"
-                    address = address.Replace("Wing 2", "subdivision").Trim();
-                    address = $"{address} Apartment {apartmentPart}";
-                }
-                else if (address.Contains("Wing 1"))
-                {
-                    // Remove "Wing 1" (it can be ignored)
-                    address = address.Replace("Wing 1", "").Trim();
-                    address = $"{address} Apartment {apartmentPart}";
-                }
-                else
-                {
-                    // No wings, keep it simple
-                    address = $"{address} Apartment {apartmentPart}";
-                }
-            }
-
-            // Return the formatted command
-            return $"/travel {world} {address}";
         }
 
         private void DisplayTravelMessage(string travelCommand)

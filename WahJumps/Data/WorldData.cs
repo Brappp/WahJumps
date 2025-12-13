@@ -4,9 +4,9 @@ namespace WahJumps.Data
 {
     public class DataCenterInfo
     {
-        public string DataCenter { get; set; }
-        public string Url { get; set; }
-        public string CsvName { get; set; }
+        public string DataCenter { get; set; } = string.Empty;
+        public string Url { get; set; } = string.Empty;
+        public string CsvName { get; set; } = string.Empty;
     }
 
     public static class WorldData

@@ -19,9 +19,10 @@ namespace WahJumps.Windows
         private Vector4 timeColor = new Vector4(0.0f, 0.8f, 0.2f, 1.0f);
 
         // Animation state
-        private float pulseAnimation = 0f;
-        private float glowIntensity = 0f;
         private DateTime lastStateChange = DateTime.Now;
+        private float pulsePhase = 0f;
+        private float countdownScale = 1f;
+        private float lastCountdown = 0;
 
         // Window styling
         private readonly Vector2 windowSize = new Vector2(280, 180);
@@ -68,9 +69,6 @@ namespace WahJumps.Windows
             {
                 IsOpen = true;
             }
-
-            pulseAnimation = 0f;
-            glowIntensity = 0f;
         }
 
         private void OnCountdownTick(int remaining)
@@ -96,8 +94,28 @@ namespace WahJumps.Windows
 
         private void UpdateAnimations()
         {
-            pulseAnimation = 0f;
-            glowIntensity = 0f;
+            float deltaTime = ImGui.GetIO().DeltaTime;
+            var state = speedrunManager.GetState();
+
+            // Pulse animation for running state
+            if (state == SpeedrunManager.SpeedrunState.Running)
+            {
+                pulsePhase += deltaTime * 3f;
+                if (pulsePhase > MathF.PI * 2) pulsePhase -= MathF.PI * 2;
+            }
+
+            // Countdown pop animation
+            if (countdownRemaining != lastCountdown)
+            {
+                countdownScale = 1.4f; // Start bigger
+                lastCountdown = countdownRemaining;
+            }
+
+            // Ease back to normal size
+            if (countdownScale > 1f)
+            {
+                countdownScale = MathF.Max(1f, countdownScale - deltaTime * 3f);
+            }
         }
 
         private void DrawModernCountdown()
@@ -120,10 +138,21 @@ namespace WahJumps.Windows
             );
 
             string countText = countdownRemaining.ToString();
-            float centerY = (contentSize.Y - ImGui.CalcTextSize(countText).Y * 2.5f) * 0.5f - 30;
+            float baseScale = 2.5f;
+            float animatedScale = baseScale * countdownScale;
+            float centerY = (contentSize.Y - ImGui.CalcTextSize(countText).Y * animatedScale) * 0.5f - 30;
+
+            // Animated color - brighter when popping
+            float brightness = 0.8f + (countdownScale - 1f) * 0.5f;
+            var animatedColor = new Vector4(
+                MathF.Min(1f, countdownOrange.X * brightness),
+                MathF.Min(1f, countdownOrange.Y * brightness),
+                MathF.Min(1f, countdownOrange.Z * brightness),
+                1f
+            );
 
             ImGui.SetCursorPosY(centerY);
-            ImRaii.CenteredText(countText, countdownOrange, 2.5f);
+            ImRaii.CenteredText(countText, animatedColor, animatedScale);
 
             ImGui.SetCursorPosY(centerY + 80);
             ImRaii.CenteredText("Get Ready!", new Vector4(1.0f, 1.0f, 1.0f, 0.9f));
@@ -195,7 +224,7 @@ namespace WahJumps.Windows
         {
             string timeText = FormatTime(currentTime);
 
-            timeColor = state switch
+            Vector4 baseColor = state switch
             {
                 SpeedrunManager.SpeedrunState.Running when currentTime.TotalMinutes < 2 => primaryGreen,
                 SpeedrunManager.SpeedrunState.Running when currentTime.TotalMinutes < 5 => warningYellow,
@@ -203,6 +232,22 @@ namespace WahJumps.Windows
                 SpeedrunManager.SpeedrunState.Finished => finishedGold,
                 _ => new Vector4(0.8f, 0.8f, 0.8f, 1.0f)
             };
+
+            // Add subtle pulse effect when running
+            if (state == SpeedrunManager.SpeedrunState.Running)
+            {
+                float pulse = 0.9f + 0.1f * MathF.Sin(pulsePhase);
+                timeColor = new Vector4(
+                    baseColor.X * pulse,
+                    baseColor.Y * pulse,
+                    baseColor.Z * pulse,
+                    1f
+                );
+            }
+            else
+            {
+                timeColor = baseColor;
+            }
 
             ImRaii.CenteredText(timeText, timeColor, 2.0f);
         }

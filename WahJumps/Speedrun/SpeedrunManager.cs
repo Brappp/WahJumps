@@ -19,15 +19,15 @@ namespace WahJumps.Data
         private TimeSpan currentTime;
         private int countdownSeconds;
         private int countdownRemaining;
-        private JumpPuzzleData currentPuzzle;
+        private JumpPuzzleData? currentPuzzle;
 
         // Settings
         public int DefaultCountdown { get; set; } = 3;
 
         // Events
-        public event Action<SpeedrunState> StateChanged;
-        public event Action<TimeSpan> TimeUpdated;
-        public event Action<int> CountdownTick;
+        public event Action<SpeedrunState>? StateChanged;
+        public event Action<TimeSpan>? TimeUpdated;
+        public event Action<int>? CountdownTick;
 
         public SpeedrunManager(string configDirectory)
         {
@@ -41,7 +41,7 @@ namespace WahJumps.Data
             currentPuzzle = puzzle;
         }
 
-        public JumpPuzzleData GetCurrentPuzzle()
+        public JumpPuzzleData? GetCurrentPuzzle()
         {
             return currentPuzzle;
         }
