@@ -8,7 +8,7 @@ namespace WahJumps.Models
         public JumpPuzzleDataMap()
         {
             Map(m => m.Id).Name("ID");
-            Map(m => m.Rating).Name("Rating");
+            Map(m => m.Rating).Name("Stars", "Rating");
             Map(m => m.PuzzleName).Name("Puzzle Name");
             Map(m => m.Builder).Name("Builder");
             Map(m => m.World).Name("World");

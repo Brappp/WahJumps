@@ -93,8 +93,8 @@ namespace WahJumps.Utilities
 
             public void Dispose()
             {
-                if (_success)
-                    ImGui.EndChild();
+                // EndChild must always be called, even when BeginChild returns false.
+                ImGui.EndChild();
             }
         }
 
@@ -244,17 +244,22 @@ namespace WahJumps.Utilities
 
         public class FontScale : IDisposable
         {
-            private readonly float originalScale;
+            // Track the scale ourselves; ImGui has no getter for it. 0 == unset == 1.0.
+            [ThreadStatic] private static float currentScale;
+
+            private readonly float previousScale;
 
             public FontScale(float scale)
             {
-                originalScale = ImGui.GetFont().Scale;
+                previousScale = currentScale == 0f ? 1.0f : currentScale;
+                currentScale = scale;
                 ImGui.SetWindowFontScale(scale);
             }
 
             public void Dispose()
             {
-                ImGui.SetWindowFontScale(originalScale);
+                currentScale = previousScale;
+                ImGui.SetWindowFontScale(previousScale);
             }
         }
 
@@ -333,45 +338,6 @@ namespace WahJumps.Utilities
             using var paddingStyle = new StyleVar(ImGuiStyleVar.FramePadding, new Vector2(12, 8));
 
             return ImGui.Button(text, size);
-        }
-
-        public class TimerWindowStyle : IDisposable
-        {
-            private readonly StyleVar roundingStyle;
-            private readonly StyleVar paddingStyle;
-            private readonly StyleVar spacingStyle;
-            private readonly StyleVar frameRoundingStyle;
-            private readonly StyleVar buttonAlignStyle;
-            private readonly StyleColor colors;
-
-            public TimerWindowStyle(SpeedrunManager.SpeedrunState state)
-            {
-                roundingStyle = new StyleVar(ImGuiStyleVar.WindowRounding, 12.0f);
-                paddingStyle = new StyleVar(ImGuiStyleVar.WindowPadding, new Vector2(20, 16));
-                spacingStyle = new StyleVar(ImGuiStyleVar.ItemSpacing, new Vector2(10, 10));
-                frameRoundingStyle = new StyleVar(ImGuiStyleVar.FrameRounding, 8.0f);
-                buttonAlignStyle = new StyleVar(ImGuiStyleVar.ButtonTextAlign, new Vector2(0.5f, 0.5f));
-
-                Vector4 bgColor = state switch
-                {
-                    SpeedrunManager.SpeedrunState.Running => new Vector4(0.05f, 0.15f, 0.05f, 0.98f),
-                    SpeedrunManager.SpeedrunState.Countdown => new Vector4(0.15f, 0.08f, 0.03f, 0.98f),
-                    SpeedrunManager.SpeedrunState.Finished => new Vector4(0.15f, 0.12f, 0.03f, 0.98f),
-                    _ => new Vector4(0.06f, 0.06f, 0.15f, 0.98f)
-                };
-
-                colors = new StyleColor(ImGuiCol.WindowBg, bgColor);
-            }
-
-            public void Dispose()
-            {
-                colors.Dispose();
-                buttonAlignStyle.Dispose();
-                frameRoundingStyle.Dispose();
-                spacingStyle.Dispose();
-                paddingStyle.Dispose();
-                roundingStyle.Dispose();
-            }
         }
 
         public static void CenteredText(string text, Vector4? color = null, float fontSize = 1.0f)

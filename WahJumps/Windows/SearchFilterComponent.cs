@@ -11,9 +11,6 @@ namespace WahJumps.Windows
 {
     public class SearchFilterComponent
     {
-        // Available rating options with cleaner display
-        private static readonly string[] RatingOptions = { "All Ratings", "★★★★★", "★★★★", "★★★", "★★", "★", "Training ☆", "Event ☆", "In Flux ☆", "Temp ☆" };
-
         // Filter state
         private string searchQuery = string.Empty;
         private string selectedRating = "All Ratings";

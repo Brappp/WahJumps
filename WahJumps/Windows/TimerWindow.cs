@@ -76,11 +76,34 @@ namespace WahJumps.Windows
             countdownRemaining = remaining;
         }
 
+        public override void PreDraw()
+        {
+            // Window styles must be pushed before Begin (here), not in Draw().
+            Vector4 bgColor = speedrunManager.GetState() switch
+            {
+                SpeedrunManager.SpeedrunState.Running => new Vector4(0.05f, 0.15f, 0.05f, 0.98f),
+                SpeedrunManager.SpeedrunState.Countdown => new Vector4(0.15f, 0.08f, 0.03f, 0.98f),
+                SpeedrunManager.SpeedrunState.Finished => new Vector4(0.15f, 0.12f, 0.03f, 0.98f),
+                _ => new Vector4(0.06f, 0.06f, 0.15f, 0.98f)
+            };
+            ImGui.PushStyleVar(ImGuiStyleVar.WindowRounding, 12.0f);
+            ImGui.PushStyleVar(ImGuiStyleVar.WindowPadding, new Vector2(20, 16));
+            ImGui.PushStyleColor(ImGuiCol.WindowBg, bgColor);
+        }
+
+        public override void PostDraw()
+        {
+            ImGui.PopStyleColor();
+            ImGui.PopStyleVar(2);
+        }
+
         public override void Draw()
         {
             UpdateAnimations();
-            
-            using var windowStyle = new ImRaii.TimerWindowStyle(speedrunManager.GetState());
+
+            using var frameRounding = new ImRaii.StyleVar(ImGuiStyleVar.FrameRounding, 8.0f);
+            using var itemSpacing = new ImRaii.StyleVar(ImGuiStyleVar.ItemSpacing, new Vector2(10, 10));
+            using var buttonAlign = new ImRaii.StyleVar(ImGuiStyleVar.ButtonTextAlign, new Vector2(0.5f, 0.5f));
             var state = speedrunManager.GetState();
 
             if (state == SpeedrunManager.SpeedrunState.Countdown)

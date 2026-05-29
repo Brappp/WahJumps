@@ -4,6 +4,7 @@ using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Net.Http;
+using System.Threading;
 using System.Threading.Tasks;
 using CsvHelper;
 using CsvHelper.Configuration;
@@ -13,7 +14,7 @@ using WahJumps.Data;
 
 namespace WahJumps.Handlers
 {
-    public class CsvManager
+    public class CsvManager : IDisposable
     {
         public event Action<string>? StatusUpdated;
         public event Action<float>? ProgressUpdated;
@@ -21,6 +22,7 @@ namespace WahJumps.Handlers
 
         private readonly string outputDirectory;
         private readonly IChatGui chatGui;
+        private readonly CancellationTokenSource cts = new CancellationTokenSource();
 
         public CsvManager(IChatGui chatGui, string outputDirectory)
         {
@@ -28,25 +30,13 @@ namespace WahJumps.Handlers
             this.outputDirectory = outputDirectory;
         }
 
-        public string CsvDirectoryPath => outputDirectory;
-
-        public void DeleteExistingCsvs()
+        public void Dispose()
         {
-            try
-            {
-                var files = Directory.GetFiles(outputDirectory, "*.csv");
-
-                foreach (var file in files)
-                {
-                    File.Delete(file);
-                    StatusUpdated?.Invoke($"Deleted old CSV: {file}");
-                }
-            }
-            catch (Exception ex)
-            {
-                StatusUpdated?.Invoke($"Error deleting old CSVs: {ex.Message}");
-            }
+            cts.Cancel();
+            cts.Dispose();
         }
+
+        public string CsvDirectoryPath => outputDirectory;
 
         public async Task DownloadAndSaveIndividualCsvsAsync()
         {
@@ -55,45 +45,57 @@ namespace WahJumps.Handlers
             int processedCount = 0;
 
             StatusUpdated?.Invoke($"Processing 0/{totalDataCenters} data centers...");
-            ProgressUpdated?.Invoke(0f); // Start with 0 progress
+            ProgressUpdated?.Invoke(0f);
 
-            foreach (var dataCenter in dataCenters)
+            try
             {
-                StatusUpdated?.Invoke($"Processing {dataCenter.DataCenter} ({processedCount + 1}/{totalDataCenters})");
-
-                var csvData = await DownloadCsv(dataCenter.Url);
-
-                if (csvData == null)
+                foreach (var dataCenter in dataCenters)
                 {
-                    StatusUpdated?.Invoke($"Failed to download CSV for {dataCenter.DataCenter}");
+                    if (cts.IsCancellationRequested) break;
+
+                    StatusUpdated?.Invoke($"Processing {dataCenter.DataCenter} ({processedCount + 1}/{totalDataCenters})");
+
+                    try
+                    {
+                        var csvData = await DownloadCsv(dataCenter.Url);
+
+                        if (csvData == null)
+                        {
+                            StatusUpdated?.Invoke($"Failed to download {dataCenter.DataCenter}; keeping existing data");
+                        }
+                        else
+                        {
+                            var preprocessedCsv = PreprocessCsvForMissingId(csvData);
+                            var cleanedData = CleanCsvData(preprocessedCsv);
+                            SaveCsv(cleanedData, Path.Combine(outputDirectory, $"{dataCenter.CsvName}_cleaned.csv"));
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        StatusUpdated?.Invoke($"Error processing {dataCenter.DataCenter}: {ex.Message}; keeping existing data");
+                    }
+
                     processedCount++;
-
-                    float progress = (float)processedCount / totalDataCenters;
-                    ProgressUpdated?.Invoke(progress);
-
-                    continue;
+                    ProgressUpdated?.Invoke((float)processedCount / totalDataCenters);
                 }
-
-                var preprocessedCsv = PreprocessCsvForMissingId(csvData);
-
-                var cleanedData = CleanCsvData(preprocessedCsv);
-                SaveCsv(cleanedData, Path.Combine(outputDirectory, $"{dataCenter.CsvName}_cleaned.csv"));
-
-                processedCount++;
-
-                float progressValue = (float)processedCount / totalDataCenters;
-                ProgressUpdated?.Invoke(progressValue);
             }
-
-            CsvProcessingCompleted?.Invoke();
+            finally
+            {
+                // Always fire so the UI can't get stuck on the loading screen.
+                CsvProcessingCompleted?.Invoke();
+            }
         }
+
+        private static readonly HttpClient httpClient = new HttpClient
+        {
+            Timeout = TimeSpan.FromMinutes(5)
+        };
 
         private async Task<string?> DownloadCsv(string url)
         {
             try
             {
-                using var client = new HttpClient();
-                var response = await client.GetStringAsync(url);
+                var response = await httpClient.GetStringAsync(url, cts.Token);
                 StatusUpdated?.Invoke($"Successfully downloaded CSV from: {url}");
                 return response;
             }
@@ -108,16 +110,18 @@ namespace WahJumps.Handlers
         {
             var cleanedData = new List<JumpPuzzleData>();
 
+            // Tolerate renamed/missing source columns instead of throwing.
+            var config = new CsvConfiguration(CultureInfo.InvariantCulture)
+            {
+                HeaderValidated = null,
+                MissingFieldFound = null
+            };
+
             using (var reader = new StringReader(csvData))
-            using (var csv = new CsvReader(reader, new CsvConfiguration(CultureInfo.InvariantCulture)))
+            using (var csv = new CsvReader(reader, config))
             {
                 csv.Context.RegisterClassMap<JumpPuzzleDataMap>();
-                var records = csv.GetRecords<JumpPuzzleData>().ToList();
-
-                foreach (var record in records)
-                {
-                    cleanedData.Add(record);
-                }
+                cleanedData.AddRange(csv.GetRecords<JumpPuzzleData>());
             }
 
             return cleanedData;
@@ -125,22 +129,27 @@ namespace WahJumps.Handlers
 
         private void SaveCsv(IEnumerable<JumpPuzzleData> data, string filePath)
         {
+            // Write to temp and swap on success so a failed write can't corrupt the good file.
+            var tempPath = filePath + ".tmp";
             try
             {
-                using var writer = new StreamWriter(filePath);
-                using var csv = new CsvWriter(writer, new CsvConfiguration(CultureInfo.InvariantCulture));
-                csv.WriteRecords(data);
+                using (var writer = new StreamWriter(tempPath))
+                using (var csv = new CsvWriter(writer, new CsvConfiguration(CultureInfo.InvariantCulture)))
+                {
+                    csv.WriteRecords(data);
+                }
+
+                File.Move(tempPath, filePath, overwrite: true);
                 StatusUpdated?.Invoke($"Successfully saved cleaned CSV to: {filePath}");
             }
             catch (Exception ex)
             {
                 StatusUpdated?.Invoke($"Error saving cleaned CSV: {ex.Message}");
+                try { if (File.Exists(tempPath)) File.Delete(tempPath); } catch { }
             }
         }
 
-        /// <summary>
-        /// Preprocesses the CSV data to ensure the "ID" column is present.
-        /// </summary>
+        // Adds a synthetic "ID" column if the source CSV doesn't have one.
         private string PreprocessCsvForMissingId(string csvData)
         {
             var lines = csvData.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries);
@@ -150,13 +159,11 @@ namespace WahJumps.Handlers
                 throw new Exception("CSV data is empty.");
             }
 
-            // Check if the first line contains an "ID" column
             var headers = lines[0].Split(',');
             if (!headers.Contains("ID"))
             {
                 StatusUpdated?.Invoke("ID column missing, adding it dynamically.");
 
-                // Add "ID" to the header and prepend ID values to each subsequent row
                 var processedLines = new List<string> { "ID," + lines[0] };
                 for (int i = 1; i < lines.Length; i++)
                 {
@@ -166,7 +173,7 @@ namespace WahJumps.Handlers
                 return string.Join(Environment.NewLine, processedLines);
             }
 
-            return csvData; // No modification needed if "ID" exists
+            return csvData;
         }
     }
 }

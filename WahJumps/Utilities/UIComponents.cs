@@ -10,6 +10,19 @@ namespace WahJumps.Windows.Components
 {
     public static class UiComponents
     {
+        // Guarded so Process.Start can't throw out of Draw().
+        public static void OpenUrl(string url)
+        {
+            try
+            {
+                Process.Start(new ProcessStartInfo { FileName = url, UseShellExecute = true });
+            }
+            catch (Exception ex)
+            {
+                WahJumps.Plugin.PluginLog.Warning($"Failed to open URL '{url}': {ex.Message}");
+            }
+        }
+
         public static void ExternalLinkButton(string label, string url, float width = 0)
         {
             if (width > 0)
@@ -27,11 +40,7 @@ namespace WahJumps.Windows.Components
 
             if (ImGui.Button(label))
             {
-                Process.Start(new ProcessStartInfo
-                {
-                    FileName = url,
-                    UseShellExecute = true
-                });
+                OpenUrl(url);
             }
 
             if (ImGui.IsItemHovered())
@@ -177,26 +186,6 @@ namespace WahJumps.Windows.Components
             }
 
             return clicked;
-        }
-
-        public static void Card(string title, string content, float width = 0)
-        {
-            float cardWidth = width > 0 ? width : ImGui.GetContentRegionAvail().X;
-
-            ImGui.PushStyleColor(ImGuiCol.ChildBg, new Vector4(0.15f, 0.15f, 0.15f, 1.0f));
-            ImGui.BeginChild($"##card_{title}", new Vector2(cardWidth, 0), true);
-
-            ImGui.PushStyleColor(ImGuiCol.Text, UiTheme.Primary);
-            ImGui.Text(title);
-            ImGui.PopStyleColor();
-
-            ImGui.Separator();
-            ImGui.Spacing();
-
-            ImGui.TextWrapped(content);
-
-            ImGui.EndChild();
-            ImGui.PopStyleColor();
         }
 
         public static void LoadingSpinner(string label, float radius = 10.0f, float thickness = 2.0f)
