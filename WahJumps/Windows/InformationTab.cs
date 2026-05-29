@@ -189,7 +189,7 @@ namespace WahJumps.Windows
 
                     // Rating column - show clean star format
                     ImGui.TableNextColumn();
-                    DrawStarDiagramOnly(row.Key, row.Value2 ?? "");
+                    DrawStarDiagramOnly(row.Key);
 
                     // Other columns
                     ImGui.TableNextColumn();
@@ -360,7 +360,7 @@ namespace WahJumps.Windows
             }
         }
 
-        private void DrawStarDiagramOnly(string rating, string starDiagram)
+        private void DrawStarDiagramOnly(string rating)
         {
             Vector4 ratingColor = UiTheme.GetRatingColor(rating);
 

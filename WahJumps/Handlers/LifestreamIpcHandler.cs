@@ -1,3 +1,4 @@
+using System;
 using Dalamud.Plugin;
 using Dalamud.Plugin.Ipc;
 
@@ -12,9 +13,19 @@ namespace WahJumps.Handlers
             executeCommandSubscriber = pluginInterface.GetIpcSubscriber<string, object>("Lifestream.ExecuteCommand");
         }
 
-        public void ExecuteLiCommand(string arguments)
+        // False if Lifestream isn't available, so callers can react instead of throwing.
+        public bool ExecuteLiCommand(string arguments)
         {
-            executeCommandSubscriber.InvokeAction(arguments);
+            try
+            {
+                executeCommandSubscriber.InvokeAction(arguments);
+                return true;
+            }
+            catch (Exception ex)
+            {
+                Plugin.PluginLog.Warning($"Lifestream IPC call failed: {ex.Message}");
+                return false;
+            }
         }
     }
 }

@@ -39,7 +39,7 @@ namespace WahJumps
 
             LifestreamIpcHandler = new LifestreamIpcHandler(PluginInterface);
             CsvManager = new CsvManager(ChatGui, ConfigDirectory);
-            SpeedrunManager = new SpeedrunManager(ConfigDirectory);
+            SpeedrunManager = new SpeedrunManager();
 
             MainWindow = new MainWindow(CsvManager, LifestreamIpcHandler, this);
             TimerWindow = new TimerWindow(SpeedrunManager, this);
@@ -99,10 +99,15 @@ namespace WahJumps
         {
             PluginLog.Information("Disposing WahJumps plugin");
 
+            PluginInterface.UiBuilder.Draw -= DrawUI;
+            PluginInterface.UiBuilder.OpenMainUi -= ToggleVisibility;
+            PluginInterface.UiBuilder.OpenConfigUi -= ToggleConfigUI;
+
             SpeedrunManager.StateChanged -= OnStateChanged;
             WindowSystem.RemoveAllWindows();
             MainWindow.Dispose();
             TimerWindow.Dispose();
+            CsvManager.Dispose();
             CommandManager.RemoveHandler(CommandName);
         }
 

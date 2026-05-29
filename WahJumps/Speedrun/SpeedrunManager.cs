@@ -29,11 +29,6 @@ namespace WahJumps.Data
         public event Action<TimeSpan>? TimeUpdated;
         public event Action<int>? CountdownTick;
 
-        public SpeedrunManager(string configDirectory)
-        {
-            // Simple constructor, no complex initialization needed
-        }
-
         #region Puzzle Management
 
         public void SetPuzzle(JumpPuzzleData puzzle)
@@ -78,6 +73,8 @@ namespace WahJumps.Data
         {
             if (currentState != SpeedrunState.Running) return;
 
+            // Capture the precise final time.
+            currentTime = DateTime.Now - startTime;
             currentState = SpeedrunState.Finished;
             StateChanged?.Invoke(currentState);
         }

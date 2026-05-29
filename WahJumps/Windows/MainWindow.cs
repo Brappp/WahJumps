@@ -36,6 +36,7 @@ namespace WahJumps.Windows
         // UI State
         private string statusMessage;
         private bool isReady;
+        private volatile bool dataReloadPending;
         private bool isFirstRender = true;
         private DateTime lastRefreshDate;
         private string favoritesFilePath;
@@ -150,13 +151,8 @@ namespace WahJumps.Windows
 
         private void OnCsvProcessingCompleted()
         {
-            statusMessage = "Ready";
-            isReady = true;
-            LoadCsvData();
-
-            searchFilter.SetAvailableData(csvDataByDataCenter);
-
-            ShowNotification("Data loading completed successfully!", MessageType.Success);
+            // Fires off-thread; do the actual load in Draw() on the render thread.
+            dataReloadPending = true;
         }
 
         public override void Draw()
@@ -173,6 +169,16 @@ namespace WahJumps.Windows
                 {
                     ImGui.SetWindowSize(new Vector2(1100, 700), ImGuiCond.FirstUseEver);
                     isFirstRender = false;
+                }
+
+                if (dataReloadPending)
+                {
+                    dataReloadPending = false;
+                    LoadCsvData();
+                    searchFilter.SetAvailableData(csvDataByDataCenter);
+                    statusMessage = "Ready";
+                    isReady = true;
+                    ShowNotification("Data loading completed successfully!", MessageType.Success);
                 }
 
                 if (!isReady)
@@ -350,11 +356,7 @@ namespace WahJumps.Windows
             // GitHub button
             if (UiTheme.ColoredButton("GitHub", UiTheme.Dark, tooltip: "Open WahJumps on GitHub"))
             {
-                System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
-                {
-                    FileName = "https://github.com/Brappp/WahJumps",
-                    UseShellExecute = true
-                });
+                UiComponents.OpenUrl("https://github.com/Brappp/WahJumps");
             }
 
             ImGui.SameLine();
@@ -865,33 +867,18 @@ namespace WahJumps.Windows
             return validRatings > 0 ? totalDifficulty / validRatings : 0f;
         }
 
-        private string GetTopBuilder(List<JumpPuzzleData> puzzles)
-        {
-            if (puzzles.Count == 0) return "-";
-            
-            var builderCounts = puzzles
-                .Where(p => !string.IsNullOrEmpty(p.Builder))
-                .GroupBy(p => p.Builder)
-                .OrderByDescending(g => g.Count())
-                .FirstOrDefault();
-            
-            if (builderCounts == null) return "-";
-            
-            var count = builderCounts.Count();
-            var name = builderCounts.Key;
-            
-            // Truncate long names
-            if (name.Length > 12)
-                name = name.Substring(0, 9) + "...";
-                
-            return $"{name} ({count})";
-        }
+        // Special ratings are stored as "Event ☆", "Temp ☆", "In Flux ☆", "Training ☆".
+        private static bool IsSpecialRating(string rating) =>
+            rating.StartsWith("Event", StringComparison.Ordinal) ||
+            rating.StartsWith("Temp", StringComparison.Ordinal) ||
+            rating.StartsWith("In Flux", StringComparison.Ordinal) ||
+            rating.StartsWith("Training", StringComparison.Ordinal);
 
         private int GetSpecialPuzzleCount(List<JumpPuzzleData> puzzles)
         {
-            return puzzles.Count(p => 
-                p.Rating == "E" || p.Rating == "T" || p.Rating == "F" || p.Rating == "P" ||
-                !string.IsNullOrEmpty(p.M) || !string.IsNullOrEmpty(p.E) || 
+            return puzzles.Count(p =>
+                IsSpecialRating(p.Rating) ||
+                !string.IsNullOrEmpty(p.M) || !string.IsNullOrEmpty(p.E) ||
                 !string.IsNullOrEmpty(p.S) || !string.IsNullOrEmpty(p.P) ||
                 !string.IsNullOrEmpty(p.V) || !string.IsNullOrEmpty(p.J) ||
                 !string.IsNullOrEmpty(p.G) || !string.IsNullOrEmpty(p.L) ||
@@ -905,10 +892,10 @@ namespace WahJumps.Windows
             
             var specialTypes = new Dictionary<string, int>
             {
-                ["Event (E)"] = puzzles.Count(p => p.Rating == "E"),
-                ["Temp (T)"] = puzzles.Count(p => p.Rating == "T"),
-                ["In Flux (F)"] = puzzles.Count(p => p.Rating == "F"),
-                ["Training (P)"] = puzzles.Count(p => p.Rating == "P"),
+                ["Event (E)"] = puzzles.Count(p => p.Rating.StartsWith("Event", StringComparison.Ordinal)),
+                ["Temp (T)"] = puzzles.Count(p => p.Rating.StartsWith("Temp", StringComparison.Ordinal)),
+                ["In Flux (F)"] = puzzles.Count(p => p.Rating.StartsWith("In Flux", StringComparison.Ordinal)),
+                ["Training (P)"] = puzzles.Count(p => p.Rating.StartsWith("Training", StringComparison.Ordinal)),
                 ["Mystery (M)"] = puzzles.Count(p => !string.IsNullOrEmpty(p.M)),
                 ["Emote (E)"] = puzzles.Count(p => !string.IsNullOrEmpty(p.E)),
                 ["Speed (S)"] = puzzles.Count(p => !string.IsNullOrEmpty(p.S)),
@@ -1124,9 +1111,15 @@ namespace WahJumps.Windows
         // Execute the travel command
         private void ExecuteTravel(string travelCommand)
         {
-            DisplayTravelMessage(travelCommand);
-            lifestreamIpcHandler.ExecuteLiCommand(travelCommand);
-            ShowNotification("Travel command executed", MessageType.Success);
+            if (lifestreamIpcHandler.ExecuteLiCommand(travelCommand))
+            {
+                DisplayTravelMessage(travelCommand);
+                ShowNotification("Travel command executed", MessageType.Success);
+            }
+            else
+            {
+                ShowNotification("Lifestream not available - is it installed and enabled?", MessageType.Error);
+            }
         }
 
         private void DisplayTravelMessage(string travelCommand)
@@ -1248,7 +1241,7 @@ namespace WahJumps.Windows
 
         private void RefreshData()
         {
-            csvManager.DeleteExistingCsvs();
+            // No upfront delete, so a failed refresh keeps last-known-good data.
             csvManager.DownloadAndSaveIndividualCsvsAsync();
             statusMessage = "Refreshing data...";
             currentProgress = 0f;
@@ -1265,37 +1258,6 @@ namespace WahJumps.Windows
         public PluginConfiguration GetConfiguration()
         {
             return settingsManager.Configuration;
-        }
-
-        private void DrawDataCenterInfo(string dataCenterName, List<JumpPuzzleData> puzzles)
-        {
-            // Quick stats for this data center
-            var ratingCounts = puzzles.GroupBy(p => p.Rating)
-                .ToDictionary(g => g.Key, g => g.Count());
-            
-            var worldCounts = puzzles.GroupBy(p => p.World)
-                .ToDictionary(g => g.Key, g => g.Count());
-
-            ImGui.Text($"Data Center Overview: {puzzles.Count} total puzzles");
-            ImGui.SameLine();
-            
-            // Show rating distribution with white text
-            var ratings = new[] { "★★★★★", "★★★★", "★★★", "★★", "★" };
-            bool first = true;
-            foreach (var rating in ratings)
-            {
-                if (ratingCounts.ContainsKey(rating) && ratingCounts[rating] > 0)
-                {
-                    if (!first) ImGui.SameLine();
-                    
-                    // Use white text instead of colored text
-                    ImGui.Text($"{rating}: {ratingCounts[rating]}");
-                    
-                    first = false;
-                }
-            }
-            
-            ImGui.Separator();
         }
 
         private void DrawFavoritesTab()
@@ -1374,6 +1336,9 @@ namespace WahJumps.Windows
                                    ImGuiTableFlags.SizingFixedFit |
                                    ImGuiTableFlags.Sortable;
 
+            // Applied after the loop so we don't mutate favoritePuzzles while iterating.
+            JumpPuzzleData? puzzleToRemove = null;
+
             if (ImGui.BeginTable("FavoritesTable", 9, flags))
             {
                 // Configure columns with improved widths
@@ -1440,8 +1405,7 @@ namespace WahJumps.Windows
 
                     if (ImGui.Button($"Remove##{puzzle.Id}"))
                     {
-                        RemoveFromFavorites(puzzle);
-                        ShowNotification("Puzzle removed from favorites", MessageType.Info);
+                        puzzleToRemove = puzzle;
                     }
                     ImGui.PopStyleColor(2);
 
@@ -1458,8 +1422,14 @@ namespace WahJumps.Windows
                     if (ImGui.IsItemHovered()) ImGui.SetTooltip($"Travel to {puzzle.World} {puzzle.Address}");
                     ImGui.PopStyleColor();
                 }
-                
+
                 ImGui.EndTable();
+            }
+
+            if (puzzleToRemove != null)
+            {
+                RemoveFromFavorites(puzzleToRemove);
+                ShowNotification("Puzzle removed from favorites", MessageType.Info);
             }
 
             // End table styling
