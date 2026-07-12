@@ -53,6 +53,9 @@ namespace WahJumps.Windows
             public float WallTimer = 0f;
             public int WallPlatformIndex = -1;
 
+            public float Squash = 1f;
+            public Vector2 JumpTarget;
+
             public List<int> PlannedRoute = new List<int>();
             public int RouteIndex = 0;
             public bool HasRoute => PlannedRoute.Count > 0 && RouteIndex < PlannedRoute.Count;
@@ -60,7 +63,7 @@ namespace WahJumps.Windows
 
         private enum FigureState
         {
-            Idle, Running, Jumping, Falling,
+            Idle, Running, Crouching, Jumping, Falling,
             WallSlide, Hanging, Climbing
         }
 
@@ -243,6 +246,9 @@ namespace WahJumps.Windows
                     case FigureState.Running:
                         UpdateRunning(fig, deltaTime);
                         break;
+                    case FigureState.Crouching:
+                        UpdateCrouch(fig, deltaTime);
+                        break;
                     case FigureState.Jumping:
                     case FigureState.Falling:
                         UpdateAirborne(fig, deltaTime, windowPos, windowSize);
@@ -257,7 +263,30 @@ namespace WahJumps.Windows
                         UpdateClimbing(fig, deltaTime);
                         break;
                 }
+
+                UpdateSquash(fig, deltaTime);
             }
+        }
+
+        private void UpdateSquash(StickFigure fig, float deltaTime)
+        {
+            float target = 1f;
+            switch (fig.State)
+            {
+                case FigureState.Crouching:
+                    target = 0.62f;
+                    break;
+                case FigureState.Jumping:
+                case FigureState.Falling:
+                    target = 1f + Math.Clamp(MathF.Abs(fig.Vel.Y) / 700f, 0f, 0.35f);
+                    break;
+                case FigureState.WallSlide:
+                    target = 1.12f;
+                    break;
+            }
+
+            float speed = fig.State == FigureState.Crouching ? 16f : 9f;
+            fig.Squash += (target - fig.Squash) * Math.Min(1f, deltaTime * speed);
         }
 
         private void UpdateIdle(StickFigure fig, float deltaTime)
@@ -454,6 +483,20 @@ namespace WahJumps.Windows
 
         private void JumpTo(StickFigure fig, Vector2 targetFeet)
         {
+            fig.State = FigureState.Crouching;
+            fig.JumpTarget = targetFeet;
+            fig.FacingRight = targetFeet.X > fig.Pos.X;
+            fig.StateTimer = 0.13f;
+        }
+
+        private void UpdateCrouch(StickFigure fig, float deltaTime)
+        {
+            if (fig.StateTimer <= 0)
+                LaunchJump(fig, fig.JumpTarget);
+        }
+
+        private void LaunchJump(StickFigure fig, Vector2 targetFeet)
+        {
             fig.State = FigureState.Jumping;
             fig.FacingRight = targetFeet.X > fig.Pos.X;
 
@@ -475,8 +518,9 @@ namespace WahJumps.Windows
 
             fig.Vel = new Vector2(vx, -vy0);
             fig.CurrentPlatformIndex = -1;
+            fig.Squash = 1.42f;
 
-            SpawnDust(fig.Pos, 3);
+            SpawnDust(fig.Pos, 5);
         }
 
         private bool IsSolidPlatform(UiElement el)
@@ -503,6 +547,7 @@ namespace WahJumps.Windows
                     fig.CurrentPlatformIndex = i;
                     fig.State = FigureState.Idle;
                     fig.StateTimer = 0.5f + (float)rand.NextDouble() * 0.8f;
+                    fig.Squash = 0.85f - Math.Clamp(fig.Vel.Y / 2000f, 0f, 0.4f);
                     fig.Vel = Vector2.Zero;
                     SpawnDust(fig.Pos, 4);
                     return;
@@ -576,6 +621,7 @@ namespace WahJumps.Windows
                 fig.Pos.Y = windowPos.Y + windowSize.Y - 10;
                 fig.State = FigureState.Idle;
                 fig.StateTimer = 0.3f;
+                fig.Squash = 0.85f - Math.Clamp(fig.Vel.Y / 2000f, 0f, 0.4f);
                 fig.Vel = Vector2.Zero;
                 SpawnDust(fig.Pos, 3);
             }
@@ -605,6 +651,7 @@ namespace WahJumps.Windows
                 fig.State = FigureState.Jumping;
                 fig.Vel = new Vector2(fig.FacingRight ? -180f : 180f, -350f);
                 fig.FacingRight = !fig.FacingRight;
+                fig.Squash = 1.35f;
                 SpawnDust(fig.Pos, 4);
             }
         }
@@ -767,16 +814,21 @@ namespace WahJumps.Windows
                     armR = MathF.Sin(run) * 0.5f;
                     break;
 
+                case FigureState.Crouching:
+                    armL = -1.0f; armR = -1.0f;
+                    legL = 0.55f; legR = -0.55f;
+                    break;
+
                 case FigureState.Jumping:
-                    if (fig.Vel.Y < 0)
+                    if (fig.Vel.Y < -60f)
                     {
-                        armL = -0.7f; armR = -0.7f;
-                        legL = -0.25f; legR = -0.25f;
+                        armL = -0.85f; armR = -0.85f;
+                        legL = -0.2f; legR = -0.2f;
                     }
                     else
                     {
-                        armL = 0.5f; armR = 0.5f;
-                        legL = 0.3f; legR = 0.3f;
+                        armL = -0.3f; armR = -0.3f;
+                        legL = -0.5f; legR = 0.5f;
                     }
                     break;
 
@@ -813,23 +865,25 @@ namespace WahJumps.Windows
             }
 
             float dir = fig.FacingRight ? 1f : -1f;
+            float sy = fig.Squash;
+            float sx = 1f / MathF.Sqrt(MathF.Max(0.2f, sy));
 
-            Vector2 hip = feet + new Vector2(0, -8);
-            Vector2 shoulder = feet + new Vector2(0, -16);
-            Vector2 head = feet + new Vector2(0, -21 - headBob);
+            Vector2 hip = feet + new Vector2(0, -8 * sy);
+            Vector2 shoulder = feet + new Vector2(0, -16 * sy);
+            Vector2 head = feet + new Vector2(0, (-21 - headBob) * sy);
 
             drawList.AddLine(hip, shoulder, color, 2f);
-            drawList.AddCircleFilled(head, 4.5f, color);
+            drawList.AddCircleFilled(head, 4.5f * sx, color);
 
             float armLen = 6.5f;
-            Vector2 armEndL = shoulder + new Vector2(MathF.Sin(armL) * armLen * dir, MathF.Cos(armL) * armLen);
-            Vector2 armEndR = shoulder + new Vector2(MathF.Sin(armR) * armLen * dir, MathF.Cos(armR) * armLen);
+            Vector2 armEndL = shoulder + new Vector2(MathF.Sin(armL) * armLen * dir * sx, MathF.Cos(armL) * armLen * sy);
+            Vector2 armEndR = shoulder + new Vector2(MathF.Sin(armR) * armLen * dir * sx, MathF.Cos(armR) * armLen * sy);
             drawList.AddLine(shoulder, armEndL, color, 1.5f);
             drawList.AddLine(shoulder, armEndR, color, 1.5f);
 
             float legLen = 7f;
-            Vector2 legEndL = hip + new Vector2(MathF.Sin(legL) * legLen * dir - 2, MathF.Cos(legL) * legLen);
-            Vector2 legEndR = hip + new Vector2(MathF.Sin(legR) * legLen * dir + 2, MathF.Cos(legR) * legLen);
+            Vector2 legEndL = hip + new Vector2(MathF.Sin(legL) * legLen * dir * sx - 2 * sx, MathF.Cos(legL) * legLen * sy);
+            Vector2 legEndR = hip + new Vector2(MathF.Sin(legR) * legLen * dir * sx + 2 * sx, MathF.Cos(legR) * legLen * sy);
             drawList.AddLine(hip, legEndL, color, 1.5f);
             drawList.AddLine(hip, legEndR, color, 1.5f);
         }
