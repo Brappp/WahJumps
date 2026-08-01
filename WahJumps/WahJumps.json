@@ -4,7 +4,7 @@
     "Description": "Jump Pizzle travler",
     "Punchline": "LifeStream must be installed to travel!",
     "InternalName": "WahJumps",
-    "AssemblyVersion": "1.0.11.0",
+    "AssemblyVersion": "1.0.12.0",
     "RepoUrl": "https://github.com/wahtf/WahJumps",
     "ApplicableVersion": "any",
     "Tags": [ "wah" ],

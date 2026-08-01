@@ -1,0 +1,36 @@
+name: puzzle-data
+
+on:
+  schedule:
+    - cron: "17 6 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      - run: dotnet run --project tools/WahJumps.DataTool -c Release -- dist
+
+      - run: |
+          NEW=$(jq -r .Version dist/manifest.json)
+          OLD=$(curl -fsSL "https://raw.githubusercontent.com/${{ github.repository }}/data/manifest.json" | jq -r .Version 2>/dev/null || echo none)
+          if [ "$NEW" = "$OLD" ]; then
+            echo "Data unchanged ($NEW)"
+            exit 0
+          fi
+          cd dist
+          git init -b data
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add .
+          git commit -m "data $NEW"
+          git push --force "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git" data

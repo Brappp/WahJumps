@@ -1,10 +1,11 @@
 using CsvHelper.Configuration;
+using WahJumps.Models;
 
-namespace WahJumps.Models
+namespace WahJumps.DataTool
 {
-    public sealed class JumpPuzzleDataMap : ClassMap<JumpPuzzleData>
+    public sealed class PuzzleCsvMap : ClassMap<JumpPuzzleData>
     {
-        public JumpPuzzleDataMap()
+        public PuzzleCsvMap()
         {
             Map(m => m.Id).Name("ID");
             Map(m => m.Rating).Name("Stars", "Rating");
@@ -21,7 +22,7 @@ namespace WahJumps.Models
             Map(m => m.G).Name("G");
             Map(m => m.L).Name("L");
             Map(m => m.X).Name("X");
-            Map(m => m.GoalsOrRules).Name("Goals/Rules");  
+            Map(m => m.GoalsOrRules).Name("Goals/Rules");
         }
     }
 }
