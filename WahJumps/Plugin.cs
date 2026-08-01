@@ -21,7 +21,7 @@ namespace WahJumps
 
         private const string CommandName = "/WahJumps";
 
-        public PuzzleDataManager PuzzleDataManager { get; private set; }
+        public CsvManager CsvManager { get; private set; }
         public LifestreamIpcHandler LifestreamIpcHandler { get; private set; }
         public MainWindow MainWindow { get; private set; }
 
@@ -34,9 +34,9 @@ namespace WahJumps
             ConfigDirectory = CreateConfigDirectory();
 
             LifestreamIpcHandler = new LifestreamIpcHandler(PluginInterface);
-            PuzzleDataManager = new PuzzleDataManager(ConfigDirectory);
+            CsvManager = new CsvManager(ChatGui, ConfigDirectory);
 
-            MainWindow = new MainWindow(PuzzleDataManager, LifestreamIpcHandler);
+            MainWindow = new MainWindow(CsvManager, LifestreamIpcHandler);
 
             WindowSystem.AddWindow(MainWindow);
 
@@ -85,7 +85,7 @@ namespace WahJumps
 
             WindowSystem.RemoveAllWindows();
             MainWindow.Dispose();
-            PuzzleDataManager.Dispose();
+            CsvManager.Dispose();
             CommandManager.RemoveHandler(CommandName);
         }
 

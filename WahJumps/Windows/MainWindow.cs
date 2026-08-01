@@ -9,6 +9,7 @@ using Dalamud.Interface.Windowing;
 using Dalamud.Bindings.ImGui;
 using Newtonsoft.Json;
 using WahJumps.Configuration;
+using WahJumps.Data;
 using WahJumps.Handlers;
 using WahJumps.Logging;
 using WahJumps.Models;
@@ -42,7 +43,7 @@ namespace WahJumps.Windows
 
         public enum MessageType { Info, Success, Warning, Error }
 
-        private readonly PuzzleDataManager dataManager;
+        private readonly CsvManager csvManager;
         private readonly LifestreamIpcHandler lifestreamIpcHandler;
         private readonly SettingsManager settingsManager;
 
@@ -62,6 +63,7 @@ namespace WahJumps.Windows
         private string statusMessage;
         private bool isReady;
         private volatile bool dataReloadPending;
+        private float currentProgress;
 
         private string selectedView;
         private bool sidebarVisible;
@@ -84,10 +86,10 @@ namespace WahJumps.Windows
         private MessageType notificationType = MessageType.Info;
         private DateTime notificationExpiry = DateTime.MinValue;
 
-        public MainWindow(PuzzleDataManager dataManager, LifestreamIpcHandler lifestreamIpcHandler)
+        public MainWindow(CsvManager csvManager, LifestreamIpcHandler lifestreamIpcHandler)
             : base("Jump Puzzle Directory", ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoScrollWithMouse)
         {
-            this.dataManager = dataManager;
+            this.csvManager = csvManager;
             this.lifestreamIpcHandler = lifestreamIpcHandler;
 
             Size = new Vector2(760, 460);
@@ -110,31 +112,26 @@ namespace WahJumps.Windows
             informationTab = new InformationTab();
             overviewTab = new OverviewTab(() => csvDataByDataCenter, () => totalPuzzleCount, GetRegionForDataCenter);
 
-            favoritesFilePath = Path.Combine(dataManager.DataDirectory, "favorites.json");
+            favoritesFilePath = Path.Combine(csvManager.CsvDirectoryPath, "favorites.json");
             favoritePuzzles = LoadFavorites();
 
-            dataManager.StatusUpdated += OnStatusUpdated;
-            dataManager.DataUpdated += OnDataUpdated;
+            csvManager.StatusUpdated += OnStatusUpdated;
+            csvManager.ProgressUpdated += OnProgressUpdated;
+            csvManager.CsvProcessingCompleted += OnCsvProcessingCompleted;
 
-            statusMessage = "Waiting for puzzle data...";
+            statusMessage = "Initializing...";
             isReady = false;
 
             CustomLogger.IsLoggingEnabled = config.EnableLogging;
 
-            if (dataManager.Snapshot != null)
-            {
-                ApplySnapshot(dataManager.Snapshot);
-                statusMessage = "Ready";
-                isReady = true;
-            }
-
-            dataManager.RequestCheck();
+            RefreshData();
         }
 
         public void Dispose()
         {
-            dataManager.StatusUpdated -= OnStatusUpdated;
-            dataManager.DataUpdated -= OnDataUpdated;
+            csvManager.StatusUpdated -= OnStatusUpdated;
+            csvManager.ProgressUpdated -= OnProgressUpdated;
+            csvManager.CsvProcessingCompleted -= OnCsvProcessingCompleted;
 
             settingsManager.SaveConfiguration();
         }
@@ -151,19 +148,11 @@ namespace WahJumps.Windows
             {
                 UiTheme.ApplyGlobalStyle();
 
-                dataManager.RequestCheck();
-
                 if (dataReloadPending)
                 {
                     dataReloadPending = false;
-                    if (dataManager.Snapshot != null)
-                    {
-                        ApplySnapshot(dataManager.Snapshot);
-                        statusMessage = "Ready";
-                        bool wasReady = isReady;
-                        isReady = true;
-                        ShowNotification(wasReady ? "Puzzle data updated" : "Puzzle data loaded", MessageType.Success);
-                    }
+                    LoadCsvData();
+                    OnDataLoaded();
                 }
 
                 if (!isReady)
@@ -202,6 +191,11 @@ namespace WahJumps.Windows
 
             UiTheme.CenteredText("Loading jump puzzle data", UiTheme.Primary);
             UiTheme.CenteredText(statusMessage);
+            ImGui.Spacing();
+
+            float barWidth = ImGui.GetWindowWidth() * 0.6f;
+            ImGui.SetCursorPosX((ImGui.GetWindowWidth() - barWidth) * 0.5f);
+            ImGui.ProgressBar(currentProgress, new Vector2(barWidth, 18), $"{(int)(currentProgress * 100)}%");
         }
 
         private void DrawSidebar(float statusHeight)
@@ -280,10 +274,10 @@ namespace WahJumps.Windows
 
             if (ImGuiComponents.IconButton("refreshData", FontAwesomeIcon.Sync))
             {
-                dataManager.RequestCheck(true);
-                ShowNotification("Checking for puzzle data updates...", MessageType.Info);
+                RefreshData();
+                ShowNotification("Refreshing puzzle data...", MessageType.Info);
             }
-            if (ImGui.IsItemHovered()) ImGui.SetTooltip("Check for puzzle data updates");
+            if (ImGui.IsItemHovered()) ImGui.SetTooltip("Refresh puzzle data");
 
             ImGui.SameLine();
             DrawViewIcon("informationView", FontAwesomeIcon.InfoCircle, ViewInformation, "Ratings & puzzle code reference");
@@ -931,35 +925,69 @@ namespace WahJumps.Windows
 
         private void OnStatusUpdated(string message) => statusMessage = message;
 
-        private void OnDataUpdated()
+        private void OnProgressUpdated(float progress) => currentProgress = progress;
+
+        private void OnCsvProcessingCompleted()
         {
             dataReloadPending = true;
         }
 
-        private void ApplySnapshot(PuzzleDataSnapshot snapshot)
+        private void OnDataLoaded()
+        {
+            statusMessage = "Ready";
+            isReady = true;
+            dataVersion++;
+
+            if (selectedView.StartsWith(ViewDcPrefix, StringComparison.Ordinal) &&
+                !csvDataByDataCenter.ContainsKey(selectedView.Substring(ViewDcPrefix.Length)))
+            {
+                SelectView(ViewAll);
+            }
+
+            ShowNotification("Data loading completed successfully!", MessageType.Success);
+        }
+
+        private void RefreshData()
+        {
+            _ = csvManager.DownloadAndSaveIndividualCsvsAsync();
+            statusMessage = "Refreshing data...";
+            currentProgress = 0f;
+            isReady = false;
+        }
+
+        private void LoadCsvData()
         {
             csvDataByDataCenter.Clear();
             worldsByDataCenter.Clear();
 
-            foreach (var dc in snapshot.DataCenters)
+            var dataCenters = WorldData.GetDataCenterInfo();
+            foreach (var dataCenter in dataCenters)
             {
-                var puzzles = new List<JumpPuzzleData>(dc.Value);
-                puzzles.Sort((x, y) =>
+                var filePath = Path.Combine(csvManager.CsvDirectoryPath, $"{dataCenter.CsvName}_cleaned.csv");
+                if (File.Exists(filePath))
                 {
-                    int ratingComparison = UiHelpers.ConvertRatingToInt(y.Rating).CompareTo(UiHelpers.ConvertRatingToInt(x.Rating));
-                    if (ratingComparison == 0)
+                    var data = LoadCsvDataFromFile(filePath);
+                    if (data != null && data.Count > 0)
                     {
-                        return string.Compare(x.World, y.World, StringComparison.Ordinal);
-                    }
-                    return ratingComparison;
-                });
+                        csvDataByDataCenter[dataCenter.DataCenter] = data;
+                        worldsByDataCenter[dataCenter.DataCenter] = data
+                            .Select(p => p.World)
+                            .Distinct()
+                            .OrderBy(w => w, StringComparer.OrdinalIgnoreCase)
+                            .ToList();
 
-                csvDataByDataCenter[dc.Key] = puzzles;
-                worldsByDataCenter[dc.Key] = puzzles
-                    .Select(p => p.World)
-                    .Distinct()
-                    .OrderBy(w => w, StringComparer.OrdinalIgnoreCase)
-                    .ToList();
+                        CustomLogger.Log($"Loaded {data.Count} records for {dataCenter.DataCenter}");
+                        lastRefreshDate = File.GetLastWriteTime(filePath);
+                    }
+                    else
+                    {
+                        CustomLogger.Log($"No data found for {dataCenter.DataCenter}");
+                    }
+                }
+                else
+                {
+                    CustomLogger.Log($"CSV file does not exist for {dataCenter.DataCenter}");
+                }
             }
 
             totalPuzzleCount = csvDataByDataCenter.Values.Sum(v => v.Count);
@@ -974,13 +1002,35 @@ namespace WahJumps.Windows
                 .Select(p => p.Builder)
                 .Distinct()
                 .Count();
-            lastRefreshDate = snapshot.GeneratedAt.ToLocalTime();
-            dataVersion++;
+        }
 
-            if (selectedView.StartsWith(ViewDcPrefix, StringComparison.Ordinal) &&
-                !csvDataByDataCenter.ContainsKey(selectedView.Substring(ViewDcPrefix.Length)))
+        private List<JumpPuzzleData> LoadCsvDataFromFile(string filePath)
+        {
+            try
             {
-                SelectView(ViewAll);
+                using (var reader = new StreamReader(filePath))
+                using (var csv = new CsvHelper.CsvReader(reader, new CsvHelper.Configuration.CsvConfiguration(System.Globalization.CultureInfo.InvariantCulture)))
+                {
+                    var records = csv.GetRecords<JumpPuzzleData>().ToList();
+
+                    records.Sort((x, y) =>
+                    {
+                        int ratingComparison = UiHelpers.ConvertRatingToInt(y.Rating).CompareTo(UiHelpers.ConvertRatingToInt(x.Rating));
+                        if (ratingComparison == 0)
+                        {
+                            return string.Compare(x.World, y.World, StringComparison.Ordinal);
+                        }
+                        return ratingComparison;
+                    });
+
+                    return records;
+                }
+            }
+            catch (Exception ex)
+            {
+                CustomLogger.Log($"Error loading CSV file: {filePath}, Exception: {ex.Message}");
+                ShowNotification($"Error loading data: {ex.Message}", MessageType.Error);
+                return new List<JumpPuzzleData>();
             }
         }
     }
