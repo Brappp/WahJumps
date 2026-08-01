@@ -53,7 +53,8 @@ namespace WahJumps.Handlers
 
         public void RequestCheck(bool force = false)
         {
-            if (!force && DateTime.UtcNow - lastCheck < CheckInterval) return;
+            var interval = Snapshot == null ? TimeSpan.FromMinutes(2) : CheckInterval;
+            if (!force && DateTime.UtcNow - lastCheck < interval) return;
             if (Interlocked.CompareExchange(ref checkRunning, 1, 0) != 0) return;
 
             lastCheck = DateTime.UtcNow;
