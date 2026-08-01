@@ -1,6 +1,6 @@
-namespace WahJumps.Data
+namespace WahJumps.Models
 {
-    public partial class JumpPuzzleData
+    public class JumpPuzzleData
     {
         public int Id { get; set; }
         public string Rating { get; set; } = string.Empty;

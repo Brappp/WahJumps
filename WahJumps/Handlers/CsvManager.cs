@@ -81,7 +81,6 @@ namespace WahJumps.Handlers
             }
             finally
             {
-                // Always fire so the UI can't get stuck on the loading screen.
                 CsvProcessingCompleted?.Invoke();
             }
         }
@@ -110,7 +109,6 @@ namespace WahJumps.Handlers
         {
             var cleanedData = new List<JumpPuzzleData>();
 
-            // Tolerate renamed/missing source columns instead of throwing.
             var config = new CsvConfiguration(CultureInfo.InvariantCulture)
             {
                 HeaderValidated = null,
@@ -129,7 +127,6 @@ namespace WahJumps.Handlers
 
         private void SaveCsv(IEnumerable<JumpPuzzleData> data, string filePath)
         {
-            // Write to temp and swap on success so a failed write can't corrupt the good file.
             var tempPath = filePath + ".tmp";
             try
             {
@@ -149,7 +146,6 @@ namespace WahJumps.Handlers
             }
         }
 
-        // Adds a synthetic "ID" column if the source CSV doesn't have one.
         private string PreprocessCsvForMissingId(string csvData)
         {
             var lines = csvData.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries);

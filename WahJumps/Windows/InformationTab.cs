@@ -27,7 +27,6 @@ namespace WahJumps.Windows
             }
             catch (System.Exception ex)
             {
-                // Log error but continue with empty data
                 Plugin.PluginLog.Error($"Failed to load static info data: {ex.Message}");
                 infoData = new List<InfoData>();
                 dataLoaded = false;
@@ -36,9 +35,6 @@ namespace WahJumps.Windows
 
         public void Draw()
         {
-            using var tabItem = new ImRaii.TabItem("Information");
-            if (!tabItem.Success) return;
-
             using var contentChild = new ImRaii.Child("InformationScrollArea", new Vector2(0, 0), true, ImGuiWindowFlags.HorizontalScrollbar);
 
             if (!dataLoaded || infoData.Count == 0)
@@ -54,7 +50,6 @@ namespace WahJumps.Windows
                 return;
             }
 
-            // Group data by sections
             var sections = GroupDataBySections();
 
             foreach (var section in sections)
@@ -71,7 +66,6 @@ namespace WahJumps.Windows
 
             foreach (var row in infoData)
             {
-                // Skip completely empty rows
                 if (string.IsNullOrWhiteSpace(row.Section) && 
                     string.IsNullOrWhiteSpace(row.Key) && 
                     string.IsNullOrWhiteSpace(row.Value1) && 
@@ -81,11 +75,9 @@ namespace WahJumps.Windows
                     continue;
                 }
 
-                // Check if this is a section header (has content in Key column but empty Section)
                 if (string.IsNullOrWhiteSpace(row.Section) && !string.IsNullOrWhiteSpace(row.Key))
                 {
-                    // This might be a section header
-                    if (row.Key.Contains("Difficulty Ratings") || 
+                    if (row.Key.Contains("Difficulty Ratings") ||
                         row.Key.Contains("Sub-type Keys") || 
                         row.Key.Contains("Other Information") || 
                         row.Key.Contains("Puzzle Accessibility"))
@@ -99,12 +91,10 @@ namespace WahJumps.Windows
                     }
                 }
 
-                // Check if this is a section header in the Section column (for "Having a huge list..." type entries)
                 if (!string.IsNullOrWhiteSpace(row.Section) && string.IsNullOrWhiteSpace(row.Key))
                 {
                     if (row.Section.Contains("Having a huge list"))
                     {
-                        // This is part of Puzzle Accessibility section
                         currentSection = "Puzzle Accessibility";
                         if (!sections.ContainsKey(currentSection))
                         {
@@ -114,7 +104,6 @@ namespace WahJumps.Windows
                     }
                 }
 
-                // Add to current section if we have one
                 if (!string.IsNullOrEmpty(currentSection))
                 {
                     if (!sections.ContainsKey(currentSection))
@@ -138,7 +127,6 @@ namespace WahJumps.Windows
 
             ImGui.PushStyleVar(ImGuiStyleVar.CellPadding, new Vector2(6, 6));
 
-            // Determine table structure based on section
             if (sectionName.Contains("Difficulty Ratings"))
             {
                 DrawDifficultyRatingsTable(sectionData);
@@ -157,7 +145,6 @@ namespace WahJumps.Windows
             }
             else
             {
-                // Generic table for unknown sections
                 DrawGenericTable(sectionData);
             }
 
@@ -179,7 +166,6 @@ namespace WahJumps.Windows
 
                 foreach (var row in data)
                 {
-                    // Skip description rows and empty rows
                     if (string.IsNullOrWhiteSpace(row.Key) || 
                         row.Key.Contains("Ratings are designed") ||
                         row.Key == "Rating")
@@ -187,11 +173,9 @@ namespace WahJumps.Windows
 
                     ImGui.TableNextRow();
 
-                    // Rating column - show clean star format
                     ImGui.TableNextColumn();
                     DrawStarDiagramOnly(row.Key);
 
-                    // Other columns
                     ImGui.TableNextColumn();
                     DrawExplanationOnly(row.Value2 ?? "");
 
@@ -219,7 +203,6 @@ namespace WahJumps.Windows
 
                 foreach (var row in data)
                 {
-                    // Skip description rows and headers
                     if (string.IsNullOrWhiteSpace(row.Key) || 
                         row.Key.Contains("Sub-types can seem") ||
                         row.Key == "Code")
@@ -260,7 +243,6 @@ namespace WahJumps.Windows
 
                 foreach (var row in data)
                 {
-                    // Skip description rows and headers
                     if (string.IsNullOrWhiteSpace(row.Value1) || 
                         row.Value1.Contains("Some terms may sound") ||
                         row.Value1 == "Term")
@@ -298,7 +280,6 @@ namespace WahJumps.Windows
 
                 foreach (var row in data)
                 {
-                    // Skip description rows and headers
                     if (string.IsNullOrWhiteSpace(row.Value1) || 
                         row.Value1.Contains("Having a huge list") ||
                         row.Value1 == "District")
@@ -370,7 +351,6 @@ namespace WahJumps.Windows
                 return;
             }
 
-            // Create simplified star display based on rating
             string displayText = rating switch
             {
                 "1★" => "1★",
@@ -378,7 +358,7 @@ namespace WahJumps.Windows
                 "3★" => "3★★★",
                 "4★" => "4★★★★",
                 "5★" => "5★★★★★",
-                _ => rating // For special ratings like P, E, T, F
+                _ => rating
             };
 
             using (var colorStyle = new ImRaii.StyleColor(ImGuiCol.Text, ratingColor))
@@ -395,16 +375,8 @@ namespace WahJumps.Windows
                 return;
             }
 
-            // Extract just the explanation part (after " - ")
             var parts = starDiagram.Split(new[] { " - " }, 2, System.StringSplitOptions.None);
-            if (parts.Length >= 2)
-            {
-                ImGui.TextWrapped(parts[1]); // Just the explanation part
-            }
-            else
-            {
-                ImGui.TextWrapped(starDiagram); // If no separator, show the whole thing
-            }
+            ImGui.TextWrapped(parts.Length >= 2 ? parts[1] : starDiagram);
         }
     }
 }

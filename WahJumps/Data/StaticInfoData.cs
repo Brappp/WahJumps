@@ -9,10 +9,8 @@ namespace WahJumps.Data
         {
             return new List<InfoData>
             {
-                // Empty rows and section headers
                 new InfoData { Section = "", Key = "", Value1 = "", Value2 = "", Value3 = "" },
                 
-                // Difficulty Ratings section
                 new InfoData { Section = "", Key = "Difficulty Ratings: Setting General Expectations", Value1 = "", Value2 = "", Value3 = "" },
                 new InfoData { Section = "", Key = "Ratings are designed to give the challenger a general idea of what to expect, and won't always coincide with personal experience: sometimes it will feel harder and sometimes it will feel easier.", Value1 = "", Value2 = "", Value3 = "" },
                 new InfoData { Section = "", Key = "Rating", Value1 = "Original System Rating", Value2 = "Star Diagram and Explanation", Value3 = "Square-Enix Equivalent" },
@@ -26,10 +24,8 @@ namespace WahJumps.Data
                 new InfoData { Section = "", Key = "T", Value1 = "Temp", Value2 = "☆☆☆☆☆ - A puzzle that is temporary or only open for a limited time; may close permanently or be replaced with another build eventually", Value3 = "" },
                 new InfoData { Section = "", Key = "F", Value1 = "In Flux", Value2 = "☆☆☆☆☆ - A puzzle that undergoes considerable, gradual change rather than remaining static like most puzzles", Value3 = "" },
                 
-                // Empty rows
                 new InfoData { Section = "", Key = "", Value1 = "", Value2 = "", Value3 = "" },
                 
-                // Sub-type Keys section
                 new InfoData { Section = "", Key = "Sub-type Keys: Know What Skillset to Bring", Value1 = "", Value2 = "", Value3 = "" },
                 new InfoData { Section = "", Key = "Sub-types can seem overwhelming at first, but they can provide information about what skillset you'll need to bring for success. Please note that higher difficulty puzzles may not always reveal needed techniques!", Value1 = "", Value2 = "", Value3 = "" },
                 new InfoData { Section = "", Key = "Code", Value1 = "Element", Value2 = "Means the puzzle:", Value3 = "More Info" },
@@ -43,10 +39,8 @@ namespace WahJumps.Data
                 new InfoData { Section = "", Key = "L", Value1 = "Logic", Value2 = "employs the above mechanics in unconventional ways that redefine what a jump puzzle truly is; can be viewed as a modifier for the other tags", Value3 = "L+ requires deep understanding of techniques that may be used together to create significant obstacles to solve" },
                 new InfoData { Section = "", Key = "X", Value1 = "No Media", Value2 = "is subject to a no streaming/recording request from the builder for any number of reasons", Value3 = "Some builders prefer to keep a low profile or keep their puzzles mysterious, please respect their wishes!" },
                 
-                // Empty rows
                 new InfoData { Section = "", Key = "", Value1 = "", Value2 = "", Value3 = "" },
                 
-                // Other Information section
                 new InfoData { Section = "", Key = "Other Information", Value1 = "", Value2 = "", Value3 = "" },
                 new InfoData { Section = "", Key = "Some terms may sound familiar to community veterans, but can often be unknown or misunderstood by newcomers.", Value1 = "", Value2 = "", Value3 = "" },
                 new InfoData { Section = "", Key = "", Value1 = "Term", Value2 = "Explanation", Value3 = "More Info" },
@@ -61,10 +55,8 @@ namespace WahJumps.Data
                 new InfoData { Section = "", Key = "", Value1 = "Slides", Value2 = "Client-side furnishing movement caused by /sit and /doze, as well as returning to chamber door and being raised", Value3 = "Can also be triggered by builders upon exiting the furnishing placement menu" },
                 new InfoData { Section = "", Key = "", Value1 = "Ghosting", Value2 = "Client-side furnishing disappearance, LOD setting must be off to cause this to function properly (console works by default)", Value3 = "System Config > Graphics Settings > General > un-check \"use low-detail models on distant objects\" (off by default on PS4/PS5)" },
                 
-                // Empty rows
                 new InfoData { Section = "", Key = "", Value1 = "", Value2 = "", Value3 = "" },
                 
-                // Puzzle Accessibility section
                 new InfoData { Section = "", Key = "Puzzle Accessibility", Value1 = "", Value2 = "", Value3 = "" },
                 new InfoData { Section = "Having a huge list of addresses is no good without if you don't know how to find them!", Key = "", Value1 = "", Value2 = "", Value3 = "" },
                 new InfoData { Section = "", Key = "", Value1 = "District", Value2 = "Main City Aethernet Access Conditions", Value3 = "More Info" },

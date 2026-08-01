@@ -1,900 +1,169 @@
-using Dalamud.Bindings.ImGui;
-using WahJumps.Utilities;
-using WahJumps.Windows.Components;
-using System.Numerics;
 using System;
-using System.Collections.Generic;
-using System.Linq;
+using System.Numerics;
+using Dalamud.Bindings.ImGui;
+using Dalamud.Interface;
+using WahJumps.Utilities;
 
 namespace WahJumps.Windows
 {
     public class StrangeHousingTab
     {
-        private readonly List<StickFigure> figures = new List<StickFigure>();
-        private const int FigureCount = 2;
+        private readonly Func<bool> lifestreamAvailable;
+        private readonly Func<(int Puzzles, int Builders, int Worlds)> statsProvider;
 
-        private readonly List<UiElement> uiElements = new List<UiElement>();
-        private readonly List<Particle> particles = new List<Particle>();
-        private bool initialized = false;
-        private float globalTime = 0f;
-        private Random rand = new Random();
-
-        private const float FigureHeight = 24f;
-
-        private struct UiElement
+        private static readonly (FontAwesomeIcon Icon, string Title, string Description, string Url, Vector4 Color)[] Links =
         {
-            public Vector2 Min;
-            public Vector2 Max;
-            public string Type;
+            (FontAwesomeIcon.Globe, "ffxiv.ju.mp", "The community hub", "https://ffxiv.ju.mp/", UiTheme.Primary),
+            (FontAwesomeIcon.Comments, "Discord Server", "Events, help, and new puzzle drops", "https://discord.gg/6agVYe6xYk", UiTheme.DiscordPrimary),
+            (FontAwesomeIcon.GraduationCap, "Jumping Guide", "Techniques from first hop to expert", "https://docs.google.com/document/d/1CrO9doADJAP1BbYq8uPAyFqzGU1fS4cemXat_YACtJI/edit", UiTheme.Success),
+            (FontAwesomeIcon.Database, "Puzzle Database", "The source spreadsheet", "https://docs.google.com/spreadsheets/d/1DyOqqECaNuAEntBxwv2NQ7p5rTrC1tDN9hHpcI_PNs4/edit?gid=1921920879#gid=1921920879", UiTheme.Warning),
+        };
 
-            public Vector2 TopCenter => new Vector2((Min.X + Max.X) / 2, Min.Y);
-            public float Width => Max.X - Min.X;
-            public float Height => Max.Y - Min.Y;
-        }
-
-        private class StickFigure
+        public StrangeHousingTab(Func<bool> lifestreamAvailable, Func<(int Puzzles, int Builders, int Worlds)> statsProvider)
         {
-            public Vector2 Pos;
-            public Vector2 Vel;
-            public FigureState State = FigureState.Idle;
-            public float StateTimer = 0f;
-            public bool FacingRight = true;
-            public Vector4 Color;
-            public int CurrentPlatformIndex = -1;
-
-            public Vector2[] Trail = new Vector2[8];
-            public int TrailIndex = 0;
-            public float TrailTimer = 0f;
-
-            public float ClimbProgress = 0f;
-            public Vector2 ClimbStart;
-            public Vector2 ClimbEnd;
-
-            public float WallTimer = 0f;
-            public int WallPlatformIndex = -1;
-
-            public float Squash = 1f;
-            public Vector2 JumpTarget;
-
-            public List<int> PlannedRoute = new List<int>();
-            public int RouteIndex = 0;
-            public bool HasRoute => PlannedRoute.Count > 0 && RouteIndex < PlannedRoute.Count;
-        }
-
-        private enum FigureState
-        {
-            Idle, Running, Crouching, Jumping, Falling,
-            WallSlide, Hanging, Climbing
-        }
-
-        private struct Particle
-        {
-            public Vector2 Pos;
-            public Vector2 Vel;
-            public float Life;
-            public float Size;
+            this.lifestreamAvailable = lifestreamAvailable;
+            this.statsProvider = statsProvider;
         }
 
         public void Draw()
         {
-            using var tabItem = new ImRaii.TabItem("Strange Housing");
-            if (!tabItem.Success) return;
+            float avail = ImGui.GetContentRegionAvail().X;
+            float columnWidth = Math.Min(560f, avail);
+            float indent = Math.Max(0f, (avail - columnWidth) * 0.5f);
+            if (indent > 0) ImGui.SetCursorPosX(ImGui.GetCursorPosX() + indent);
 
+            using var column = new ImRaii.Child("CommunityColumn", new Vector2(columnWidth, 0));
             var drawList = ImGui.GetWindowDrawList();
-            var windowPos = ImGui.GetWindowPos();
-            var windowSize = ImGui.GetWindowSize();
-            float windowWidth = windowSize.X;
-            float deltaTime = Math.Min(ImGui.GetIO().DeltaTime, 0.05f);
-            globalTime += deltaTime;
-
-            uiElements.Clear();
-            DrawUIAndCollectElements(windowPos, windowWidth);
-
-            if (!initialized && uiElements.Count > 0)
-            {
-                InitializeFigures();
-                initialized = true;
-            }
-
-            UpdateParticles(deltaTime);
-            UpdateFigures(deltaTime, windowPos, windowSize);
-
-            DrawParticles(drawList);
-            foreach (var fig in figures)
-            {
-                DrawStickFigure(drawList, fig);
-            }
-        }
-
-        private void DrawUIAndCollectElements(Vector2 windowPos, float windowWidth)
-        {
-            ImGui.Spacing();
-            var headerStart = ImGui.GetCursorScreenPos();
-            UiTheme.CenteredText("Strange Housing Community", UiTheme.Primary);
-            var headerEnd = ImGui.GetCursorScreenPos();
-            AddElement(new Vector2(windowPos.X + 20, headerStart.Y),
-                      new Vector2(windowPos.X + windowWidth - 20, headerEnd.Y), "header");
-
-            ImGui.PushTextWrapPos(windowWidth - 40);
-            UiTheme.CenteredText("Discover and explore creative jump puzzles built by the FFXIV community");
-            ImGui.PopTextWrapPos();
-
-            var sepPos = ImGui.GetCursorScreenPos();
-            ImGui.Separator();
-            AddElement(new Vector2(windowPos.X, sepPos.Y),
-                      new Vector2(windowPos.X + windowWidth, sepPos.Y + 4), "separator");
-
-            ImGui.PushStyleColor(ImGuiCol.Text, UiTheme.Accent);
-            ImGui.PushTextWrapPos(windowWidth - 40);
-            UiTheme.CenteredText("Thank you to the Strange Housing staff and community for their amazing work!");
-            ImGui.PopTextWrapPos();
-            ImGui.PopStyleColor();
 
             ImGui.Spacing();
 
-            float buttonWidth = Math.Min(200, (windowWidth - 60) / 2);
-            float leftButtonX = (windowWidth - (buttonWidth * 2 + 20)) / 2;
-            float rightButtonX = leftButtonX + buttonWidth + 20;
+            ImGui.TextColored(UiTheme.TextBright, "Strange Housing");
 
-            AddButton(leftButtonX, buttonWidth, "Visit ffxiv.ju.mp", UiTheme.Primary, "https://ffxiv.ju.mp/");
-            ImGui.SameLine();
-            AddButton(rightButtonX, buttonWidth, "Join Discord Server", UiTheme.DiscordPrimary, "https://discord.gg/6agVYe6xYk");
-
-            AddButton(leftButtonX, buttonWidth, "Jumping Guide", UiTheme.Success, "https://docs.google.com/document/d/1CrO9doADJAP1BbYq8uPAyFqzGU1fS4cemXat_YACtJI/edit");
-            ImGui.SameLine();
-            AddButton(rightButtonX, buttonWidth, "Puzzle Database", UiTheme.Warning, "https://docs.google.com/spreadsheets/d/1DyOqqECaNuAEntBxwv2NQ7p5rTrC1tDN9hHpcI_PNs4/edit?gid=1921920879#gid=1921920879");
-
-            ImGui.Spacing();
-
-            float centerX = (windowWidth - Math.Min(250, windowWidth - 40)) / 2;
-            float lifestreamButtonWidth = Math.Min(250, windowWidth - 40);
-
-            ImGui.PushStyleColor(ImGuiCol.Text, UiTheme.Warning);
-            ImGui.PushTextWrapPos(windowWidth - 40);
-            UiTheme.CenteredText("LifeStream Plugin Required");
-            ImGui.PopTextWrapPos();
-            ImGui.PopStyleColor();
-
-            var textPos = ImGui.GetCursorScreenPos();
-            ImGui.PushTextWrapPos(windowWidth - 40);
-            UiTheme.CenteredText("The LifeStream plugin is required for travel buttons to work properly.");
-            ImGui.PopTextWrapPos();
-            var textEnd = ImGui.GetCursorScreenPos();
-            AddElement(new Vector2(windowPos.X + 40, textPos.Y),
-                      new Vector2(windowPos.X + windowWidth - 40, textEnd.Y), "text");
-
-            ImGui.SetCursorPosX(centerX);
-            AddButton(centerX, lifestreamButtonWidth, "Download LifeStream", UiTheme.Primary, "https://github.com/NightmareXIV/Lifestream");
-
-            ImGui.Spacing();
-            ImGui.Spacing();
-
-            var footerPos = ImGui.GetCursorScreenPos();
-            UiTheme.CenteredText("Made with ♥ by wah", new Vector4(1.0f, 0.3f, 0.3f, 0.8f));
-            var footerEnd = ImGui.GetCursorScreenPos();
-            AddElement(new Vector2(windowPos.X + 60, footerPos.Y),
-                      new Vector2(windowPos.X + windowWidth - 60, footerEnd.Y), "footer");
-        }
-
-        private void AddElement(Vector2 min, Vector2 max, string type)
-        {
-            uiElements.Add(new UiElement { Min = min, Max = max, Type = type });
-        }
-
-        private void AddButton(float xPos, float width, string label, Vector4 color, string url)
-        {
-            ImGui.SetCursorPosX(xPos);
-            var btnStart = ImGui.GetCursorScreenPos();
-            if (UiTheme.ColoredButton(label, color, new Vector2(width, 28)))
-                OpenUrl(url);
-
-            var btnEnd = btnStart + new Vector2(width, 28);
-            uiElements.Add(new UiElement { Min = btnStart, Max = btnEnd, Type = "button" });
-        }
-
-        private void InitializeFigures()
-        {
-            var buttonIndices = new List<int>();
-            for (int i = 0; i < uiElements.Count; i++)
+            string credits = "made with ♥ by wah";
+            if (ImGui.CalcTextSize("Strange Housing").X + ImGui.CalcTextSize(credits).X + 24 < columnWidth)
             {
-                if (uiElements[i].Type == "button")
-                    buttonIndices.Add(i);
-            }
-
-            if (buttonIndices.Count == 0) return;
-
-            Vector4[] colors = {
-                new Vector4(0.3f, 0.75f, 1.0f, 1f),
-                new Vector4(0.4f, 0.95f, 0.5f, 1f)
-            };
-
-            for (int i = 0; i < FigureCount; i++)
-            {
-                int btnIdx = buttonIndices[i % buttonIndices.Count];
-                var btn = uiElements[btnIdx];
-                figures.Add(new StickFigure
-                {
-                    Pos = new Vector2(btn.TopCenter.X, btn.Min.Y),
-                    Color = colors[i % colors.Length],
-                    StateTimer = i * 0.6f + 0.2f,
-                    CurrentPlatformIndex = btnIdx
-                });
-            }
-        }
-
-        private void UpdateFigures(float deltaTime, Vector2 windowPos, Vector2 windowSize)
-        {
-            if (uiElements.Count == 0) return;
-
-            foreach (var fig in figures)
-            {
-                fig.TrailTimer += deltaTime;
-                if (fig.TrailTimer > 0.02f)
-                {
-                    fig.TrailTimer = 0f;
-                    fig.Trail[fig.TrailIndex] = fig.Pos;
-                    fig.TrailIndex = (fig.TrailIndex + 1) % fig.Trail.Length;
-                }
-
-                fig.StateTimer -= deltaTime;
-
-                switch (fig.State)
-                {
-                    case FigureState.Idle:
-                        UpdateIdle(fig, deltaTime);
-                        break;
-                    case FigureState.Running:
-                        UpdateRunning(fig, deltaTime);
-                        break;
-                    case FigureState.Crouching:
-                        UpdateCrouch(fig, deltaTime);
-                        break;
-                    case FigureState.Jumping:
-                    case FigureState.Falling:
-                        UpdateAirborne(fig, deltaTime, windowPos, windowSize);
-                        break;
-                    case FigureState.WallSlide:
-                        UpdateWallSlide(fig, deltaTime);
-                        break;
-                    case FigureState.Hanging:
-                        UpdateHanging(fig, deltaTime);
-                        break;
-                    case FigureState.Climbing:
-                        UpdateClimbing(fig, deltaTime);
-                        break;
-                }
-
-                UpdateSquash(fig, deltaTime);
-            }
-        }
-
-        private void UpdateSquash(StickFigure fig, float deltaTime)
-        {
-            float target = 1f;
-            switch (fig.State)
-            {
-                case FigureState.Crouching:
-                    target = 0.62f;
-                    break;
-                case FigureState.Jumping:
-                case FigureState.Falling:
-                    target = 1f + Math.Clamp(MathF.Abs(fig.Vel.Y) / 700f, 0f, 0.35f);
-                    break;
-                case FigureState.WallSlide:
-                    target = 1.12f;
-                    break;
-            }
-
-            float speed = fig.State == FigureState.Crouching ? 16f : 9f;
-            fig.Squash += (target - fig.Squash) * Math.Min(1f, deltaTime * speed);
-        }
-
-        private void UpdateIdle(StickFigure fig, float deltaTime)
-        {
-            if (fig.StateTimer <= 0)
-            {
-                if (fig.HasRoute)
-                {
-                    FollowRoute(fig);
-                    return;
-                }
-
-                float r = (float)rand.NextDouble();
-
-                if (r < 0.35f)
-                {
-                    if (fig.CurrentPlatformIndex >= 0 && fig.CurrentPlatformIndex < uiElements.Count)
-                    {
-                        var plat = uiElements[fig.CurrentPlatformIndex];
-                        fig.FacingRight = fig.Pos.X < plat.TopCenter.X;
-                        fig.State = FigureState.Running;
-                        fig.StateTimer = 0.3f + (float)rand.NextDouble() * 0.5f;
-                    }
-                    else
-                    {
-                        fig.StateTimer = 0.5f;
-                    }
-                }
-                else if (r < 0.55f)
-                {
-                    fig.FacingRight = rand.NextDouble() > 0.5;
-                    fig.StateTimer = 1.0f + (float)rand.NextDouble() * 1.5f;
-                }
-                else if (r < 0.70f)
-                {
-                    int climbTarget = FindClimbTarget(fig);
-                    if (climbTarget >= 0)
-                    {
-                        StartClimb(fig, climbTarget);
-                    }
-                    else
-                    {
-                        fig.StateTimer = 0.4f + (float)rand.NextDouble() * 0.4f;
-                    }
-                }
-                else
-                {
-                    PlanRoute(fig);
-                    if (!fig.HasRoute)
-                    {
-                        fig.StateTimer = 0.5f + (float)rand.NextDouble() * 0.5f;
-                    }
-                }
-            }
-        }
-
-        private void PlanRoute(StickFigure fig)
-        {
-            fig.PlannedRoute.Clear();
-            fig.RouteIndex = 0;
-
-            var buttons = new List<int>();
-            for (int i = 0; i < uiElements.Count; i++)
-            {
-                if (IsSolidPlatform(uiElements[i]) && i != fig.CurrentPlatformIndex)
-                    buttons.Add(i);
-            }
-
-            if (buttons.Count == 0) return;
-
-            int currentIdx = fig.CurrentPlatformIndex;
-            Vector2 currentPos = fig.Pos;
-            int routeLength = 1 + rand.Next(2);
-
-            for (int step = 0; step < routeLength && buttons.Count > 0; step++)
-            {
-                int bestIdx = -1;
-                float bestScore = float.MinValue;
-
-                foreach (int idx in buttons)
-                {
-                    var plat = uiElements[idx];
-                    float dx = plat.TopCenter.X - currentPos.X;
-                    float dy = plat.Min.Y - currentPos.Y;
-                    float dist = MathF.Sqrt(dx * dx + dy * dy);
-
-                    if (dist > 300) continue;
-
-                    float score = 100f - MathF.Abs(dist - 120f);
-
-                    if (fig.PlannedRoute.Count > 0)
-                    {
-                        var lastPlat = uiElements[fig.PlannedRoute[fig.PlannedRoute.Count - 1]];
-                        float lastDx = lastPlat.TopCenter.X - currentPos.X;
-                        if (Math.Sign(dx) == Math.Sign(lastDx))
-                            score += 30f;
-                    }
-
-                    if (dy > 0) score += 15f;
-                    if (Math.Abs(dy) < 50) score += 20f;
-
-                    if (score > bestScore)
-                    {
-                        bestScore = score;
-                        bestIdx = idx;
-                    }
-                }
-
-                if (bestIdx >= 0)
-                {
-                    fig.PlannedRoute.Add(bestIdx);
-                    buttons.Remove(bestIdx);
-                    currentPos = uiElements[bestIdx].TopCenter;
-                    currentIdx = bestIdx;
-                }
-                else
-                {
-                    break;
-                }
-            }
-        }
-
-        private void FollowRoute(StickFigure fig)
-        {
-            if (!fig.HasRoute) return;
-
-            int targetIdx = fig.PlannedRoute[fig.RouteIndex];
-            var target = uiElements[targetIdx];
-
-            if (fig.CurrentPlatformIndex >= 0 && fig.CurrentPlatformIndex < uiElements.Count)
-            {
-                var currentPlat = uiElements[fig.CurrentPlatformIndex];
-                float targetX = target.TopCenter.X;
-
-                bool targetIsRight = targetX > currentPlat.TopCenter.X;
-                float jumpEdgeX = targetIsRight ? currentPlat.Max.X - 8 : currentPlat.Min.X + 8;
-
-                bool atJumpEdge = Math.Abs(fig.Pos.X - jumpEdgeX) < 12;
-
-                if (!atJumpEdge)
-                {
-                    fig.State = FigureState.Running;
-                    fig.FacingRight = targetIsRight;
-                    fig.StateTimer = 2.0f;
-                }
-                else
-                {
-                    fig.FacingRight = targetX > fig.Pos.X;
-                    float landX = target.Min.X + 15 + (float)rand.NextDouble() * Math.Max(0, target.Width - 30);
-                    JumpTo(fig, new Vector2(landX, target.Min.Y));
-                    fig.RouteIndex++;
-                }
+                ImGui.SameLine(columnWidth - ImGui.CalcTextSize(credits).X - 8);
+                ImGui.TextColored(UiTheme.Accent, credits);
             }
             else
             {
-                fig.PlannedRoute.Clear();
+                ImGui.TextColored(UiTheme.Accent, credits);
+            }
+
+            ImGui.TextColored(UiTheme.TextDim, Ellipsize("Creative jump puzzles built by the FFXIV community", columnWidth - 8));
+
+            Vector2 underline = ImGui.GetCursorScreenPos() + new Vector2(0, 3);
+            drawList.AddRectFilled(underline, underline + new Vector2(46, 3), ImGui.GetColorU32(UiTheme.Primary), 1.5f);
+            ImGui.Dummy(new Vector2(0, 14));
+
+            var (puzzles, builders, worlds) = statsProvider();
+            if (puzzles > 0)
+            {
+                ImGui.TextColored(UiTheme.Gray, Ellipsize($"{puzzles:N0} puzzles  ·  {builders:N0} builders  ·  {worlds:N0} worlds — and counting", columnWidth - 8));
+                ImGui.Dummy(new Vector2(0, 6));
+            }
+
+            DrawLinkTiles(columnWidth);
+
+            if (!lifestreamAvailable())
+            {
+                ImGui.Dummy(new Vector2(0, 6));
+                DrawLifestreamWarning();
+            }
+
+            ImGui.Dummy(new Vector2(0, 10));
+            ImGui.Separator();
+
+            string thanks = "Thanks to the Strange Housing staff & community!";
+            string repo = "GitHub: wahtf/WahJumps";
+            float linkWidth = ImGui.CalcTextSize(repo).X + ImGui.GetStyle().FramePadding.X * 2;
+
+            ImGui.TextColored(UiTheme.Gray, thanks);
+            if (ImGui.CalcTextSize(thanks).X + linkWidth + 24 < columnWidth)
+            {
+                ImGui.SameLine(columnWidth - linkWidth - 4);
+            }
+            if (UiTheme.Hyperlink(repo, "githubLink"))
+            {
+                UiHelpers.OpenUrl("https://github.com/wahtf/WahJumps");
             }
         }
 
-        private void UpdateRunning(StickFigure fig, float deltaTime)
+        private static void DrawLinkTiles(float columnWidth)
         {
-            float runSpeed = 80f;
-            fig.Pos.X += (fig.FacingRight ? 1 : -1) * runSpeed * deltaTime;
+            var drawList = ImGui.GetWindowDrawList();
+            const float spacing = 8f;
+            int columns = columnWidth >= 500f ? 2 : 1;
+            float tileWidth = columns == 2
+                ? (ImGui.GetContentRegionAvail().X - spacing) / 2f
+                : ImGui.GetContentRegionAvail().X;
+            float lineHeight = ImGui.GetTextLineHeight();
+            var tileSize = new Vector2(tileWidth, lineHeight * 2 + 24);
+            float textX = 46f;
+            float maxTextWidth = tileWidth - textX - 10f;
 
-            if (fig.CurrentPlatformIndex >= 0 && fig.CurrentPlatformIndex < uiElements.Count)
+            for (int i = 0; i < Links.Length; i++)
             {
-                var plat = uiElements[fig.CurrentPlatformIndex];
-                float edgeMargin = 8f;
-                bool nearLeftEdge = fig.Pos.X <= plat.Min.X + edgeMargin;
-                bool nearRightEdge = fig.Pos.X >= plat.Max.X - edgeMargin;
+                var (icon, title, description, url, color) = Links[i];
 
-                if (nearLeftEdge && !fig.FacingRight)
+                if (columns == 2 && i % 2 == 1) ImGui.SameLine(0, spacing);
+
+                Vector2 pos = ImGui.GetCursorScreenPos();
+                bool clicked = ImGui.InvisibleButton($"##communityLink{i}", tileSize);
+                bool hovered = ImGui.IsItemHovered();
+
+                drawList.AddRectFilled(pos, pos + tileSize,
+                    ImGui.GetColorU32(hovered ? UiTheme.PanelHover : UiTheme.PanelBg2), 5.0f);
+                drawList.AddRect(pos, pos + tileSize,
+                    ImGui.GetColorU32(hovered ? color : UiTheme.SoftBorder), 5.0f);
+
+                string iconText = icon.ToIconString();
+                using (Plugin.PluginInterface.UiBuilder.IconFontHandle.Push())
                 {
-                    fig.Pos.X = plat.Min.X + edgeMargin;
-                    fig.State = FigureState.Idle;
-                    fig.StateTimer = 0.1f;
-                    return;
+                    Vector2 iconSize = ImGui.CalcTextSize(iconText);
+                    drawList.AddText(
+                        new Vector2(pos.X + 14, pos.Y + (tileSize.Y - iconSize.Y) * 0.5f),
+                        ImGui.GetColorU32(color), iconText);
                 }
-                else if (nearRightEdge && fig.FacingRight)
+
+                drawList.AddText(new Vector2(pos.X + textX, pos.Y + 10),
+                    ImGui.GetColorU32(UiTheme.TextBright), Ellipsize(title, maxTextWidth));
+                drawList.AddText(new Vector2(pos.X + textX, pos.Y + 12 + lineHeight),
+                    ImGui.GetColorU32(UiTheme.Gray), Ellipsize(description, maxTextWidth));
+
+                if (hovered)
                 {
-                    fig.Pos.X = plat.Max.X - edgeMargin;
-                    fig.State = FigureState.Idle;
-                    fig.StateTimer = 0.1f;
-                    return;
+                    ImGui.SetMouseCursor(ImGuiMouseCursor.Hand);
+                    ImGui.SetTooltip(url);
                 }
-            }
 
-            if (fig.StateTimer <= 0)
-            {
-                fig.State = FigureState.Idle;
-                fig.StateTimer = 0.1f;
-            }
-        }
-
-        private void JumpTo(StickFigure fig, Vector2 targetFeet)
-        {
-            fig.State = FigureState.Crouching;
-            fig.JumpTarget = targetFeet;
-            fig.FacingRight = targetFeet.X > fig.Pos.X;
-            fig.StateTimer = 0.13f;
-        }
-
-        private void UpdateCrouch(StickFigure fig, float deltaTime)
-        {
-            if (fig.StateTimer <= 0)
-                LaunchJump(fig, fig.JumpTarget);
-        }
-
-        private void LaunchJump(StickFigure fig, Vector2 targetFeet)
-        {
-            fig.State = FigureState.Jumping;
-            fig.FacingRight = targetFeet.X > fig.Pos.X;
-
-            float dx = targetFeet.X - fig.Pos.X;
-            float dy = targetFeet.Y - fig.Pos.Y;
-
-            const float gravity = 800f;
-            float peakHeight = 60f + Math.Max(0, -dy) * 0.3f;
-            float timeToPeak = MathF.Sqrt(2f * peakHeight / gravity);
-            float vy0 = gravity * timeToPeak;
-
-            float fallDist = peakHeight + dy;
-            float timeToLand = fallDist > 0 ? MathF.Sqrt(2f * fallDist / gravity) : 0;
-
-            float totalTime = timeToPeak + timeToLand;
-            totalTime = Math.Max(0.25f, totalTime);
-
-            float vx = dx / totalTime;
-
-            fig.Vel = new Vector2(vx, -vy0);
-            fig.CurrentPlatformIndex = -1;
-            fig.Squash = 1.42f;
-
-            SpawnDust(fig.Pos, 5);
-        }
-
-        private bool IsSolidPlatform(UiElement el)
-        {
-            return el.Type == "button";
-        }
-
-        private void UpdateAirborne(StickFigure fig, float deltaTime, Vector2 windowPos, Vector2 windowSize)
-        {
-            float gravity = 800f;
-            fig.Vel.Y += gravity * deltaTime;
-            fig.Pos += fig.Vel * deltaTime;
-
-            for (int i = 0; i < uiElements.Count; i++)
-            {
-                var plat = uiElements[i];
-                if (!IsSolidPlatform(plat)) continue;
-
-                if (fig.Vel.Y > 0 &&
-                    fig.Pos.X >= plat.Min.X && fig.Pos.X <= plat.Max.X &&
-                    fig.Pos.Y >= plat.Min.Y - 5 && fig.Pos.Y <= plat.Min.Y + 8)
+                if (clicked)
                 {
-                    fig.Pos.Y = plat.Min.Y;
-                    fig.CurrentPlatformIndex = i;
-                    fig.State = FigureState.Idle;
-                    fig.StateTimer = 0.5f + (float)rand.NextDouble() * 0.8f;
-                    fig.Squash = 0.85f - Math.Clamp(fig.Vel.Y / 2000f, 0f, 0.4f);
-                    fig.Vel = Vector2.Zero;
-                    SpawnDust(fig.Pos, 4);
-                    return;
-                }
-            }
-
-            if (fig.Vel.Y > 0)
-            {
-                for (int i = 0; i < uiElements.Count; i++)
-                {
-                    var plat = uiElements[i];
-                    if (!IsSolidPlatform(plat)) continue;
-
-                    bool nearLeftEdge = Math.Abs(fig.Pos.X - plat.Min.X) < 12 && Math.Abs(fig.Pos.Y - plat.Min.Y) < 15;
-                    bool nearRightEdge = Math.Abs(fig.Pos.X - plat.Max.X) < 12 && Math.Abs(fig.Pos.Y - plat.Min.Y) < 15;
-
-                    if (nearLeftEdge || nearRightEdge)
-                    {
-                        fig.State = FigureState.Hanging;
-                        fig.Pos.X = nearLeftEdge ? plat.Min.X : plat.Max.X;
-                        fig.Pos.Y = plat.Min.Y + 8;
-                        fig.FacingRight = nearLeftEdge;
-                        fig.CurrentPlatformIndex = i;
-                        fig.Vel = Vector2.Zero;
-                        fig.StateTimer = 0.3f + (float)rand.NextDouble() * 0.3f;
-                        SpawnDust(fig.Pos + new Vector2(0, -5), 2);
-                        return;
-                    }
-                }
-            }
-
-            if (fig.Vel.Y > 30)
-            {
-                for (int i = 0; i < uiElements.Count; i++)
-                {
-                    var plat = uiElements[i];
-                    if (!IsSolidPlatform(plat)) continue;
-
-                    bool touchLeft = Math.Abs(fig.Pos.X - plat.Min.X) < 8 && fig.Pos.Y > plat.Min.Y && fig.Pos.Y < plat.Max.Y;
-                    bool touchRight = Math.Abs(fig.Pos.X - plat.Max.X) < 8 && fig.Pos.Y > plat.Min.Y && fig.Pos.Y < plat.Max.Y;
-
-                    if (touchLeft || touchRight)
-                    {
-                        fig.State = FigureState.WallSlide;
-                        fig.Pos.X = touchLeft ? plat.Min.X - 3 : plat.Max.X + 3;
-                        fig.FacingRight = touchLeft;
-                        fig.WallPlatformIndex = i;
-                        fig.WallTimer = 0;
-                        fig.Vel = Vector2.Zero;
-                        SpawnDust(fig.Pos, 2);
-                        return;
-                    }
-                }
-            }
-
-            if (fig.Vel.Y > 80 && fig.State == FigureState.Jumping)
-                fig.State = FigureState.Falling;
-
-            if (fig.Pos.X < windowPos.X + 15)
-            {
-                fig.Pos.X = windowPos.X + 15;
-                fig.Vel.X = Math.Abs(fig.Vel.X) * 0.6f;
-            }
-            if (fig.Pos.X > windowPos.X + windowSize.X - 15)
-            {
-                fig.Pos.X = windowPos.X + windowSize.X - 15;
-                fig.Vel.X = -Math.Abs(fig.Vel.X) * 0.6f;
-            }
-            if (fig.Pos.Y > windowPos.Y + windowSize.Y - 10)
-            {
-                fig.Pos.Y = windowPos.Y + windowSize.Y - 10;
-                fig.State = FigureState.Idle;
-                fig.StateTimer = 0.3f;
-                fig.Squash = 0.85f - Math.Clamp(fig.Vel.Y / 2000f, 0f, 0.4f);
-                fig.Vel = Vector2.Zero;
-                SpawnDust(fig.Pos, 3);
-            }
-        }
-
-        private void UpdateWallSlide(StickFigure fig, float deltaTime)
-        {
-            fig.WallTimer += deltaTime;
-            fig.Pos.Y += 45f * deltaTime;
-
-            if (rand.NextDouble() < deltaTime * 4)
-                SpawnDust(fig.Pos + new Vector2(fig.FacingRight ? -5 : 5, -5), 1);
-
-            if (fig.WallPlatformIndex >= 0)
-            {
-                var wall = uiElements[fig.WallPlatformIndex];
-                if (fig.Pos.Y >= wall.Max.Y)
-                {
-                    fig.State = FigureState.Falling;
-                    fig.Vel = new Vector2(fig.FacingRight ? -30 : 30, 50);
-                    return;
-                }
-            }
-
-            if (fig.WallTimer > 0.2f + (float)rand.NextDouble() * 0.2f)
-            {
-                fig.State = FigureState.Jumping;
-                fig.Vel = new Vector2(fig.FacingRight ? -180f : 180f, -350f);
-                fig.FacingRight = !fig.FacingRight;
-                fig.Squash = 1.35f;
-                SpawnDust(fig.Pos, 4);
-            }
-        }
-
-        private void UpdateHanging(StickFigure fig, float deltaTime)
-        {
-            if (fig.StateTimer <= 0)
-            {
-                if (rand.NextDouble() > 0.25f)
-                {
-                    if (fig.CurrentPlatformIndex >= 0)
-                    {
-                        var plat = uiElements[fig.CurrentPlatformIndex];
-                        fig.Pos.Y = plat.Min.Y;
-                        fig.Pos.X = fig.FacingRight ? plat.Min.X + 10 : plat.Max.X - 10;
-                    }
-                    fig.State = FigureState.Idle;
-                    fig.StateTimer = 0.1f;
-                    SpawnDust(fig.Pos, 2);
-                }
-                else
-                {
-                    fig.State = FigureState.Falling;
-                    fig.Vel = new Vector2((fig.FacingRight ? -1 : 1) * 40, 20);
-                    fig.CurrentPlatformIndex = -1;
+                    UiHelpers.OpenUrl(url);
                 }
             }
         }
 
-        private int FindClimbTarget(StickFigure fig)
+        private static string Ellipsize(string text, float maxWidth)
         {
-            for (int i = 0; i < uiElements.Count; i++)
+            if (ImGui.CalcTextSize(text).X <= maxWidth) return text;
+
+            while (text.Length > 1 && ImGui.CalcTextSize(text + "…").X > maxWidth)
             {
-                if (i == fig.CurrentPlatformIndex) continue;
-                if (!IsSolidPlatform(uiElements[i])) continue;
-
-                var plat = uiElements[i];
-                float dx = Math.Abs(fig.Pos.X - plat.TopCenter.X);
-                float dy = plat.Min.Y - fig.Pos.Y;
-
-                if (dx < 80 && Math.Abs(dy) > 25 && Math.Abs(dy) < 80)
-                {
-                    return i;
-                }
+                text = text.Substring(0, text.Length - 1);
             }
-            return -1;
+
+            return text + "…";
         }
 
-        private void StartClimb(StickFigure fig, int targetIndex)
+        private static void DrawLifestreamWarning()
         {
-            var target = uiElements[targetIndex];
-
-            fig.State = FigureState.Climbing;
-            fig.ClimbProgress = 0f;
-            fig.ClimbStart = fig.Pos;
-
-            float endX = target.TopCenter.X;
-            endX = Math.Max(target.Min.X + 10, Math.Min(target.Max.X - 10, endX));
-            fig.ClimbEnd = new Vector2(endX, target.Min.Y);
-            fig.FacingRight = endX > fig.Pos.X;
-            fig.CurrentPlatformIndex = targetIndex;
-
-            SpawnDust(fig.Pos, 2);
-        }
-
-        private void UpdateClimbing(StickFigure fig, float deltaTime)
-        {
-            fig.ClimbProgress += deltaTime * 1.8f;
-
-            float t = fig.ClimbProgress;
-            t = t * t * (3f - 2f * t);
-            fig.Pos = Vector2.Lerp(fig.ClimbStart, fig.ClimbEnd, t);
-
-            if (fig.ClimbProgress >= 1f)
+            ImGui.TextColored(UiTheme.Warning, "LifeStream not detected — travel buttons are disabled.");
+            ImGui.SameLine();
+            if (UiTheme.ColoredButton("Download LifeStream", UiTheme.Primary, tooltip: "https://github.com/NightmareXIV/Lifestream"))
             {
-                fig.Pos = fig.ClimbEnd;
-                fig.State = FigureState.Idle;
-                fig.StateTimer = 0.3f + (float)rand.NextDouble() * 0.4f;
-                SpawnDust(fig.Pos, 3);
+                UiHelpers.OpenUrl("https://github.com/NightmareXIV/Lifestream");
             }
-        }
-
-        private void SpawnDust(Vector2 pos, int count)
-        {
-            for (int i = 0; i < count; i++)
-            {
-                particles.Add(new Particle
-                {
-                    Pos = pos + new Vector2((float)(rand.NextDouble() - 0.5) * 8, 0),
-                    Vel = new Vector2((float)(rand.NextDouble() - 0.5) * 35, -(float)(rand.NextDouble() * 25 + 10)),
-                    Life = 0.2f + (float)rand.NextDouble() * 0.12f,
-                    Size = 2f + (float)rand.NextDouble() * 1.5f
-                });
-            }
-        }
-
-        private void UpdateParticles(float deltaTime)
-        {
-            for (int i = particles.Count - 1; i >= 0; i--)
-            {
-                var p = particles[i];
-                p.Life -= deltaTime;
-                if (p.Life <= 0)
-                {
-                    particles.RemoveAt(i);
-                    continue;
-                }
-                p.Pos += p.Vel * deltaTime;
-                p.Vel.Y += 70f * deltaTime;
-                particles[i] = p;
-            }
-        }
-
-        private void DrawParticles(ImDrawListPtr drawList)
-        {
-            foreach (var p in particles)
-            {
-                float a = (p.Life / 0.32f) * 0.5f;
-                var c = ImGui.GetColorU32(new Vector4(0.7f, 0.7f, 0.7f, a));
-                drawList.AddCircleFilled(p.Pos, p.Size * p.Life * 2.5f, c);
-            }
-        }
-
-        private void DrawStickFigure(ImDrawListPtr drawList, StickFigure fig)
-        {
-            float speed = fig.Vel.Length();
-
-            if (speed > 100)
-            {
-                for (int i = 0; i < fig.Trail.Length; i++)
-                {
-                    int idx = (fig.TrailIndex - i - 1 + fig.Trail.Length) % fig.Trail.Length;
-                    if (fig.Trail[idx] == Vector2.Zero) continue;
-                    float a = (1f - (float)i / fig.Trail.Length) * 0.15f;
-                    var tc = ImGui.GetColorU32(new Vector4(fig.Color.X, fig.Color.Y, fig.Color.Z, a));
-                    drawList.AddCircleFilled(fig.Trail[idx] + new Vector2(0, -12), 3f * (1f - (float)i / fig.Trail.Length), tc);
-                }
-            }
-
-            var color = ImGui.GetColorU32(fig.Color);
-            Vector2 feet = fig.Pos;
-            float t = globalTime;
-
-            float headBob = 0f;
-            float armL = 0.3f, armR = -0.3f;
-            float legL = 0.15f, legR = -0.15f;
-
-            switch (fig.State)
-            {
-                case FigureState.Idle:
-                    headBob = MathF.Sin(t * 2f) * 0.5f;
-                    break;
-
-                case FigureState.Running:
-                    float run = t * 12f;
-                    headBob = MathF.Abs(MathF.Sin(run)) * 1.5f;
-                    legL = MathF.Sin(run) * 0.6f;
-                    legR = MathF.Sin(run + MathF.PI) * 0.6f;
-                    armL = MathF.Sin(run + MathF.PI) * 0.5f;
-                    armR = MathF.Sin(run) * 0.5f;
-                    break;
-
-                case FigureState.Crouching:
-                    armL = -1.0f; armR = -1.0f;
-                    legL = 0.55f; legR = -0.55f;
-                    break;
-
-                case FigureState.Jumping:
-                    if (fig.Vel.Y < -60f)
-                    {
-                        armL = -0.85f; armR = -0.85f;
-                        legL = -0.2f; legR = -0.2f;
-                    }
-                    else
-                    {
-                        armL = -0.3f; armR = -0.3f;
-                        legL = -0.5f; legR = 0.5f;
-                    }
-                    break;
-
-                case FigureState.Falling:
-                    float flail = MathF.Sin(t * 10f) * 0.3f;
-                    armL = 0.8f + flail;
-                    armR = 0.8f - flail;
-                    legL = 0.2f + flail * 0.5f;
-                    legR = 0.2f - flail * 0.5f;
-                    break;
-
-                case FigureState.WallSlide:
-                    if (fig.FacingRight)
-                    { armL = 0.2f; armR = -1.2f; }
-                    else
-                    { armL = -1.2f; armR = 0.2f; }
-                    legL = 0.15f; legR = 0.15f;
-                    break;
-
-                case FigureState.Hanging:
-                    float swing = MathF.Sin(t * 2f) * 0.1f;
-                    armL = -2.3f; armR = -2.3f;
-                    legL = swing + 0.1f;
-                    legR = -swing + 0.1f;
-                    break;
-
-                case FigureState.Climbing:
-                    float climb = t * 8f;
-                    armL = -1.2f + MathF.Sin(climb) * 0.4f;
-                    armR = -1.0f + MathF.Sin(climb + MathF.PI) * 0.4f;
-                    legL = MathF.Sin(climb + MathF.PI) * 0.4f;
-                    legR = MathF.Sin(climb) * 0.4f;
-                    break;
-            }
-
-            float dir = fig.FacingRight ? 1f : -1f;
-            float sy = fig.Squash;
-            float sx = 1f / MathF.Sqrt(MathF.Max(0.2f, sy));
-
-            Vector2 hip = feet + new Vector2(0, -8 * sy);
-            Vector2 shoulder = feet + new Vector2(0, -16 * sy);
-            Vector2 head = feet + new Vector2(0, (-21 - headBob) * sy);
-
-            drawList.AddLine(hip, shoulder, color, 2f);
-            drawList.AddCircleFilled(head, 4.5f * sx, color);
-
-            float armLen = 6.5f;
-            Vector2 armEndL = shoulder + new Vector2(MathF.Sin(armL) * armLen * dir * sx, MathF.Cos(armL) * armLen * sy);
-            Vector2 armEndR = shoulder + new Vector2(MathF.Sin(armR) * armLen * dir * sx, MathF.Cos(armR) * armLen * sy);
-            drawList.AddLine(shoulder, armEndL, color, 1.5f);
-            drawList.AddLine(shoulder, armEndR, color, 1.5f);
-
-            float legLen = 7f;
-            Vector2 legEndL = hip + new Vector2(MathF.Sin(legL) * legLen * dir * sx - 2 * sx, MathF.Cos(legL) * legLen * sy);
-            Vector2 legEndR = hip + new Vector2(MathF.Sin(legR) * legLen * dir * sx + 2 * sx, MathF.Cos(legR) * legLen * sy);
-            drawList.AddLine(hip, legEndL, color, 1.5f);
-            drawList.AddLine(hip, legEndR, color, 1.5f);
-        }
-
-        private void OpenUrl(string url)
-        {
-            try
-            {
-                System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(url) { UseShellExecute = true });
-            }
-            catch { }
         }
     }
 }

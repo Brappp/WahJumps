@@ -6,8 +6,6 @@ using Dalamud.Game.Command;
 using Dalamud.Interface.Windowing;
 using WahJumps.Handlers;
 using WahJumps.Windows;
-using WahJumps.Data;
-using WahJumps.Utilities;
 using System;
 using WahJumps.Logging;
 
@@ -25,8 +23,6 @@ namespace WahJumps
 
         public CsvManager CsvManager { get; private set; }
         public LifestreamIpcHandler LifestreamIpcHandler { get; private set; }
-        public SpeedrunManager SpeedrunManager { get; private set; }
-        public TimerWindow TimerWindow { get; private set; }
         public MainWindow MainWindow { get; private set; }
 
         public readonly WindowSystem WindowSystem = new("WahJumps");
@@ -39,15 +35,12 @@ namespace WahJumps
 
             LifestreamIpcHandler = new LifestreamIpcHandler(PluginInterface);
             CsvManager = new CsvManager(ChatGui, ConfigDirectory);
-            SpeedrunManager = new SpeedrunManager();
 
-            MainWindow = new MainWindow(CsvManager, LifestreamIpcHandler, this);
-            TimerWindow = new TimerWindow(SpeedrunManager, this);
+            MainWindow = new MainWindow(CsvManager, LifestreamIpcHandler);
 
             WindowSystem.AddWindow(MainWindow);
-            WindowSystem.AddWindow(TimerWindow);
 
-            commandHandler = new CommandHandler(ChatGui, SpeedrunManager, TimerWindow, MainWindow);
+            commandHandler = new CommandHandler(ChatGui, MainWindow);
 
             CommandManager.AddHandler(CommandName, new CommandInfo(OnCommand)
             {
@@ -58,21 +51,8 @@ namespace WahJumps
             PluginInterface.UiBuilder.OpenMainUi += ToggleVisibility;
             PluginInterface.UiBuilder.OpenConfigUi += ToggleConfigUI;
 
-            SpeedrunManager.StateChanged += OnStateChanged;
-
             PluginLog.Information("WahJumps plugin initialized");
             CustomLogger.Log("Plugin initialized successfully");
-        }
-
-        private void OnStateChanged(SpeedrunManager.SpeedrunState state)
-        {
-            if (state == SpeedrunManager.SpeedrunState.Finished)
-            {
-                var time = SpeedrunManager.GetCurrentTime();
-                string timeText = $"{(int)time.TotalMinutes:D2}:{time.Seconds:D2}.{time.Milliseconds / 10:D2}";
-                var puzzleName = SpeedrunManager.GetCurrentPuzzle()?.PuzzleName ?? "current puzzle";
-                ChatGui.Print($"[WahJumps] Run for {puzzleName} completed! Time: {timeText}");
-            }
         }
 
         private string CreateConfigDirectory()
@@ -103,10 +83,8 @@ namespace WahJumps
             PluginInterface.UiBuilder.OpenMainUi -= ToggleVisibility;
             PluginInterface.UiBuilder.OpenConfigUi -= ToggleConfigUI;
 
-            SpeedrunManager.StateChanged -= OnStateChanged;
             WindowSystem.RemoveAllWindows();
             MainWindow.Dispose();
-            TimerWindow.Dispose();
             CsvManager.Dispose();
             CommandManager.RemoveHandler(CommandName);
         }
@@ -118,21 +96,9 @@ namespace WahJumps
 
         private void DrawUI()
         {
-            SpeedrunManager.Update();
             WindowSystem.Draw();
         }
 
         public void ToggleVisibility() => MainWindow.ToggleVisibility();
-
-        public void ToggleSpeedrunOverlay() => TimerWindow.Toggle();
-
-        public void SelectPuzzleForSpeedrun(JumpPuzzleData puzzle)
-        {
-            if (puzzle != null)
-            {
-                SpeedrunManager.SetPuzzle(puzzle);
-                TimerWindow.ShowTimer();
-            }
-        }
     }
 }

@@ -1,4 +1,5 @@
 using System;
+using System.Linq;
 using Dalamud.Plugin;
 using Dalamud.Plugin.Ipc;
 
@@ -6,14 +7,33 @@ namespace WahJumps.Handlers
 {
     public class LifestreamIpcHandler
     {
+        private readonly IDalamudPluginInterface pluginInterface;
         private readonly ICallGateSubscriber<string, object> executeCommandSubscriber;
+
+        private DateTime lastProbe = DateTime.MinValue;
+        private bool lastAvailable;
 
         public LifestreamIpcHandler(IDalamudPluginInterface pluginInterface)
         {
+            this.pluginInterface = pluginInterface;
             executeCommandSubscriber = pluginInterface.GetIpcSubscriber<string, object>("Lifestream.ExecuteCommand");
         }
 
-        // False if Lifestream isn't available, so callers can react instead of throwing.
+        public bool IsAvailable
+        {
+            get
+            {
+                if ((DateTime.UtcNow - lastProbe).TotalSeconds > 5)
+                {
+                    lastProbe = DateTime.UtcNow;
+                    lastAvailable = pluginInterface.InstalledPlugins
+                        .Any(p => p.InternalName == "Lifestream" && p.IsLoaded);
+                }
+
+                return lastAvailable;
+            }
+        }
+
         public bool ExecuteLiCommand(string arguments)
         {
             try
