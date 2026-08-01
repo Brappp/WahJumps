@@ -7,11 +7,11 @@ namespace WahJumps.Logging
     {
         private static readonly string logFilePath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "XIVLauncher", "pluginConfigs", "WahJumps", "plugin.log");
 
-        public static bool IsLoggingEnabled { get; set; } = false; // Default to false
+        public static bool IsLoggingEnabled { get; set; } = false;
 
         public static void Log(string message)
         {
-            if (!IsLoggingEnabled) return; // Skip logging if disabled
+            if (!IsLoggingEnabled) return;
 
             try
             {
